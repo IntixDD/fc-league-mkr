@@ -6,7 +6,7 @@
   "id": "/fc-league-mkr/hub/",
   "start_url": "/fc-league-mkr/hub/index.html",
   "scope": "/fc-league-mkr/hub/",
-  "display": "standalone",
+  "display": "fullscreen",
   "orientation": "any",
   "background_color": "#000000",
   "theme_color": "#000000",
