@@ -20,9 +20,9 @@
     window.navigator.standalone === true
   document.documentElement.classList.toggle('is-standalone', standalone)
 
-  // Avoid requestFullscreen() on taps: mobile browsers can briefly blank the
-  // viewport when fullscreen changes while an input is being focused.
-  // The PWA manifest already defines the app's fullscreen/standalone display mode.
+  // Fullscreen is provided by the installed PWA's manifest display mode.
+  // Never toggle the Fullscreen API on pointer events: focusing/editing inputs can
+  // cause mobile browsers to leave and re-enter fullscreen, producing a black frame.
 
   function read() {
     try {
