@@ -2,6 +2,12 @@
   const H = window.Hub
   const P = window.HubPrefs
   const BG_KEY = 'ui:background'
+  const BGS_KEY = 'ui:backgrounds'
+  const ACTIVE_BG_KEY = 'ui:background-active'
+  let savedBackgrounds = []
+  let activeBgId = null
+  const bgThumbUrls = new Map()
+  function thumbUrl(bg) { if (!bgThumbUrls.has(bg.id)) bgThumbUrls.set(bg.id, URL.createObjectURL(bg.blob)); return bgThumbUrls.get(bg.id) }
   const MAX_RAW_BYTES = 6 * 1024 * 1024
   const MAX_SIDE = 2560
   let bgUrl = null
@@ -22,8 +28,12 @@
     })
   }
   const getBg = () => idb('readonly', (s) => s.get(BG_KEY))
-  const putBg = (blob) => idb('readwrite', (s) => s.put(blob, BG_KEY))
-  const delBg = () => idb('readwrite', (s) => s.delete(BG_KEY))
+  const getSavedBgs = () => idb('readonly', (s) => s.get(BGS_KEY))
+  const putSavedBgs = (items) => idb('readwrite', (s) => s.put(items, BGS_KEY))
+  const getActiveBg = () => idb('readonly', (s) => s.get(ACTIVE_BG_KEY))
+  const putActiveBg = (id) => idb('readwrite', (s) => s.put(id, ACTIVE_BG_KEY))
+  const delBg = () => idb('readwrite', (s) => { s.delete(BG_KEY); s.delete(ACTIVE_BG_KEY) })
+  const makeBgId = () => `bg-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
 
   function showBg(blob) {
     const layer = document.querySelector('.bg-custom')
@@ -47,22 +57,34 @@
     if (!file || !file.type.startsWith('image/')) return H.toast('Elige un archivo de imagen', 'error')
     try {
       const blob = await shrink(file)
-      await putBg(blob)
-      showBg(blob)
-      P.set({ hasBg: true })
-      render()
-      H.toast('Fondo actualizado')
-    } catch {
-      H.toast('No se pudo guardar la imagen', 'error')
-    }
+      const item = { id: makeBgId(), name: (file.name || 'Fondo').replace(/\.[^.]+$/, '').slice(0, 42) || 'Fondo', blob, createdAt: Date.now() }
+      savedBackgrounds.push(item); activeBgId = item.id
+      await putSavedBgs(savedBackgrounds); await putActiveBg(activeBgId)
+      showBg(blob); P.set({ hasBg: true }); render()
+      H.toast('Fondo guardado y aplicado')
+    } catch { H.toast('No se pudo guardar la imagen', 'error') }
   }
-
+  async function useBackground(id) {
+    const item = savedBackgrounds.find((bg) => bg.id === id); if (!item) return
+    activeBgId = id; await putActiveBg(id).catch(() => {})
+    showBg(item.blob); P.set({ hasBg: true }); render(); H.toast('Fondo aplicado')
+  }
+  async function deleteBackground(id) {
+    const item = savedBackgrounds.find((bg) => bg.id === id); if (!item) return
+    if (!(await H.confirm(`¿Eliminar el fondo "${item.name}" guardado?`, { confirmText: 'Eliminar' }))) return
+    savedBackgrounds = savedBackgrounds.filter((bg) => bg.id !== id)
+    const url = bgThumbUrls.get(id); if (url) URL.revokeObjectURL(url); bgThumbUrls.delete(id)
+    await putSavedBgs(savedBackgrounds)
+    if (activeBgId === id) {
+      activeBgId = savedBackgrounds[0]?.id || null
+      if (activeBgId) { await putActiveBg(activeBgId); showBg(savedBackgrounds[0].blob); P.set({ hasBg: true }) }
+      else { await delBg(); showBg(null); P.set({ hasBg: false }) }
+    }
+    render(); H.toast('Fondo eliminado')
+  }
   async function resetBackground() {
-    await delBg().catch(() => {})
-    showBg(null)
-    P.set({ hasBg: false })
-    render()
-    H.toast('Fondo predeterminado restaurado')
+    activeBgId = null; await delBg().catch(() => {}); showBg(null); P.set({ hasBg: false }); render()
+    H.toast('Fondo predeterminado restaurado; tus fondos guardados siguen disponibles')
   }
 
   /* ---------- Install (PWA) ---------- */
@@ -160,33 +182,31 @@
         </article>
 
         <article class="card">
-          <header class="card-head"><div><h2 class="card-title">Fondo</h2><p class="card-sub">${p.hasBg ? 'Imagen personalizada' : 'Fondo predeterminado'}</p></div></header>
-          <div class="bg-preview${p.hasBg ? ' is-custom' : ''}" aria-hidden="true" style="${p.hasBg && bgUrl ? `background-image:url('${bgUrl}')` : ''}; --dim: ${p.bgDim}">
-            <span class="bg-preview-grid${p.bgGrid ? '' : ' is-off'}"></span>
-          </div>
+          <header class="card-head"><div><h2 class="card-title">Fondos guardados</h2><p class="card-sub">${p.hasBg ? 'Fondo personalizado activo' : 'Fondo predeterminado'} · ${savedBackgrounds.length} guardado(s)</p></div></header>
+          <div class="bg-preview${p.hasBg ? ' is-custom' : ''}" aria-hidden="true" style="${p.hasBg && bgUrl ? `background-image:url('${bgUrl}')` : ''}; --dim: ${p.bgDim}"><span class="bg-preview-grid${p.bgGrid ? '' : ' is-off'}"></span></div>
           <div class="row-actions">
-            <label class="btn btn--primary file-btn">
-              Elegir imagen
-              <input class="sr-only" type="file" accept="image/*" name="bg-file">
-            </label>
+            <label class="btn btn--primary file-btn">Guardar fondo nuevo<input class="sr-only" type="file" accept="image/*" name="bg-file"></label>
             <button class="btn btn--ghost" data-action="bg-reset" ${p.hasBg ? '' : 'disabled'}>Usar predeterminado</button>
           </div>
-          ${
-            p.hasBg
-              ? `<label class="field range-field">
-                  <span class="field-label">Oscurecer imagen <output>${Math.round(p.bgDim * 100)}%</output></span>
-                  <input type="range" name="bg-dim" min="0" max="0.85" step="0.05" value="${p.bgDim}">
-                </label>`
-              : ''
-          }
-          <label class="check">
-            <input type="checkbox" name="bg-grid" ${p.bgGrid ? 'checked' : ''}>
-            Mostrar la cuadrícula sobre el fondo
-          </label>
-          <p class="hint">La imagen se guarda solo en este dispositivo.</p>
+          ${savedBackgrounds.length ? `<div class="bg-saved-list">${savedBackgrounds.map((bg) => {
+            const thumb = thumbUrl(bg), isActive = bg.id === activeBgId && p.hasBg
+            return `<article class="bg-saved-item${isActive ? ' is-active' : ''}">
+              <span class="bg-saved-thumb" style="background-image:url('${thumb}')"></span>
+              <div class="bg-saved-meta"><span title="${H.esc(bg.name)}">${H.esc(bg.name)}</span>${isActive ? '<span aria-label="Activo">✓</span>' : ''}</div>
+              <div class="bg-saved-actions"><button class="btn btn--ghost" data-action="bg-use" data-bg-id="${bg.id}" ${isActive ? 'disabled' : ''}>Aplicar</button><button class="btn btn--ghost" data-action="bg-delete" data-bg-id="${bg.id}" aria-label="Eliminar ${H.esc(bg.name)}">×</button></div>
+            </article>`
+          }).join('')}</div>` : '<p class="hint">Los fondos que guardes aparecerán aquí para volver a aplicarlos cuando quieras.</p>'}
+          ${p.hasBg ? `<label class="field range-field"><span class="field-label">Oscurecer imagen <output>${Math.round(p.bgDim * 100)}%</output></span><input type="range" name="bg-dim" min="0" max="0.85" step="0.05" value="${p.bgDim}"></label>` : ''}
+          <label class="check"><input type="checkbox" name="bg-grid" ${p.bgGrid ? 'checked' : ''}>Mostrar la cuadrícula sobre el fondo</label>
+          <p class="hint">Los fondos se guardan en este dispositivo y puedes alternar entre ellos o eliminarlos.</p>
         </article>
 
         ${installCard()}
+
+        <article class="card">
+          <header class="card-head"><div><h2 class="card-title">Créditos</h2><p class="card-sub">Desarrollado para tu liga</p></div></header>
+          <div class="credit-settings"><span class="credit-mark" aria-hidden="true">ID</span><div><strong>League Hub</strong><small>By IntixD · Diseño y desarrollo</small></div></div>
+        </article>
 
         <article class="card">
           <header class="card-head"><div><h2 class="card-title">Restablecer</h2><p class="card-sub">Vuelve a la apariencia original</p></div></header>
@@ -204,12 +224,25 @@
       if (!btn) return
       const { action } = btn.dataset
       if (action === 'scale') {
-        P.set({ scale: Number(btn.dataset.scale) })
+        const scale = Number(btn.dataset.scale)
+        P.set({ scale })
+        if (scale === -1) {
+          try {
+            if (screen.orientation?.lock) await screen.orientation.lock('landscape')
+            else H.toast('Este navegador no permite girar la pantalla automáticamente; gira el dispositivo.', 'error')
+          } catch {
+            H.toast('El navegador no permite bloquear la orientación aquí. Prueba la app instalada en pantalla completa.', 'error')
+          }
+        } else {
+          try { screen.orientation?.unlock?.() } catch {}
+        }
         render()
       } else if (action === 'theme') {
         P.set({ theme: btn.dataset.theme })
         render()
       } else if (action === 'bg-reset') resetBackground()
+      else if (action === 'bg-use') useBackground(btn.dataset.bgId)
+      else if (action === 'bg-delete') deleteBackground(btn.dataset.bgId)
       else if (action === 'install') install()
       else if (action === 'reset-all') {
         if (!(await H.confirm('Se restablecerán la escala, el tema y el fondo.', { confirmText: 'Restablecer' }))) return
@@ -242,13 +275,25 @@
 
   async function init() {
     bind()
-    render()
-    if (P.get().hasBg) {
-      const blob = await getBg().catch(() => null)
-      if (blob) showBg(blob)
-      else P.set({ hasBg: false })
-      render()
+    savedBackgrounds = await getSavedBgs().catch(() => []) || []
+    activeBgId = await getActiveBg().catch(() => null)
+    if (!savedBackgrounds.length) {
+      const oldBlob = await getBg().catch(() => null)
+      if (oldBlob) {
+        const item = { id: makeBgId(), name: 'Fondo guardado', blob: oldBlob, createdAt: Date.now() }
+        savedBackgrounds = [item]; activeBgId = item.id
+        await putSavedBgs(savedBackgrounds).catch(() => {}); await putActiveBg(activeBgId).catch(() => {})
+      }
     }
+    if (!savedBackgrounds.some((bg) => bg.id === activeBgId)) activeBgId = savedBackgrounds[0]?.id || null
+    if (P.get().hasBg && activeBgId) {
+      const item = savedBackgrounds.find((bg) => bg.id === activeBgId)
+      if (item) showBg(item.blob); else P.set({ hasBg: false })
+    } else if (P.get().hasBg) {
+      const oldBlob = await getBg().catch(() => null)
+      if (oldBlob) showBg(oldBlob); else P.set({ hasBg: false })
+    }
+    render()
   }
 
   init()
