@@ -83,16 +83,27 @@
     render(); H.toast('Fondo eliminado')
   }
   async function resetBackground() {
-    // Clear the active selection and legacy value, but preserve the saved library.
+    // Reset the visual layer and persisted flags, without deleting the saved library.
     activeBgId = null
-    await putActiveBg(null).catch(() => {})
-    await delBg().catch(() => {})
+    try {
+      await delBg()
+    } catch {}
+    try {
+      await putActiveBg(null)
+    } catch {}
     showBg(null)
     const layer = document.querySelector('.bg-custom')
-    if (layer) layer.style.backgroundImage = 'none'
+    if (layer) {
+      layer.style.removeProperty('background-image')
+      layer.style.display = 'none'
+    }
+    document.documentElement.classList.remove('has-custom-bg')
     P.set({ hasBg: false })
+    // P.set updates the class from preferences; restore the default visual layer explicitly.
+    document.documentElement.classList.remove('has-custom-bg')
+    if (layer) layer.style.display = ''
     render()
-    H.toast('Fondo predeterminado restaurado; tus fondos guardados siguen disponibles')
+    H.toast('Fondo predeterminado restaurado')
   }
 
   /* ---------- Install (PWA) ---------- */
@@ -255,8 +266,11 @@
       else if (action === 'reset-all') {
         if (!(await H.confirm('Se restablecerán la escala, el tema y el fondo.', { confirmText: 'Restablecer' }))) return
         await delBg().catch(() => {})
+        await putActiveBg(null).catch(() => {})
+        activeBgId = null
         showBg(null)
         P.set({ ...P.DEFAULTS })
+        document.documentElement.classList.remove('has-custom-bg')
         render()
         H.toast('Ajustes restablecidos')
       }
