@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="Teams, table, fixtures, playoffs, seasons, history and performance for your league." />
+    <title>Teams · League Hub</title>
+    <link rel="preload" href="krona-one.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="icon" href="logo.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="styles.css?v=5" />
+    <link rel="stylesheet" href="components.css?v=5" />
+  </head>
+  <body>
+    <div class="background" aria-hidden="true">
+      <div class="glow"></div>
+      <div class="grid"></div>
+    </div>
+
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <button class="logo" type="button" aria-label="Cambiar logo de la liga" title="Cambiar logo de la liga"></button>
+          <span class="divider" aria-hidden="true"></span>
+        </div>
+
+        <nav class="nav" aria-label="Principal">
+          <ul class="nav-list">
+            <li class="nav-indicator" aria-hidden="true"></li>
+            <li>
+              <a class="nav-button" href="#teams" data-section="teams" aria-label="Teams">
+                <span class="nav-icon" style="--icon: url('icon-teams.svg?v=3')"></span>
+                <span class="tooltip" aria-hidden="true">Teams</span>
+              </a>
+            </li>
+            <li>
+              <a class="nav-button" href="#table" data-section="table" aria-label="Table">
+                <span class="nav-icon" style="--icon: url('icon-table.svg?v=3')"></span>
+                <span class="tooltip" aria-hidden="true">Table</span>
+              </a>
+            </li>
+            <li>
+              <a class="nav-button" href="#fixtures" data-section="fixtures" aria-label="Fixtures">
+                <span class="nav-icon" style="--icon: url('icon-fixtures.svg?v=3')"></span>
+                <span class="tooltip" aria-hidden="true">Fixtures</span>
+              </a>
+            </li>
+            <li>
+              <a class="nav-button" href="#playoffs" data-section="playoffs" aria-label="Playoffs">
+                <span class="nav-icon" style="--icon: url('icon-playoffs.svg?v=3')"></span>
+                <span class="tooltip" aria-hidden="true">Playoffs</span>
+              </a>
+            </li>
+            <li>
+              <a class="nav-button" href="#seasons" data-section="seasons" aria-label="Seasons">
+                <span class="nav-icon" style="--icon: url('icon-seasons.svg?v=3')"></span>
+                <span class="tooltip" aria-hidden="true">Seasons</span>
+              </a>
+            </li>
+            <li>
+              <a class="nav-button" href="#history" data-section="history" aria-label="History">
+                <span class="nav-icon nav-icon--history" style="--icon: url('icon-history.svg?v=3')"></span>
+                <span class="tooltip" aria-hidden="true">History</span>
+              </a>
+            </li>
+            <li>
+              <a class="nav-button" href="#performance" data-section="performance" aria-label="Performance">
+                <span class="nav-icon nav-icon--wide" style="--icon: url('icon-performance.svg?v=3')"></span>
+                <span class="tooltip" aria-hidden="true">Performance</span>
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <section id="teams" class="section" aria-labelledby="teams-title">
+          <h1 id="teams-title" class="section-title">Teams</h1>
+          <div id="teams-body" class="section-body"></div>
+        </section>
+        <section id="table" class="section" aria-labelledby="table-title" hidden>
+          <h1 id="table-title" class="section-title">Table</h1>
+          <div id="table-body" class="section-body"></div>
+        </section>
+        <section id="fixtures" class="section" aria-labelledby="fixtures-title" hidden>
+          <h1 id="fixtures-title" class="section-title">Fixtures</h1>
+          <div id="fixtures-body" class="section-body"></div>
+        </section>
+        <section id="playoffs" class="section" aria-labelledby="playoffs-title" hidden>
+          <h1 id="playoffs-title" class="section-title">Playoffs</h1>
+          <div id="playoffs-body" class="section-body"></div>
+        </section>
+        <section id="seasons" class="section" aria-labelledby="seasons-title" hidden>
+          <h1 id="seasons-title" class="section-title">Seasons</h1>
+          <div id="seasons-body" class="section-body"></div>
+        </section>
+        <section id="history" class="section" aria-labelledby="history-title" hidden>
+          <h1 id="history-title" class="section-title">History</h1>
+          <div id="history-body" class="section-body"></div>
+        </section>
+        <section id="performance" class="section" aria-labelledby="performance-title" hidden>
+          <h1 id="performance-title" class="section-title">Performance</h1>
+          <div id="performance-body" class="section-body"></div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toasts" class="toasts" aria-live="polite"></div>
+
+    <dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-title">
+      <form method="dialog">
+        <h2 id="confirm-title" class="dialog-title">¿Estás seguro?</h2>
+        <p class="dialog-msg" data-msg></p>
+        <div class="dialog-actions">
+          <button class="btn btn--ghost" value="cancel">Cancelar</button>
+          <button class="btn btn--danger" value="ok" data-ok>Confirmar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="logo-dialog" class="dialog dialog--wide" aria-labelledby="logo-dialog-title">
+      <form method="dialog">
+        <h2 id="logo-dialog-title" class="dialog-title" data-title>Elegir escudo</h2>
+        <div class="logo-grid logo-grid--dialog" data-grid></div>
+        <div class="dialog-actions">
+          <button class="btn btn--ghost" value="cancel">Cancelar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="core.js?v=5" defer></script>
+    <script src="views/teams.js?v=5" defer></script>
+    <script src="views/table.js?v=5" defer></script>
+    <script src="views/fixtures.js?v=5" defer></script>
+    <script src="views/playoffs.js?v=5" defer></script>
+    <script src="views/seasons.js?v=5" defer></script>
+    <script src="views/history.js?v=5" defer></script>
+    <script src="views/performance.js?v=5" defer></script>
+    <script src="app.js?v=5" defer></script>
+  </body>
+</html>
