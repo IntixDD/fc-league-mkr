@@ -1,4 +1,7 @@
-const CACHE = 'league-hub-v10'
+const CACHE = 'league-hub-v11'
+
+const BASE = new URL('./', self.location.href)
+
 const SHELL = [
   './',
   'index.html',
@@ -25,39 +28,54 @@ const SHELL = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE)
-      .then((cache) => Promise.allSettled(SHELL.map((url) => cache.add(url))))
-      .then(() => self.skipWaiting()),
+    caches.open(CACHE)
+      .then((cache) =>
+        Promise.allSettled(
+          SHELL.map((path) => cache.add(new URL(path, BASE).href))
+        )
+      )
+      .then(() => self.skipWaiting())
   )
 })
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
-      .then(() => self.clients.claim()),
+    caches.keys()
+      .then((keys) =>
+        Promise.all(
+          keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))
+        )
+      )
+      .then(() => self.clients.claim())
   )
 })
 
-// Network-first so updates show up immediately; the cache keeps the app usable offline.
 self.addEventListener('fetch', (event) => {
   const { request } = event
   if (request.method !== 'GET') return
+
   const url = new URL(request.url)
-  if (url.origin !== self.location.origin || !url.pathname.startsWith('/hub/')) return
+  if (url.origin !== self.location.origin || !url.href.startsWith(BASE.href)) return
+
   event.respondWith(
     fetch(request)
-      .then((res) => {
-        if (res.ok) {
-          const copy = res.clone()
+      .then((response) => {
+        if (response.ok) {
+          const copy = response.clone()
           caches.open(CACHE).then((cache) => cache.put(request, copy))
         }
-        return res
+        return response
       })
-      .catch(() =>
-        caches.match(request).then((hit) => hit || (request.mode === 'navigate' ? caches.match('index.html') : Response.error())),
-      ),
+      .catch(async () => {
+        const hit = await caches.match(request)
+        if (hit) return hit
+
+        if (request.mode === 'navigate') {
+          return (await caches.match(new URL('index.html', BASE).href))
+            || Response.error()
+        }
+
+        return Response.error()
+      })
   )
 })
