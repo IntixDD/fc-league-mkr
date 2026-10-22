@@ -2413,12 +2413,14 @@ select.input option {
 
 .pos-top .pos-badge {
   font-weight: 800;
-  color: #1a0b20;
+  color: inherit;
+  background: transparent;
+  border-radius: 0;
 }
 
-.pos-1 .pos-badge { background: #ffd166; }
-.pos-2 .pos-badge { background: #cbd5e1; }
-.pos-3 .pos-badge { background: #e0a070; }
+.pos-1 .pos-badge,
+.pos-2 .pos-badge,
+.pos-3 .pos-badge { background: transparent; }
 
 .season-chip {
   display: inline-block;

@@ -110,18 +110,24 @@
   tip.setAttribute('aria-hidden', 'true')
   document.body.appendChild(tip)
   let tipOwner = null
+  let tipTimer = null
 
   function showTip(button) {
+    if (tipTimer) clearTimeout(tipTimer)
     tipOwner = button
     const rect = button.getBoundingClientRect()
     tip.textContent = button.getAttribute('aria-label') || ''
     tip.style.left = `${rect.right + 14}px`
     tip.style.top = `${rect.top + rect.height / 2}px`
     tip.classList.add('is-visible')
+    // Keep the label brief, especially after a touch on mobile.
+    tipTimer = setTimeout(() => hideTip(button), 1600)
   }
 
   function hideTip(button) {
     if (button && button !== tipOwner) return
+    if (tipTimer) clearTimeout(tipTimer)
+    tipTimer = null
     tipOwner = null
     tip.classList.remove('is-visible')
   }
