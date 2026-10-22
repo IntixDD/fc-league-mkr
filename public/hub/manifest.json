@@ -3,9 +3,9 @@
   "short_name": "League Hub",
   "description": "Equipos, tabla, fixtures, playoffs, temporadas, historial y rendimiento de tu liga.",
   "lang": "es",
-  "id": "/hub/",
-  "start_url": "/hub/index.html",
-  "scope": "/hub/",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./"
   "display": "standalone",
   "orientation": "any",
   "background_color": "#000000",
