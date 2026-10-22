@@ -83,7 +83,15 @@
     render(); H.toast('Fondo eliminado')
   }
   async function resetBackground() {
-    activeBgId = null; await delBg().catch(() => {}); showBg(null); P.set({ hasBg: false }); render()
+    // Clear the active selection and legacy value, but preserve the saved library.
+    activeBgId = null
+    await putActiveBg(null).catch(() => {})
+    await delBg().catch(() => {})
+    showBg(null)
+    const layer = document.querySelector('.bg-custom')
+    if (layer) layer.style.backgroundImage = 'none'
+    P.set({ hasBg: false })
+    render()
     H.toast('Fondo predeterminado restaurado; tus fondos guardados siguen disponibles')
   }
 
@@ -186,7 +194,7 @@
           <div class="bg-preview${p.hasBg ? ' is-custom' : ''}" aria-hidden="true" style="${p.hasBg && bgUrl ? `background-image:url('${bgUrl}')` : ''}; --dim: ${p.bgDim}"><span class="bg-preview-grid${p.bgGrid ? '' : ' is-off'}"></span></div>
           <div class="row-actions">
             <label class="btn btn--primary file-btn">Guardar fondo nuevo<input class="sr-only" type="file" accept="image/*" name="bg-file"></label>
-            <button class="btn btn--ghost" data-action="bg-reset" ${p.hasBg ? '' : 'disabled'}>Usar predeterminado</button>
+            <button class="btn btn--ghost" data-action="bg-reset">Usar predeterminado</button>
           </div>
           ${savedBackgrounds.length ? `<div class="bg-saved-list">${savedBackgrounds.map((bg) => {
             const thumb = thumbUrl(bg), isActive = bg.id === activeBgId && p.hasBg
