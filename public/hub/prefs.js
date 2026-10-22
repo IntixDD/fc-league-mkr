@@ -20,17 +20,9 @@
     window.navigator.standalone === true
   document.documentElement.classList.toggle('is-standalone', standalone)
 
-  // Installs made before the manifest switched to "fullscreen" still open in standalone mode;
-  // on touch devices, the first tap hides the system status/navigation bars.
-  if (standalone && window.matchMedia('(pointer: coarse)').matches) {
-    const goFullscreen = () => {
-      const el = document.documentElement
-      if (document.fullscreenElement || !el.requestFullscreen) return
-      if (window.matchMedia('(display-mode: fullscreen)').matches) return
-      el.requestFullscreen({ navigationUI: 'hide' }).catch(() => {})
-    }
-    window.addEventListener('pointerup', goFullscreen, { passive: true })
-  }
+  // Avoid requestFullscreen() on taps: mobile browsers can briefly blank the
+  // viewport when fullscreen changes while an input is being focused.
+  // The PWA manifest already defines the app's fullscreen/standalone display mode.
 
   function read() {
     try {
