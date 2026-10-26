@@ -56,7 +56,7 @@
   async function allowCompetitionReset() {
     const season = H.state.current
     if (!season.fixtures && !season.playoffs) return true
-    return H.confirm('Cambiar las series reiniciará el calendario, sus resultados y el cuadro Tournament.', { confirmText: 'Cambiar series' })
+    return H.confirm('Cambiar el formato de la tabla reiniciará el calendario, sus resultados y el cuadro Tournament.', { confirmText: 'Cambiar formato' })
   }
 
   H.view('table', {
@@ -105,6 +105,17 @@
         paintRow(input.closest('tr'), row)
       })
       el.addEventListener('change', (e) => {
+        if (e.target.name === 'table-format') {
+          const twoSeries = H.state.current.tableConfig?.type === 'two-series'
+          const selected = e.target.value
+          const create = el.querySelector('[data-action="create-table"]')
+          if (create) {
+            const alreadyActive = (selected === 'two-series') === twoSeries
+            create.disabled = alreadyActive
+            create.textContent = alreadyActive ? (twoSeries ? 'Tabla de 2 series activa' : 'Tabla regular activa') : `Crear ${selected === 'two-series' ? 'tabla de 2 series' : 'tabla regular'}`
+          }
+          return
+        }
         const assignment = e.target.closest('[data-team-series]')
         if (assignment?.checked) {
           const other = assignment.dataset.teamSeries === '1' ? '2' : '1'
@@ -133,6 +144,7 @@
       const editing = manual && H.ui.tableEdit
       const rows = H.computeTable(season)
       const twoSeries = season.tableConfig?.type === 'two-series'
+      const seriesReady = twoSeries && season.tableConfig.series1.length >= 2 && season.tableConfig.series2.length >= 2 && season.tableConfig.series1.length + season.tableConfig.series2.length === season.teams.length
       const { total, played } = H.stageCounts(season)
       const n = season.teams.length
       const zone = season.playoffs
@@ -178,8 +190,8 @@
 
       const tableSetup = `<article class="card card--wide" data-export-hide>
         <header class="card-head"><div><h2 class="card-title">Crear tabla</h2><p class="card-sub">Elige una tabla regular o divídela en dos series.</p></div></header>
-        <div class="row-actions"><label class="field-label" for="table-format">Formato</label><select class="input table-format" id="table-format" name="table-format"><option value="regular" ${!twoSeries ? 'selected' : ''}>Tabla regular</option><option value="two-series" ${twoSeries ? 'selected' : ''}>2 Series</option></select><button class="btn btn--primary" data-action="create-table">${twoSeries ? 'Tabla de 2 series creada' : 'Crear tabla'}</button></div>
-        ${twoSeries ? `<p class="hint">Asigna cada equipo a una serie. Los partidos de liga se jugarán solo entre equipos de la misma serie.</p><div class="team-series-list">${season.teams.map((t) => `<div class="team-series-row"><span class="club-cell">${crest(t.logo, 'xs', t.name)}<span>${esc(t.name)}</span></span><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="1" ${season.tableConfig.series1.includes(t.id) ? 'checked' : ''}> Serie 1</label><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="2" ${season.tableConfig.series2.includes(t.id) ? 'checked' : ''}> Serie 2</label></div>`).join('')}</div><div class="row-actions"><button class="btn btn--ghost" data-action="random-series">Randomizar equipos</button><button class="btn btn--primary" data-action="save-series">Guardar series</button></div><p class="hint">Las series pueden tener tamaños distintos.</p>` : ''}
+        <div class="row-actions"><label class="field-label" for="table-format">Formato</label><select class="input table-format" id="table-format" name="table-format"><option value="regular" ${!twoSeries ? 'selected' : ''}>Tabla regular</option><option value="two-series" ${twoSeries ? 'selected' : ''}>2 Series</option></select><button class="btn btn--primary" data-action="create-table" ${twoSeries ? '' : 'disabled'}>${twoSeries ? 'Tabla de 2 series activa' : 'Tabla regular activa'}</button></div>
+        ${twoSeries ? `<p class="hint">Asigna cada equipo a una serie. Los partidos de liga se jugarán solo entre equipos de la misma serie.</p><div class="team-series-list">${season.teams.map((t) => `<div class="team-series-row"><span class="club-cell">${crest(t.logo, 'xs', t.name)}<span>${esc(t.name)}</span></span><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="1" ${season.tableConfig.series1.includes(t.id) ? 'checked' : ''}> Serie 1</label><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="2" ${season.tableConfig.series2.includes(t.id) ? 'checked' : ''}> Serie 2</label></div>`).join('')}</div><div class="row-actions"><button class="btn btn--ghost" data-action="random-series">Randomizar equipos</button><button class="btn btn--primary" data-action="save-series">Guardar series</button></div><p class="hint">Las series pueden tener tamaños distintos.${seriesReady ? '' : ' Asigna al menos 2 equipos a cada serie y guarda antes de generar el calendario.'}</p>` : ''}
       </article>`
 
       const tools = manual
@@ -226,7 +238,7 @@
                 : ''
             }
           </ul>
-          ${twoSeries ? seriesTables : ''}
+          ${seriesTables}
           <p class="hint">${
             manual
               ? 'Desempate: puntos, diferencia de goles, goles a favor y orden alfabético. La tabla se reordena al salir de cada casilla.'

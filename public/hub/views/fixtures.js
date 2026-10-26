@@ -106,6 +106,7 @@
       const n = season.teams.length
       const twoSeries = season.tableConfig?.type === 'two-series'
       const counts = twoSeries ? [season.tableConfig.series1.length, season.tableConfig.series2.length] : [n]
+      const seriesReady = !twoSeries || (counts.every((count) => count >= 2) && counts[0] + counts[1] === n)
       const roundsFor = (m) => (twoSeries ? Math.max(0, ...counts.map((count) => count < 2 ? 0 : count % 2 ? count : count - 1)) : n < 2 ? 0 : n % 2 ? n : n - 1) * (m === 'double' ? 2 : 1)
       const matchesFor = (m) => (twoSeries ? counts.reduce((sum, count) => sum + (count * (count - 1)) / 2, 0) : (n * (n - 1)) / 2) * (m === 'double' ? 2 : 1)
 
@@ -123,9 +124,10 @@
           </div>
           <p class="hint">${n < 2 ? 'Registra al menos 2 equipos.' : `${roundsFor(mode)} jornadas · ${matchesFor(mode)} partidos${twoSeries ? ' · solo juegan equipos de la misma serie' : n % 2 ? ' · un equipo descansa por jornada' : ''}`}</p>
           <div class="row-actions">
-            <button class="btn btn--primary" data-action="generate" ${n < 2 ? 'disabled' : ''}>${season.fixtures ? 'Regenerar calendario' : 'Generar calendario'}</button>
+            <button class="btn btn--primary" data-action="generate" ${n < 2 || !seriesReady ? 'disabled' : ''}>${season.fixtures ? 'Regenerar calendario' : 'Generar calendario'}</button>
             ${season.fixtures ? '<button class="btn btn--danger" data-action="remove">Eliminar</button>' : ''}
           </div>
+          ${!seriesReady ? '<p class="notice">Completa y guarda la asignación de todos los equipos a las dos series en Table antes de generar el calendario.</p>' : ''}
           ${teamsChanged(season) ? '<p class="notice">Los equipos cambiaron desde que se generó el calendario. Regenera para incluirlos a todos.</p>' : ''}
         </article>`
 
