@@ -144,6 +144,7 @@ window.Hub = (() => {
       teams: [],
       fixtures: null,
       playoffs: null,
+      tableConfig: null,
       manual: null,
       awards: { leagueScorer: null, cupScorer: null },
       savedAt: null,
@@ -187,6 +188,9 @@ window.Hub = (() => {
     if (raw.fixtures && Array.isArray(raw.fixtures.rounds)) {
       fixtures = {
         mode: raw.fixtures.mode === 'double' ? 'double' : 'single',
+        roundsPerLeg: Math.max(0, Number(raw.fixtures.roundsPerLeg) || 0),
+        series1: Array.isArray(raw.fixtures.series1) ? raw.fixtures.series1.filter((id) => ids.has(id)) : null,
+        series2: Array.isArray(raw.fixtures.series2) ? raw.fixtures.series2.filter((id) => ids.has(id)) : null,
         rounds: raw.fixtures.rounds
           .map((r) =>
             (Array.isArray(r) ? r : [])
@@ -195,6 +199,13 @@ window.Hub = (() => {
           )
           .filter((r) => r.length),
       }
+    }
+
+    let tableConfig = null
+    if (raw.tableConfig?.type === 'two-series') {
+      const one = [...new Set((Array.isArray(raw.tableConfig.series1) ? raw.tableConfig.series1 : []).filter((id) => ids.has(id))) ]
+      const two = [...new Set((Array.isArray(raw.tableConfig.series2) ? raw.tableConfig.series2 : []).filter((id) => ids.has(id) && !one.includes(id))) ]
+      tableConfig = { type: 'two-series', series1: one, series2: two }
     }
 
     let playoffs = null
@@ -218,6 +229,7 @@ window.Hub = (() => {
       teams,
       fixtures,
       playoffs,
+      tableConfig,
       manual: sanitizeManual(raw.manual, ids),
       awards: {
         leagueScorer: ids.has(awards.leagueScorer) ? awards.leagueScorer : null,
@@ -488,6 +500,18 @@ window.Hub = (() => {
     return all.map((r) => r.map((m) => ({ id: uid(), ...m, hg: null, ag: null })))
   }
 
+  function generateSeriesRounds(series, double) {
+    const firstLegs = series.map((ids) => generateRounds(ids, false))
+    const roundsPerLeg = Math.max(0, ...firstLegs.map((rounds) => rounds.length))
+    const rounds = Array.from({ length: roundsPerLeg }, (_, i) => firstLegs.flatMap((leg) => leg[i] || []))
+    if (double) {
+      for (let i = 0; i < roundsPerLeg; i++) {
+        rounds.push(rounds[i].map((m) => ({ id: uid(), home: m.away, away: m.home, hg: null, ag: null })))
+      }
+    }
+    return { rounds, roundsPerLeg }
+  }
+
   function leagueMatches(season) {
     if (!season.fixtures) return []
     return season.fixtures.rounds.flatMap((r, ri) => r.map((m) => ({ ...m, round: ri + 1 })))
@@ -518,16 +542,18 @@ window.Hub = (() => {
     return { pj: r.pg + r.pe + r.pp, pg: r.pg, pe: r.pe, pp: r.pp, gf: r.gf, gc: r.gc, pts: r.pts }
   }
 
-  function computeTable(season) {
+  function computeTable(season, teamIds = null) {
+    const selected = teamIds ? new Set(teamIds) : null
+    const teams = selected ? season.teams.filter((t) => selected.has(t.id)) : season.teams
     if (isManualTable(season)) {
-      return season.teams
+      return teams
         .map((t) => {
           const r = manualRecord(season, t.id)
           return { team: t, ...r, dg: r.gf - r.gc }
         })
         .sort((a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.team.name.localeCompare(b.team.name))
     }
-    const rows = new Map(season.teams.map((t) => [t.id, { team: t, ...zero() }]))
+    const rows = new Map(teams.map((t) => [t.id, { team: t, ...zero() }]))
     leagueMatches(season).forEach((m) => {
       if (!played(m)) return
       const h = rows.get(m.home)
@@ -1003,6 +1029,7 @@ window.Hub = (() => {
     isManualTable,
     toInt,
     generateRounds,
+    generateSeriesRounds,
     leagueMatches,
     computeTable,
     computeBracket,

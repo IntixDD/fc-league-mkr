@@ -36,6 +36,7 @@
   }
 
   function activate(id, { animate = true } = {}) {
+    if (id === 'playoffs') id = 'tournament'
     if (!ids.includes(id)) id = DEFAULT_SECTION
     if (id === current) return
     current = id

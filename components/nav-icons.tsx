@@ -118,7 +118,7 @@ export function FixturesIcon(props: IconProps) {
   )
 }
 
-export function PlayoffsIcon(props: IconProps) {
+export function TournamentIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 48 48" fill="currentColor" aria-hidden="true" {...props}>
       <path d="M12 5h24v12c0 7-5 12-12 12S12 24 12 17V5z" />

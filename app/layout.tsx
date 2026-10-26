@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     default: 'League Hub',
     template: '%s · League Hub',
   },
-  description: 'Teams, table, fixtures, playoffs, history and performance for your league.',
+  description: 'Teams, table, fixtures, tournament, seasons, history and performance for your league.',
   generator: 'v0.app',
   icons: {
     icon: [

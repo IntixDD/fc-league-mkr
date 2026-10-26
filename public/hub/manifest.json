@@ -1,7 +1,7 @@
 {
   "name": "League Hub",
   "short_name": "League Hub",
-  "description": "Equipos, tabla, fixtures, playoffs, temporadas, historial y rendimiento de tu liga.",
+  "description": "Equipos, tabla, fixtures, Tournament, temporadas, historial y rendimiento de tu liga.",
   "lang": "es",
   "id": "/fc-league-mkr/hub/",
   "start_url": "/fc-league-mkr/hub/index.html",

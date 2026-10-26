@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
     <meta name="color-scheme" content="dark" />
-    <meta name="description" content="Teams, table, fixtures, playoffs, seasons, history and performance for your league." />
+    <meta name="description" content="Teams, table, fixtures, Tournament, seasons, history and performance for your league." />
     <title>Teams · League Hub</title>
     <link rel="preload" href="krona-one.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="icon" href="logo.svg" type="image/svg+xml" />
@@ -55,9 +55,9 @@
               </a>
             </li>
             <li>
-              <a class="nav-button" href="#playoffs" data-section="playoffs" aria-label="Playoffs">
-                <span class="nav-icon" style="--icon: url('icon-playoffs.svg?v=4')"></span>
-                <span class="tooltip" aria-hidden="true">Playoffs</span>
+              <a class="nav-button" href="#tournament" data-section="tournament" aria-label="Tournament">
+                <span class="nav-icon" style="--icon: url('icon-tournament.svg?v=5')"></span>
+                <span class="tooltip" aria-hidden="true">Tournament</span>
               </a>
             </li>
             <li>
@@ -101,9 +101,9 @@
           <h1 id="fixtures-title" class="section-title">Fixtures</h1>
           <div id="fixtures-body" class="section-body"></div>
         </section>
-        <section id="playoffs" class="section" aria-labelledby="playoffs-title" hidden>
-          <h1 id="playoffs-title" class="section-title">Playoffs</h1>
-          <div id="playoffs-body" class="section-body"></div>
+        <section id="tournament" class="section" aria-labelledby="tournament-title" hidden>
+          <h1 id="tournament-title" class="section-title">Tournament</h1>
+          <div id="tournament-body" class="section-body"></div>
         </section>
         <section id="seasons" class="section" aria-labelledby="seasons-title" hidden>
           <h1 id="seasons-title" class="section-title">Seasons</h1>
@@ -151,7 +151,7 @@
     <script src="views/teams.js?v=10" defer></script>
     <script src="views/table.js?v=10" defer></script>
     <script src="views/fixtures.js?v=10" defer></script>
-    <script src="views/playoffs.js?v=10" defer></script>
+    <script src="views/tournament.js?v=11" defer></script>
     <script src="views/seasons.js?v=10" defer></script>
     <script src="views/history.js?v=10" defer></script>
     <script src="views/performance.js?v=10" defer></script>

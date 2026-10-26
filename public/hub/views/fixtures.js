@@ -12,6 +12,10 @@
     const season = H.state.current
     const mode = H.ui.fxMode || season.fixtures?.mode || 'single'
     if (season.teams.length < 2) return H.toast('Necesitas al menos 2 equipos', 'error')
+    const config = season.tableConfig?.type === 'two-series' ? season.tableConfig : null
+    if (config && (config.series1.length < 2 || config.series2.length < 2 || config.series1.length + config.series2.length !== season.teams.length)) {
+      return H.toast('Asigna todos los equipos a una serie (mínimo 2 equipos por serie).', 'error')
+    }
     const hasResults = H.leagueMatches(season).some(H.played)
     if (season.fixtures) {
       const msg = hasResults
@@ -22,7 +26,10 @@
       if (!(await H.confirm('La tabla editada manualmente se reemplazará por los resultados del calendario.', { confirmText: 'Generar' }))) return
     }
     H.update((s) => {
-      s.current.fixtures = { mode, rounds: H.generateRounds(s.current.teams.map((t) => t.id), mode === 'double') }
+      if (config) {
+        const generated = H.generateSeriesRounds([config.series1, config.series2], mode === 'double')
+        s.current.fixtures = { mode, roundsPerLeg: generated.roundsPerLeg, series1: [...config.series1], series2: [...config.series2], rounds: generated.rounds }
+      } else s.current.fixtures = { mode, roundsPerLeg: 0, rounds: H.generateRounds(s.current.teams.map((t) => t.id), mode === 'double') }
     })
     H.toast('Calendario generado')
   }
@@ -97,22 +104,24 @@
       const teams = new Map(season.teams.map((t) => [t.id, t]))
       const mode = H.ui.fxMode || season.fixtures?.mode || 'single'
       const n = season.teams.length
-      const roundsFor = (m) => (n < 2 ? 0 : (n % 2 ? n : n - 1) * (m === 'double' ? 2 : 1))
-      const matchesFor = (m) => (n < 2 ? 0 : ((n * (n - 1)) / 2) * (m === 'double' ? 2 : 1))
+      const twoSeries = season.tableConfig?.type === 'two-series'
+      const counts = twoSeries ? [season.tableConfig.series1.length, season.tableConfig.series2.length] : [n]
+      const roundsFor = (m) => (twoSeries ? Math.max(0, ...counts.map((count) => count < 2 ? 0 : count % 2 ? count : count - 1)) : n < 2 ? 0 : n % 2 ? n : n - 1) * (m === 'double' ? 2 : 1)
+      const matchesFor = (m) => (twoSeries ? counts.reduce((sum, count) => sum + (count * (count - 1)) / 2, 0) : (n * (n - 1)) / 2) * (m === 'double' ? 2 : 1)
 
       const config = `
         <article class="card">
           <header class="card-head">
             <div>
               <h2 class="card-title">Calendario</h2>
-              <p class="card-sub">Temporada ${season.number} · ${n} equipos</p>
+              <p class="card-sub">Temporada ${season.number} · ${n} equipos${twoSeries ? ' · 2 series' : ''}</p>
             </div>
           </header>
           <div class="seg" role="group" aria-label="Formato">
             <button class="seg-btn" data-action="mode" data-mode="single" aria-pressed="${mode === 'single'}">Solo ida</button>
             <button class="seg-btn" data-action="mode" data-mode="double" aria-pressed="${mode === 'double'}">Ida y vuelta</button>
           </div>
-          <p class="hint">${n < 2 ? 'Registra al menos 2 equipos.' : `${roundsFor(mode)} jornadas · ${matchesFor(mode)} partidos${n % 2 ? ' · un equipo descansa por jornada' : ''}`}</p>
+          <p class="hint">${n < 2 ? 'Registra al menos 2 equipos.' : `${roundsFor(mode)} jornadas · ${matchesFor(mode)} partidos${twoSeries ? ' · solo juegan equipos de la misma serie' : n % 2 ? ' · un equipo descansa por jornada' : ''}`}</p>
           <div class="row-actions">
             <button class="btn btn--primary" data-action="generate" ${n < 2 ? 'disabled' : ''}>${season.fixtures ? 'Regenerar calendario' : 'Generar calendario'}</button>
             ${season.fixtures ? '<button class="btn btn--danger" data-action="remove">Eliminar</button>' : ''}
@@ -126,7 +135,7 @@
       }
 
       const rounds = season.fixtures.rounds
-      const half = season.fixtures.mode === 'double' ? rounds.length / 2 : Infinity
+      const half = season.fixtures.mode === 'double' ? (season.fixtures.roundsPerLeg || rounds.length / 2) : Infinity
       const all = H.leagueMatches(season)
 
       const team = (t, away) => {

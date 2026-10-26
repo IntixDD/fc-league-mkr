@@ -108,7 +108,7 @@
 
       const table = `
         <article class="card card--wide">
-          <header class="card-head"><div><h2 class="card-title">Temporada por temporada</h2><p class="card-sub">Liga + torneo (playoffs)</p></div></header>
+          <header class="card-head"><div><h2 class="card-title">Temporada por temporada</h2><p class="card-sub">Liga + Tournament</p></div></header>
           <div class="table-wrap">
             <table class="data-table data-table--perf">
               <thead>

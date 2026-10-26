@@ -185,7 +185,7 @@
             <dl class="mini-stats">
               <div><dt>Equipos</dt><dd>${cur.teams.length}</dd></div>
               <div><dt>Liga</dt><dd>${total ? `${played}/${total}` : '—'}</dd></div>
-              <div><dt>Playoffs</dt><dd>${cur.playoffs ? `Top ${cur.playoffs.size}` : '—'}</dd></div>
+              <div><dt>Tournament</dt><dd>${cur.playoffs ? `${cur.playoffs.size} equipos` : '—'}</dd></div>
             </dl>
           </div>
           ${sum.league || sum.cup ? `<p class="hint">${sum.league ? `Liga: <strong>${esc(sum.league.name)}</strong>` : ''}${sum.league && sum.cup ? ' · ' : ''}${sum.cup ? `Copa: <strong>${esc(sum.cup.name)}</strong>` : ''}</p>` : ''}

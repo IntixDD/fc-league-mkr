@@ -152,10 +152,14 @@
     const s = H.state
     const team = s.current.teams.find((t) => t.id === id)
     if (!team) return
-    const extra = resetsCompetition(s) ? ' El calendario y los playoffs de esta temporada se reiniciarán.' : ''
+    const extra = resetsCompetition(s) ? ' El calendario y el cuadro Tournament de esta temporada se reiniciarán.' : ''
     if (!(await H.confirm(`Se eliminará «${team.name}».${extra}`, { confirmText: 'Eliminar' }))) return
     H.update((st) => {
       st.current.teams = st.current.teams.filter((t) => t.id !== id)
+      if (st.current.tableConfig?.type === 'two-series') {
+        st.current.tableConfig.series1 = st.current.tableConfig.series1.filter((teamId) => teamId !== id)
+        st.current.tableConfig.series2 = st.current.tableConfig.series2.filter((teamId) => teamId !== id)
+      }
       if (extra) {
         st.current.fixtures = null
         st.current.playoffs = null
@@ -167,13 +171,14 @@
   async function clearTeams() {
     const s = H.state
     if (!s.current.teams.length) return
-    const extra = resetsCompetition(s) ? ' También se borrarán el calendario y los playoffs.' : ''
+    const extra = resetsCompetition(s) ? ' También se borrarán el calendario y el cuadro Tournament.' : ''
     if (!(await H.confirm(`Se eliminarán los ${s.current.teams.length} equipos registrados.${extra}`, { confirmText: 'Eliminar todos' })))
       return
     H.update((st) => {
       st.current.teams = []
       st.current.fixtures = null
       st.current.playoffs = null
+      st.current.tableConfig = null
     })
     H.toast('Equipos eliminados')
   }

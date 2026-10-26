@@ -3,13 +3,13 @@
   const { esc } = H
 
   const COLS = [
-    { key: 'cups', label: 'Copas', title: 'Campeón de playoffs' },
+    { key: 'cups', label: 'Copas', title: 'Campeón de Tournament' },
     { key: 'leagues', label: 'Ligas', title: 'Campeón de liga' },
-    { key: 'runnerUp', label: 'Subcamp.', title: 'Subcampeonatos (Playoffs)' },
-    { key: 'third', label: '3ros', title: '3er lugar (Playoffs)' },
-    { key: 'fourth', label: '4tos', title: '4to lugar (Playoffs)' },
+    { key: 'runnerUp', label: 'Subcamp.', title: 'Subcampeonatos (Tournament)' },
+    { key: 'third', label: '3ros', title: '3er lugar (Tournament)' },
+    { key: 'fourth', label: '4tos', title: '4to lugar (Tournament)' },
     { key: 'leagueGoals', label: 'GF Liga', title: 'Goles a favor en liga' },
-    { key: 'cupGoals', label: 'GF Camp.', title: 'Goles a favor en campeonatos (playoffs)' },
+    { key: 'cupGoals', label: 'GF Camp.', title: 'Goles a favor en campeonatos (Tournament)' },
     { key: 'goals', label: 'Goles', title: 'Goles totales' },
     { key: 'points', label: 'Puntos', title: 'Puntos totales (solo liga)' },
   ]

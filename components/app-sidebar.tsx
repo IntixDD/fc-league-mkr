@@ -10,7 +10,7 @@ import {
   LogoTriangle,
   PerformanceIcon,
   PitchIcon,
-  PlayoffsIcon,
+  TournamentIcon,
   TableIcon,
   TeamsIcon,
 } from '@/components/nav-icons'
@@ -26,7 +26,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Teams', href: '/teams', icon: TeamsIcon },
   { label: 'Table', href: '/table', icon: TableIcon },
   { label: 'Fixtures', href: '/fixtures', icon: FixturesIcon },
-  { label: 'Playoffs', href: '/playoffs', icon: PlayoffsIcon },
+  { label: 'Tournament', href: '/tournament', icon: TournamentIcon },
   { label: 'History', href: '/history', icon: HistoryIcon },
   { label: 'Performance', href: '/performance', icon: PerformanceIcon, iconClassName: 'translate-x-0.5' },
 ]
