@@ -84,6 +84,41 @@
     return `<details class="season-awards season-standings"><summary><span class="season-awards-heading">${TABLE_ICON}<span>${grouped ? 'Series' : 'Tabla'}</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
   }
 
+  function fixtureSummary(season) {
+    const fixtures = season.fixtures
+    const rounds = fixtures?.rounds || []
+    const matches = rounds.flat()
+    const played = matches.filter(H.played).length
+    const teams = new Map(season.teams.map((team) => [team.id, team]))
+    const seriesFor = new Map()
+    ;(fixtures?.series1 || []).forEach((id) => seriesFor.set(id, 'Serie 1'))
+    ;(fixtures?.series2 || []).forEach((id) => seriesFor.set(id, 'Serie 2'))
+    const roundCount = fixtures?.roundsPerLeg || (fixtures?.mode === 'double' ? rounds.length / 2 : 0)
+    const content = rounds.length
+      ? `<div class="season-fixture-rounds">${rounds.map((round, index) => {
+          const done = round.filter(H.played).length
+          const leg = fixtures.mode === 'double' ? ` · ${index < roundCount ? 'Ida' : 'Vuelta'}` : ''
+          const games = round.map((match, matchIndex) => {
+            const home = teams.get(match.home)
+            const away = teams.get(match.away)
+            const isPlayed = H.played(match)
+            const outcome = isPlayed ? match.hg > match.ag ? 'home' : match.hg < match.ag ? 'away' : 'draw' : ''
+            const field = season.fields ? (matchIndex % season.fields) + 1 : null
+            return `<article class="season-fixture-match${isPlayed ? ` is-played is-${outcome}` : ''}">
+              <span class="season-fixture-index" title="${field ? `Cancha ${field}` : `Partido ${matchIndex + 1}`}">${field || matchIndex + 1}</span>
+              <span class="season-fixture-team season-fixture-home">${home ? crest(home.logo, 'xs', home.name) : '<span class="crest crest--xs crest--tbd"></span>'}<span>${esc(home?.name || '—')}</span>${seriesFor.has(match.home) ? `<small>${seriesFor.get(match.home)}</small>` : ''}</span>
+              <strong class="season-fixture-score">${match.hg ?? '—'} <i>:</i> ${match.ag ?? '—'}</strong>
+              <span class="season-fixture-team season-fixture-away">${away ? crest(away.logo, 'xs', away.name) : '<span class="crest crest--xs crest--tbd"></span>'}<span>${esc(away?.name || '—')}</span>${seriesFor.has(match.away) ? `<small>${seriesFor.get(match.away)}</small>` : ''}</span>
+            </article>`
+          }).join('')
+          const rest = season.teams.filter((team) => !round.some((match) => match.home === team.id || match.away === team.id))
+          return `<section class="season-fixture-round"><header><h4>Jornada ${index + 1}${leg}</h4><span>${done}/${round.length} partidos</span></header><div class="season-fixture-games">${games}</div>${rest.length ? `<p class="season-fixture-rest">Descansa: ${rest.map((team) => esc(team.name)).join(', ')}</p>` : ''}</section>`
+        }).join('')}</div>`
+      : '<p class="season-awards-empty">No se creó un fixture para esta temporada.</p>'
+    const count = rounds.length ? `${played}/${matches.length} partidos` : 'No creado'
+    return `<details class="season-awards season-fixture-details"><summary><span class="season-awards-heading">${TABLE_ICON}<span>Fixture</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
+  }
+
   function tournamentSummary(season) {
     const playoffs = season.playoffs
     const bracket = H.computeBracket(season)
@@ -439,6 +474,7 @@
                       <button class="btn btn--danger btn--sm" data-action="delete" data-id="${esc(season.id)}" aria-label="Eliminar Temporada ${season.number}">Eliminar</button>
                     </div>
                     ${standingsSummary(selectedSeason)}
+                    ${fixtureSummary(selectedSeason)}
                     ${tournamentSummary(selectedSeason)}
                     ${repechageSummary(selectedSeason)}
                     ${awardSummary(selectedSeason, open)}
