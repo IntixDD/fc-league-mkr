@@ -153,7 +153,7 @@
   /* ---------- View ---------- */
   const card = ({ title, sub, body, actions = '', wide = false, extraClass = '' }) => `
     <article class="card set-card${wide ? ' card--wide' : ''}${extraClass ? ` ${extraClass}` : ''}">
-      <header class="card-head"><div><h2 class="card-title">${title}</h2><p class="card-sub">${sub}</p></div></header>
+      <header class="card-head"><h2 class="card-title">${title}</h2></header>
       <div class="set-body">${body}</div>
       ${actions ? `<div class="set-actions">${actions}</div>` : ''}
     </article>`

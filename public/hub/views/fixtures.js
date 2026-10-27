@@ -73,7 +73,28 @@
           H.render()
         } else if (action === 'generate') generate()
         else if (action === 'remove') removeFixtures()
-        else if (action === 'jump') {
+        else if (action === 'save-fields') {
+          const raw = el.querySelector('[name="field-count"]')?.value
+          const count = Number(raw)
+          if (!Number.isInteger(count) || count < 2 || count > 999) return H.toast('Indica un número entero de canchas entre 2 y 999.', 'error')
+          H.update((s) => {
+            s.current.fields = count
+            if (s.current.playoffs) {
+              s.current.playoffs.fields = H.generateTournamentFields(s.current.playoffs.size, count)
+              if (s.current.playoffs.repechage) s.current.playoffs.repechage.fields = H.generateRepechageFields(s.current.playoffs.repechage.pairs.length, count)
+            }
+          })
+          H.toast('Canchas guardadas')
+        } else if (action === 'clear-fields') {
+          H.update((s) => {
+            s.current.fields = null
+            if (s.current.playoffs) {
+              s.current.playoffs.fields = H.generateTournamentFields(s.current.playoffs.size, 2)
+              if (s.current.playoffs.repechage) s.current.playoffs.repechage.fields = H.generateRepechageFields(s.current.playoffs.repechage.pairs.length, 2)
+            }
+          })
+          H.toast('Asignación de canchas eliminada')
+        } else if (action === 'jump') {
           el.querySelector(`#fx-round-${btn.dataset.round}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         } else if (action === 'clear-round') {
           const ri = Number(btn.dataset.round)
@@ -131,8 +152,24 @@
           ${teamsChanged(season) ? '<p class="notice">Los equipos cambiaron desde que se generó el calendario. Regenera para incluirlos a todos.</p>' : ''}
         </article>`
 
+      const fieldsCard = `
+        <article class="card">
+          <header class="card-head">
+            <h2 class="card-title">Fields</h2>
+          </header>
+          <label class="field">
+            <span class="field-label">Número de canchas (mínimo 2)</span>
+            <input class="input" type="number" inputmode="numeric" min="2" max="999" step="1" name="field-count" value="${season.fields ?? ''}" placeholder="Opcional">
+          </label>
+          <div class="row-actions">
+            <button class="btn btn--primary" data-action="save-fields">Guardar canchas</button>
+            ${season.fields ? '<button class="btn btn--ghost" data-action="clear-fields">Quitar</button>' : ''}
+          </div>
+          <p class="hint">Opcional. Sin asignación, Fixtures conserva el número de orden de cada partido. En Tournament se asignan canchas aleatorias usando al menos 2.</p>
+        </article>`
+
       if (!season.fixtures) {
-        el.innerHTML = `<div class="panel-grid panel-grid--even">${config}<article class="card"><p class="empty">Elige el formato y genera las jornadas. Los resultados que cargues actualizarán la tabla en vivo. Si prefieres no usar calendario, puedes editar la tabla a mano en <a href="#table">Table</a>.</p></article></div>`
+        el.innerHTML = `<div class="panel-grid panel-grid--even">${config}${fieldsCard}</div>`
         return
       }
 
@@ -181,8 +218,9 @@
                   const a = teams.get(m.away)
                   const played = H.played(m)
                   const res = played ? (m.hg > m.ag ? 'home' : m.hg < m.ag ? 'away' : 'draw') : ''
-                  return `<li class="fx-match${played ? ` is-played is-${res}` : ''}" aria-label="${esc(h?.name || '')} contra ${esc(a?.name || '')}">
-                    <span class="fx-idx" aria-hidden="true">${mi + 1}</span>
+                  const field = season.fields ? (mi % season.fields) + 1 : mi + 1
+                  return `<li class="fx-match${played ? ` is-played is-${res}` : ''}" aria-label="${esc(h?.name || '')} contra ${esc(a?.name || '')}${season.fields ? `, cancha ${field}` : ''}">
+                    <span class="fx-idx${season.fields ? ' is-field' : ''}" title="${season.fields ? `Cancha ${field}` : `Partido ${mi + 1}`}">${field}</span>
                     ${team(h)}
                     <span class="fx-score">${score(m, 'hg', h)}<span class="fx-sep" aria-hidden="true">:</span>${score(m, 'ag', a)}</span>
                     ${team(a, true)}
@@ -224,6 +262,7 @@
       el.innerHTML = `
         <div class="panel-grid panel-grid--even">
           ${config}
+          ${fieldsCard}
           <article class="card card--wide" id="fx-export">
             <header class="card-head">
               <div>

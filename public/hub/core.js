@@ -11,9 +11,11 @@ window.Hub = (() => {
     round: 0,
     poSize: 8,
     perfTeam: '',
-    historySort: 'cups',
+    historySort: 'neutral',
+    historySortVersion: 1,
     historyDir: 'desc',
     newKeepTeams: true,
+    repechageEnabled: null,
   }
   let state = null
   let saveTimer = 0
@@ -51,7 +53,7 @@ window.Hub = (() => {
   // synchronous mirror so the latest edit survives a reload even if the async write is cut off.
   const LS_STATE = 'league-hub:state'
   const LS_UI = 'league-hub:ui'
-  const UI_KEYS = ['fxMode', 'poSize', 'perfTeam', 'historySort', 'historyDir', 'historyQuery', 'newKeepTeams', 'tableEdit']
+  const UI_KEYS = ['fxMode', 'poSize', 'perfTeam', 'historySort', 'historySortVersion', 'historyDir', 'historyQuery', 'newKeepTeams', 'tableEdit', 'repechageEnabled']
   let dirty = false
   let lastUi = ''
 
@@ -76,6 +78,10 @@ window.Hub = (() => {
     try {
       const saved = JSON.parse(localStorage.getItem(LS_UI) || 'null')
       if (saved) UI_KEYS.forEach((k) => k in saved && (ui[k] = saved[k]))
+      if (!saved || saved.historySortVersion !== 1) {
+        ui.historySort = 'neutral'
+        ui.historySortVersion = 1
+      }
     } catch {
       /* ignore corrupt ui prefs */
     }
@@ -144,6 +150,7 @@ window.Hub = (() => {
       teams: [],
       fixtures: null,
       playoffs: null,
+      fields: null,
       tableConfig: null,
       manual: null,
       awards: { leagueScorer: null, cupScorer: null },
@@ -183,6 +190,7 @@ window.Hub = (() => {
         logo: typeof t.logo === 'string' && t.logo.startsWith('data:image/') ? t.logo : '',
       }))
     const ids = new Set(teams.map((t) => t.id))
+    const fields = Number.isInteger(Number(raw.fields)) && Number(raw.fields) >= 2 ? Math.min(999, Number(raw.fields)) : null
 
     let fixtures = null
     if (raw.fixtures && Array.isArray(raw.fixtures.rounds)) {
@@ -213,13 +221,43 @@ window.Hub = (() => {
       playoffs = {
         size: raw.playoffs.size,
         seeds: raw.playoffs.seeds.map((id) => (ids.has(id) ? id : null)),
+        bracketOrder: Array.isArray(raw.playoffs.bracketOrder) && raw.playoffs.bracketOrder.length === raw.playoffs.size && new Set(raw.playoffs.bracketOrder).size === raw.playoffs.size && raw.playoffs.bracketOrder.every((seed) => Number.isInteger(seed) && seed >= 1 && seed <= raw.playoffs.size)
+          ? raw.playoffs.bracketOrder.slice()
+          : null,
         results: {},
+        fields: generateTournamentFields(raw.playoffs.size, fields || 2),
       }
+      Object.entries(raw.playoffs.fields || {}).forEach(([key, value]) => {
+        const field = Number(value)
+        if (Number.isInteger(field) && field >= 1 && field <= (fields || 2)) playoffs.fields[key] = field
+      })
       Object.entries(raw.playoffs.results || {}).forEach(([key, r]) => {
         if (r && typeof r.pair === 'string') {
           playoffs.results[key] = { pair: r.pair, hg: sc(r.hg), ag: sc(r.ag), hp: sc(r.hp), ap: sc(r.ap) }
         }
       })
+      const rawRepechage = raw.playoffs.repechage
+      if (rawRepechage?.enabled && Array.isArray(rawRepechage.pairs)) {
+        playoffs.repechage = {
+          enabled: true,
+          pairs: rawRepechage.pairs
+            .filter((pair) => Array.isArray(pair) && pair.length === 2 && pair.every((id) => ids.has(id)))
+            .map((pair) => [pair[0], pair[1]]),
+          seedSlots: Array.isArray(rawRepechage.seedSlots) ? rawRepechage.seedSlots.map((seed) => toInt(seed, 1, raw.playoffs.size)) : [],
+          fields: {},
+          results: {},
+        }
+        const fieldCount = fields || 2
+        Object.entries(rawRepechage.fields || {}).forEach(([key, value]) => {
+          const field = Number(value)
+          if (Number.isInteger(field) && field >= 1 && field <= fieldCount) playoffs.repechage.fields[key] = field
+        })
+        Object.entries(rawRepechage.results || {}).forEach(([key, r]) => {
+          if (r && typeof r.pair === 'string') {
+            playoffs.repechage.results[key] = { pair: r.pair, hg: sc(r.hg), ag: sc(r.ag), hp: sc(r.hp), ap: sc(r.ap) }
+          }
+        })
+      }
     }
 
     const awards = raw.awards || {}
@@ -229,6 +267,7 @@ window.Hub = (() => {
       teams,
       fixtures,
       playoffs,
+      fields,
       tableConfig,
       manual: sanitizeManual(raw.manual, ids),
       awards: {
@@ -458,6 +497,7 @@ window.Hub = (() => {
   }
   // col-* tints the whole column; txt-* only colors the header label and numbers.
   const STAT_STYLE = {
+    series: { icon: 'crown', cls: 'tone tone-green' },
     cups: { icon: 'trophy', cls: 'tone tone-gold' },
     leagues: { icon: 'crown', cls: 'tone tone-green' },
     runnerUp: { icon: 'medal2', cls: 'tone tone-silver' },
@@ -510,6 +550,28 @@ window.Hub = (() => {
       }
     }
     return { rounds, roundsPerLeg }
+  }
+
+  function generateTournamentFields(size, fieldCount) {
+    const count = Math.max(2, Math.min(999, Math.trunc(Number(fieldCount)) || 2))
+    const roundsCount = Math.log2(size)
+    const fields = {}
+    for (let round = 0; round < roundsCount; round++) {
+      const matchCount = size / 2 ** (round + 1)
+      const order = shuffle(Array.from({ length: count }, (_, i) => i + 1))
+      for (let i = 0; i < matchCount; i++) fields[`r${round}-${i}`] = order[i % order.length]
+    }
+    const lastRound = roundsCount - 1
+    const finalAndThird = shuffle(Array.from({ length: count }, (_, i) => i + 1)).slice(0, 2)
+    fields[`r${lastRound}-0`] = finalAndThird[0]
+    fields.third = finalAndThird[1]
+    return fields
+  }
+
+  function generateRepechageFields(matchCount, fieldCount) {
+    const count = Math.max(2, Math.min(999, Math.trunc(Number(fieldCount)) || 2))
+    const order = shuffle(Array.from({ length: count }, (_, i) => i + 1))
+    return Object.fromEntries(Array.from({ length: matchCount }, (_, i) => [`rep-${i}`, order[i % order.length]]))
   }
 
   function leagueMatches(season) {
@@ -586,6 +648,7 @@ window.Hub = (() => {
     const m = {
       key,
       stage,
+      field: po.fields?.[key] || null,
       home,
       away,
       homeSeed,
@@ -613,12 +676,34 @@ window.Hub = (() => {
     return m
   }
 
+  function computeRepechage(season) {
+    const repechage = season.playoffs?.repechage
+    if (!repechage?.enabled) return []
+    return repechage.pairs.map(([home, away], i) => resolveMatch(
+      repechage,
+      `rep-${i}`,
+      home,
+      away,
+      null,
+      null,
+      'Repechaje',
+    ))
+  }
+
   function computeBracket(season) {
     const po = season.playoffs
     if (!po) return null
-    const order = seedOrder(po.size)
+    const order = Array.isArray(po.bracketOrder) && po.bracketOrder.length === po.size ? po.bracketOrder : seedOrder(po.size)
     const roundsCount = Math.log2(po.size)
     const rounds = []
+    const seeds = po.seeds.slice()
+    const repechage = computeRepechage(season)
+    if (po.repechage?.enabled) {
+      repechage.forEach((match, i) => {
+        const seed = po.repechage.seedSlots[i]
+        if (match.winner && seed) seeds[seed - 1] = match.winner
+      })
+    }
     let prev = null
     for (let r = 0; r < roundsCount; r++) {
       const count = po.size / 2 ** (r + 1)
@@ -631,8 +716,8 @@ window.Hub = (() => {
         if (r === 0) {
           homeSeed = order[2 * i]
           awaySeed = order[2 * i + 1]
-          home = po.seeds[homeSeed - 1] ?? null
-          away = po.seeds[awaySeed - 1] ?? null
+          home = seeds[homeSeed - 1] ?? null
+          away = seeds[awaySeed - 1] ?? null
         } else {
           const a = prev[2 * i]
           const b = prev[2 * i + 1]
@@ -676,21 +761,33 @@ window.Hub = (() => {
     const byId = new Map()
     season.teams.forEach((t) =>
       byId.set(t.id, {
+        id: t.id,
         key: norm(t.name),
         name: t.name,
         logo: t.logo,
         number: season.number,
         position: null,
+        leaguePosition: null,
         league: zero(),
         cup: zero(),
         matches: [],
         leagueChampion: false,
+        seriesChampion: false,
         cupChampion: false,
         runnerUp: false,
         third: false,
         fourth: false,
         leagueScorer: false,
+        seriesScorer: false,
         cupScorer: false,
+        seasonScorer: false,
+        seasonCleanSheetAward: false,
+        invincibleLeague: false,
+        invincibleSeries: false,
+        perfectSeason: false,
+        legendarySeason: false,
+        leagueCleanSheets: 0,
+        cupCleanSheets: 0,
       }),
     )
 
@@ -698,8 +795,15 @@ window.Hub = (() => {
       const h = byId.get(m.home)
       const a = byId.get(m.away)
       if (!h || !a) return
-      addResult(h[type], m.hg, m.ag, type === 'league')
-      addResult(a[type], m.ag, m.hg, type === 'league')
+      addResult(h[type], m.hg, m.ag, true)
+      addResult(a[type], m.ag, m.hg, true)
+      if (type === 'league') {
+        if (m.ag === 0) h.leagueCleanSheets++
+        if (m.hg === 0) a.leagueCleanSheets++
+      } else if (type === 'cup') {
+        if (m.ag === 0) h.cupCleanSheets++
+        if (m.hg === 0) a.cupCleanSheets++
+      }
       const base = { season: season.number, label: `${label} - Temporada ${season.number}`, type }
       h.matches.push({ ...base, gf: m.hg, ga: m.ag, opp: a.name, oppLogo: a.logo, pens: pens ? `${m.hp}-${m.ap}` : null })
       a.matches.push({ ...base, gf: m.ag, ga: m.hg, opp: h.name, oppLogo: h.logo, pens: pens ? `${m.ap}-${m.hp}` : null })
@@ -712,11 +816,32 @@ window.Hub = (() => {
     const leagueDone = manual ? manual.finished : league.length > 0 && league.every(played)
     const table = computeTable(season)
     table.forEach((row, i) => (byId.get(row.team.id).position = i + 1))
-    if (leagueDone && table[0] && (table[0].pj || table[0].pts)) byId.get(table[0].team.id).leagueChampion = true
+    const twoSeries = season.tableConfig?.type === 'two-series'
+    const seriesGroups = twoSeries ? [season.tableConfig.series1, season.tableConfig.series2] : []
+    const assignedSeriesTeams = new Set(seriesGroups.flat())
+    const validSeries = twoSeries && seriesGroups.every((series) => series.length >= 2) && assignedSeriesTeams.size === season.teams.length && season.teams.every((team) => assignedSeriesTeams.has(team.id))
+    if (leagueDone && twoSeries && validSeries) {
+      seriesGroups.forEach((series) => {
+        const rows = computeTable(season, series)
+        rows.forEach((row, i) => (byId.get(row.team.id).leaguePosition = i + 1))
+        const winner = rows[0]
+        if (winner && (winner.pj || winner.pts)) byId.get(winner.team.id).seriesChampion = true
+        const maxGoals = Math.max(0, ...rows.map((row) => row.gf))
+        if (maxGoals > 0) rows.filter((row) => row.gf === maxGoals).forEach((row) => (byId.get(row.team.id).seriesScorer = true))
+        rows.filter((row) => row.pj > 0 && row.pp === 0).forEach((row) => (byId.get(row.team.id).invincibleSeries = true))
+      })
+    } else if (leagueDone && !twoSeries && table[0] && (table[0].pj || table[0].pts)) {
+      table.forEach((row, i) => (byId.get(row.team.id).leaguePosition = i + 1))
+      byId.get(table[0].team.id).leagueChampion = true
+      table.filter((row) => row.pj > 0 && row.pp === 0).forEach((row) => (byId.get(row.team.id).invincibleLeague = true))
+    }
 
     const bracket = computeBracket(season)
+    const repechageMatches = computeRepechage(season)
+    const tournamentMatches = bracket ? [...repechageMatches, ...bracket.rounds.flat(), bracket.third] : []
+    const tournamentDone = !!bracket?.champion && tournamentMatches.every((match) => match.played)
     if (bracket) {
-      ;[...bracket.rounds.flat(), bracket.third].forEach((m) => {
+      tournamentMatches.forEach((m) => {
         if (m.played) record(m, 'cup', m.stage, m.tied && m.decided)
       })
       const flag = (id, prop) => id && byId.has(id) && (byId.get(id)[prop] = true)
@@ -732,8 +857,50 @@ window.Hub = (() => {
       const max = Math.max(0, ...all.map((s) => s[type].gf))
       if (max > 0) all.forEach((s) => (s[prop] = s[type].gf === max))
     }
-    if (leagueDone) award('league', 'leagueScorer')
-    if (bracket && bracket.champion) award('cup', 'cupScorer')
+    if (leagueDone && !twoSeries) award('league', 'leagueScorer')
+    if (tournamentDone) {
+      award('cup', 'cupScorer')
+    }
+    if (leagueDone && tournamentDone) {
+      const candidates = all.filter((team) => team.league.pj + team.cup.pj > 0)
+      const goalsFor = (team) => team.league.gf + team.cup.gf
+      const goalsAgainst = (team) => team.league.gc + team.cup.gc
+      const leaguePoints = (team) => team.league.pts
+      const leagueWins = (team) => team.league.pg
+      const leaguePosition = (team) => team.leaguePosition || Number.POSITIVE_INFINITY
+
+      const scorers = [...candidates].sort((a, b) =>
+        goalsFor(b) - goalsFor(a) ||
+        goalsAgainst(a) - goalsAgainst(b) ||
+        leaguePoints(b) - leaguePoints(a) ||
+        leagueWins(b) - leagueWins(a) ||
+        leaguePosition(a) - leaguePosition(b) ||
+        a.name.localeCompare(b.name),
+      )
+      if (scorers[0] && goalsFor(scorers[0]) > 0) scorers[0].seasonScorer = true
+
+      if (league.some(played)) {
+        const cleanSheetWinner = [...candidates]
+          .filter((team) => team.league.pj > 0)
+          .sort((a, b) =>
+            b.leagueCleanSheets + b.cupCleanSheets - (a.leagueCleanSheets + a.cupCleanSheets) ||
+            goalsAgainst(a) - goalsAgainst(b) ||
+            (b.league.pts + b.cup.pts) - (a.league.pts + a.cup.pts) ||
+            a.name.localeCompare(b.name),
+          )[0]
+        if (cleanSheetWinner) cleanSheetWinner.seasonCleanSheetAward = true
+      }
+    }
+    all.forEach((team) => {
+      team.perfectSeason = !!(
+        team.cupChampion &&
+        (team.leagueChampion || team.seriesChampion) &&
+        team.cupScorer &&
+        (team.leagueScorer || team.seriesScorer) &&
+        team.seasonCleanSheetAward
+      )
+      team.legendarySeason = team.perfectSeason && team.league.gc + team.cup.gc === 0
+    })
     return all
   }
 
@@ -958,10 +1125,11 @@ window.Hub = (() => {
   }
 
   function teamTotals(rec) {
-    const t = { cups: 0, leagues: 0, runnerUp: 0, third: 0, fourth: 0, leagueScorer: 0, cupScorer: 0, league: zero(), cup: zero() }
+    const t = { cups: 0, leagues: 0, series: 0, runnerUp: 0, third: 0, fourth: 0, leagueScorer: 0, cupScorer: 0, league: zero(), cup: zero() }
     rec.seasons.forEach((s) => {
       if (s.cupChampion) t.cups++
       if (s.leagueChampion) t.leagues++
+      if (s.seriesChampion) t.series++
       if (s.runnerUp) t.runnerUp++
       if (s.third) t.third++
       if (s.fourth) t.fourth++
@@ -1030,9 +1198,12 @@ window.Hub = (() => {
     toInt,
     generateRounds,
     generateSeriesRounds,
+    generateTournamentFields,
+    generateRepechageFields,
     leagueMatches,
     computeTable,
     computeBracket,
+    computeRepechage,
     seasonStats,
     statSeasons,
     teamRecords,

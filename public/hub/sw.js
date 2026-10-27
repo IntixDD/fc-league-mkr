@@ -1,4 +1,4 @@
-const CACHE = 'league-hub-v16'
+const CACHE = 'league-hub-v35'
 
 const BASE = new URL('./', self.location.href)
 
@@ -6,18 +6,18 @@ const SHELL = [
   './',
   'index.html',
   'styles.css?v=10',
-  'components.css?v=10',
+  'components.css?v=29',
   'prefs.js?v=12',
-  'core.js?v=10',
+  'core.js?v=19',
   'views/teams.js?v=10',
-  'views/table.js?v=10',
-  'views/fixtures.js?v=10',
-  'views/tournament.js?v=11',
+  'views/table.js?v=17',
+  'views/fixtures.js?v=14',
+  'views/tournament.js?v=15',
   'icon-tournament.svg?v=5',
-  'views/seasons.js?v=9',
-  'views/history.js?v=9',
-  'views/performance.js?v=9',
-  'views/settings.js?v=9',
+  'views/seasons.js?v=20',
+  'views/history.js?v=14',
+  'views/performance.js?v=15',
+  'views/settings.js?v=11',
   'app.js?v=10',
   'logo.svg',
   'grid.svg',
@@ -80,3 +80,16 @@ self.addEventListener('fetch', (event) => {
       })
   )
 })
+
+
+
+
+
+
+
+
+
+
+
+
+

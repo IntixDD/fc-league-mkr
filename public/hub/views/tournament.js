@@ -6,22 +6,102 @@
     { size: 8, label: 'Cuartos de final' },
     { size: 16, label: 'Octavos de final' },
   ]
+  let repechageDraftSeason = null
+  let repechageDraft = null
+
+  function repechageSetup(season, size, grouped) {
+    if (grouped) {
+      const first = H.computeTable(season, season.tableConfig.series1)
+      const second = H.computeTable(season, season.tableConfig.series2)
+      const matchCount = size === 4 ? 2 : size / 4
+      const directPerSeries = size / 2 - matchCount / 2
+      if (first.length < directPerSeries + matchCount || second.length < directPerSeries + matchCount) return null
+      const pairs = Array.from({ length: matchCount }, (_, i) => [
+        first[directPerSeries + i].team.id,
+        second[directPerSeries + matchCount - i - 1].team.id,
+      ])
+      const seeds = Array(size).fill(null)
+      let order = [1]
+      while (order.length < size) {
+        const next = order.length * 2 + 1
+        order = order.flatMap((seed) => [seed, next - seed])
+      }
+      const teamsPerSide = size / 2
+      for (let i = 0; i < teamsPerSide; i++) {
+        if (i < directPerSeries) seeds[order[2 * i] - 1] = first[i].team.id
+        const secondRank = teamsPerSide - i - 1
+        if (secondRank < directPerSeries) seeds[order[2 * i + 1] - 1] = second[secondRank].team.id
+      }
+      const repechagePerSide = matchCount / 2
+      const seedSlots = [
+        ...Array.from({ length: repechagePerSide }, (_, i) => order[2 * (directPerSeries + i)]),
+        ...Array.from({ length: repechagePerSide }, (_, i) => order[2 * i + 1]),
+      ]
+      return { seeds, repechage: { enabled: true, pairs, seedSlots, fields: H.generateRepechageFields(matchCount, season.fields || 2), results: {} } }
+    }
+    const table = H.computeTable(season)
+    const matchCount = size / 4
+    const directCount = size - matchCount
+    if (table.length < size + matchCount) return null
+    const participants = table.slice(directCount, directCount + matchCount * 2)
+    const pairs = Array.from({ length: matchCount }, (_, i) => [
+      participants[i].team.id,
+      participants[participants.length - i - 1].team.id,
+    ])
+    return {
+      seeds: [...table.slice(0, directCount).map((row) => row.team.id), ...Array(matchCount).fill(null)],
+      repechage: {
+        enabled: true,
+        pairs,
+        seedSlots: Array.from({ length: matchCount }, (_, i) => directCount + i + 1),
+        fields: H.generateRepechageFields(matchCount, season.fields || 2),
+        results: {},
+      },
+    }
+  }
+
+  function repechageMinimum(size, grouped) {
+    if (!grouped) return `${size + size / 4} equipos`
+    const matchCount = size === 4 ? 2 : size / 4
+    return `${size / 2 - matchCount / 2 + matchCount} equipos por serie`
+  }
+
+  function randomBracketOrder(size) {
+    const order = Array.from({ length: size }, (_, i) => i + 1)
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[order[i], order[j]] = [order[j], order[i]]
+    }
+    return order
+  }
 
   async function generate() {
     const season = H.state.current
     const size = H.ui.poSize
     const grouped = season.tableConfig?.type === 'two-series'
+    const useRepechage = !!repechageDraft
     if (grouped) {
       const first = H.computeTable(season, season.tableConfig.series1)
       const second = H.computeTable(season, season.tableConfig.series2)
-      if (size / 2 > Math.min(first.length, second.length)) return H.toast(`Para un cuadro de ${size}, cada serie necesita al menos ${size / 2} equipos.`, 'error')
+      const assigned = season.tableConfig.series1.length + season.tableConfig.series2.length === season.teams.length
+      if (!assigned || (useRepechage ? !repechageSetup(season, size, true) : size / 2 > Math.min(first.length, second.length))) {
+        return H.toast(useRepechage ? 'No hay suficientes equipos asignados a ambas series para el repechaje.' : `Para un cuadro de ${size}, cada serie necesita al menos ${size / 2} equipos.`, 'error')
+      }
     } else if (season.teams.length < size) return H.toast(`Necesitas al menos ${size} equipos`, 'error')
-    if (season.playoffs && Object.keys(season.playoffs.results).length) {
-      if (!(await H.confirm('Se creará un nuevo cuadro con la clasificación actual y se perderán los resultados de Tournament.', { confirmText: 'Crear' })))
+    if (useRepechage && !grouped && !repechageSetup(season, size, false)) {
+      return H.toast(`Con repechaje se necesitan al menos ${size + size / 4} equipos.`, 'error')
+    }
+    if (season.playoffs && (Object.keys(season.playoffs.results).length || Object.keys(season.playoffs.repechage?.results || {}).length)) {
+      if (!(await H.confirm('Se creará un nuevo cuadro y se perderán los resultados actuales de Tournament.', { confirmText: 'Crear' })))
         return
     }
     let seeds
-    if (grouped) {
+    let repechage = null
+    if (useRepechage) {
+      const setup = repechageSetup(season, size, grouped)
+      seeds = setup.seeds
+      repechage = setup.repechage
+    } else if (grouped) {
       const first = H.computeTable(season, season.tableConfig.series1)
       const second = H.computeTable(season, season.tableConfig.series2)
       let order = [1]
@@ -35,7 +115,13 @@
         seeds[order[2 * i + 1] - 1] = second[second.length - 1 - i].team.id
       }
     } else seeds = H.computeTable(season).slice(0, size).map((r) => r.team.id)
-    H.update((s) => (s.current.playoffs = { size, seeds, results: {} }))
+    H.update((s) => (s.current.playoffs = {
+      size,
+      seeds,
+      results: {},
+      fields: H.generateTournamentFields(size, season.fields || 2),
+      ...(repechage ? { repechage, bracketOrder: randomBracketOrder(size) } : {}),
+    }))
     H.toast('Tournament creado')
   }
 
@@ -131,7 +217,7 @@
         const value = H.parseScore(input.value)
         H.update(
           (s) => {
-            const results = s.current.playoffs.results
+            const results = input.dataset.repechage === 'true' ? s.current.playoffs.repechage.results : s.current.playoffs.results
             const prev = results[key]
             const r = prev && prev.pair === pair ? prev : { pair, hg: null, ag: null, hp: null, ap: null }
             r[field] = value
@@ -141,6 +227,12 @@
         )
       })
       el.addEventListener('change', (e) => {
+        if (e.target.name === 'repechage-enabled') {
+          repechageDraft = e.target.checked
+          H.ui.repechageEnabled = repechageDraft
+          H.render()
+          return
+        }
         if (e.target.closest('[data-po]')) H.render()
       })
     },
@@ -149,8 +241,21 @@
       const season = s.current
       const n = season.teams.length
       const po = season.playoffs
+      if (po?.repechage?.enabled && !Array.isArray(po.bracketOrder)) {
+        const draw = randomBracketOrder(po.size)
+        H.update((st) => {
+          if (st.current.playoffs === po) st.current.playoffs.bracketOrder = draw
+        }, { skip: 'tournament' })
+      }
       const grouped = season.tableConfig?.type === 'two-series'
       const available = grouped ? 2 * Math.min(season.tableConfig.series1.length, season.tableConfig.series2.length) : n
+      if (repechageDraftSeason !== season.id || repechageDraft == null) {
+        repechageDraftSeason = season.id
+        repechageDraft = po ? !!po.repechage?.enabled : !!H.ui.repechageEnabled
+        H.ui.repechageEnabled = repechageDraft
+      }
+      const repechageEnabled = repechageDraft
+      const canRepechage = (size) => !!repechageSetup(season, size, grouped)
       if (po) H.ui.poSize = po.size
       const teams = new Map(season.teams.map((t) => [t.id, t]))
       const { total, played } = H.stageCounts(season)
@@ -160,18 +265,18 @@
           <header class="card-head">
             <div>
               <h2 class="card-title">Crear Tournament</h2>
-              <p class="card-sub">${season.tableConfig?.type === 'two-series' ? 'Serie 1: primero vs último de Serie 2, segundo vs penúltimo…' : '1.º vs último clasificado, 2.º vs penúltimo…'}</p>
             </div>
           </header>
           <div class="seg seg--wrap" role="group" aria-label="Ronda inicial">
             ${SIZES.map(
               (o) =>
-                `<button class="seg-btn" data-action="size" data-size="${o.size}" aria-pressed="${H.ui.poSize === o.size}" ${available < o.size ? 'disabled' : ''}>${o.label}<small>${o.size} equipos</small></button>`,
+                `<button class="seg-btn" data-action="size" data-size="${o.size}" aria-pressed="${H.ui.poSize === o.size}" ${repechageEnabled ? !canRepechage(o.size) ? 'disabled' : '' : available < o.size && !canRepechage(o.size) ? 'disabled' : ''}>${o.label}<small>${o.size} equipos</small></button>`,
             ).join('')}
           </div>
+          <label class="series-choice tournament-repechage-toggle"><input type="checkbox" name="repechage-enabled" ${repechageEnabled ? 'checked' : ''} ${canRepechage(H.ui.poSize) ? '' : 'disabled'}> Repechajes <span class="hint">(mínimo ${repechageMinimum(H.ui.poSize, grouped)})</span></label>
           ${total && played < total ? `<p class="notice">La liga aún no termina (${played}/${total}). Los clasificados se toman de la tabla actual.</p>` : ''}
           <div class="row-actions">
-            <button class="btn btn--primary" data-action="generate" ${available < H.ui.poSize ? 'disabled' : ''}>${po ? 'Recrear cuadro' : 'Crear cuadro'}</button>
+            <button class="btn btn--primary" data-action="generate" ${repechageEnabled ? !canRepechage(H.ui.poSize) ? 'disabled' : '' : available < H.ui.poSize ? 'disabled' : ''}>${po ? 'Recrear cuadro' : 'Crear cuadro'}</button>
             ${po ? '<button class="btn btn--danger" data-action="remove">Eliminar</button>' : ''}
           </div>
           ${available < 4 ? `<p class="hint">${grouped ? 'Necesitas al menos 2 equipos clasificados en cada serie para formar un cruce.' : 'Necesitas al menos 4 equipos registrados.'}</p>` : ''}
@@ -179,11 +284,12 @@
 
       if (!po) {
         bracketObserver?.disconnect()
-        el.innerHTML = `<div class="panel-grid">${config}<article class="card"><p class="empty">Elige la ronda inicial y crea el cuadro. Con 2 series, los cruces iniciales emparejan clasificados de Serie 1 con los de Serie 2 en orden inverso. Si una llave termina empatada se definirá por penales. Incluye partido por el tercer puesto.</p></article></div>`
+        el.innerHTML = `<div class="panel-grid">${config}</div>`
         return
       }
 
       const bracket = H.computeBracket(season)
+      const repechageMatches = H.computeRepechage(season)
 
       const teamLine = (m, side) => {
         const id = m[side]
@@ -195,23 +301,30 @@
         const lost = m.loser && m.loser === id
         return `
           <div class="po-team${won ? ' is-winner' : ''}${lost ? ' is-loser' : ''}">
-            <span class="po-seed">${t && seed ? seed : ''}</span>
+            <span class="po-seed">${t && seed && !po.bracketOrder ? seed : ''}</span>
             ${t ? crest(t.logo, 'sm', t.name) : '<span class="crest crest--sm crest--tbd"></span>'}
             <span class="po-name">${t ? esc(t.name) : 'Por definir'}</span>
             ${m.tied ? `<input class="score-input score-input--pen" type="number" inputmode="numeric" min="0" max="99" value="${m[pen] ?? ''}"
-              data-key="po:${m.key}:${pen}" data-po="${m.key}" data-pair="${esc(m.pair)}" data-field="${pen}" aria-label="Penales de ${esc(t?.name)}" title="Penales">` : ''}
+              data-key="po:${m.key}:${pen}" data-po="${m.key}" data-pair="${esc(m.pair)}" data-field="${pen}" data-repechage="${m.stage === 'Repechaje'}" aria-label="Penales de ${esc(t?.name)}" title="Penales">` : ''}
             <input class="score-input" type="number" inputmode="numeric" min="0" max="99" value="${m[field] ?? ''}"
-              data-key="po:${m.key}:${field}" data-po="${m.key}" data-pair="${esc(m.pair || '')}" data-field="${field}"
+              data-key="po:${m.key}:${field}" data-po="${m.key}" data-pair="${esc(m.pair || '')}" data-field="${field}" data-repechage="${m.stage === 'Repechaje'}"
               aria-label="Goles de ${esc(t?.name || 'por definir')}" ${m.pair ? '' : 'disabled'}>
           </div>`
       }
 
       const matchCard = (m, extra = '') => `
         <div class="po-match${m.decided ? ' is-decided' : ''} ${extra}" data-bk="${esc(m.key)}">
+          ${m.field ? `<span class="po-field">Cancha ${m.field}</span>` : ''}
           ${teamLine(m, 'home')}
           ${teamLine(m, 'away')}
           ${m.tied ? `<p class="po-pens">${m.penaltiesTied ? 'Los penales no pueden terminar empatados' : m.decided ? 'Definido por penales' : 'Empate: ingresa la tanda de penales'}</p>` : ''}
         </div>`
+
+      const repechageCard = po.repechage?.enabled ? `
+        <article class="card card--wide repechage-card" id="repechage-export">
+          <header class="card-head"><h2 class="card-title">Repechajes</h2><div class="row-actions">${H.exportButton('#repechage-export', 'repechajes')}</div></header>
+          <div class="repechage-grid">${repechageMatches.map((match) => matchCard(match)).join('')}</div>
+        </article>` : ''
 
       const slot = (m) => `<div class="bk-slot">${matchCard(m)}</div>`
       const sideColumn = (matches, stage, side) => {
@@ -271,7 +384,7 @@
         <div class="panel-grid panel-grid--even">
           ${config}
           <article class="card">
-            <header class="card-head"><div><h2 class="card-title">Podio</h2><p class="card-sub">Temporada ${season.number}</p></div></header>
+            <header class="card-head"><h2 class="card-title">Podio · Temporada ${season.number}</h2></header>
             <ol class="podium">
               ${place(bracket.champion, 'Campeón', 'is-gold')}
               ${place(bracket.runnerUp, 'Subcampeón', 'is-silver')}
@@ -281,7 +394,7 @@
           </article>
           <article class="card card--wide" id="tournament-export">
             <header class="card-head">
-              <div><h2 class="card-title">Cuadro</h2><p class="card-sub" data-export-hide>Ingresa los marcadores. Si hay empate aparece la casilla de penales (izquierda).</p></div>
+              <div><h2 class="card-title">Cuadro</h2></div>
               <div class="row-actions">
                 <span class="hint" data-export-hide>Desliza para recorrer el cuadro</span>
                 ${H.exportButton('#tournament-export', 'tournament')}
@@ -291,6 +404,7 @@
               ${leftCols}${finalCol}${rightCols}
             </div>
           </article>
+          ${repechageCard}
         </div>`
       watchBracket(el, bracket.rounds.length)
     },

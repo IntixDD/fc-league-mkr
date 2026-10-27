@@ -108,7 +108,7 @@
 
       const table = `
         <article class="card card--wide">
-          <header class="card-head"><div><h2 class="card-title">Temporada por temporada</h2><p class="card-sub">Liga + Tournament</p></div></header>
+          <header class="card-head"><h2 class="card-title">Temporada por temporada</h2></header>
           <div class="table-wrap">
             <table class="data-table data-table--perf">
               <thead>
@@ -131,27 +131,37 @@
 
       const featured = `
         <article class="card">
-          <header class="card-head"><div><h2 class="card-title">Partidos destacados</h2><p class="card-sub">Récords de goles</p></div></header>
+          <header class="card-head"><h2 class="card-title">Partidos destacados</h2></header>
           <div class="feat-grid">
             ${matchBox('Más goles a favor', bestFor, rec, 'for')}
             ${matchBox('Más goles en contra', worstAgainst, rec, 'against')}
           </div>
         </article>`
 
-      const trophies = [
-        { label: 'Torneos', flag: 'cupChampion', tone: 'gold', icon: 'trophy' },
-        { label: 'Ligas', flag: 'leagueChampion', tone: 'gold', icon: 'crown' },
-        { label: 'Subcampeonatos', flag: 'runnerUp', tone: 'silver', icon: 'medal2' },
-        { label: '3eros lugares', flag: 'third', tone: 'bronze', icon: 'medal3' },
-        { label: '4tos lugares', flag: 'fourth', tone: 'plain', icon: 'medal4' },
-        { label: 'Goleador de Liga', flag: 'leagueScorer', tone: 'accent', icon: 'ball' },
-        { label: 'Goleador del Torneo', flag: 'cupScorer', tone: 'accent', icon: 'ball' },
+      const titles = [
+        { label: 'Campeón de Torneo', flag: 'cupChampion', tone: 'gold', icon: 'trophy' },
+        { label: 'Campeón de Liga', flag: 'leagueChampion', tone: 'gold', icon: 'crown' },
+        { label: 'Campeón de Serie', flag: 'seriesChampion', tone: 'green', icon: 'crown' },
+        { label: 'Subcampeón de Torneo', flag: 'runnerUp', tone: 'silver', icon: 'medal2' },
+        { label: '3er lugar', flag: 'third', tone: 'bronze', icon: 'medal3' },
+        { label: '4to lugar', flag: 'fourth', tone: 'plain', icon: 'medal4' },
+        { label: 'Goleador de la temporada', flag: 'seasonScorer', tone: 'gold', icon: 'ball' },
+        { label: 'Portería imbatible de la temporada', flag: 'seasonCleanSheetAward', tone: 'green', icon: 'conceded' },
+      ]
+      const achievements = [
+        { label: 'Goleador de torneo', flag: 'cupScorer', tone: 'accent', icon: 'ball', emptyLabel: 'Sin logros' },
+        { label: 'Goleador de liga', flag: 'leagueScorer', tone: 'accent', icon: 'ball', emptyLabel: 'Sin logros' },
+        { label: 'Goleador de Serie', flag: 'seriesScorer', tone: 'green', icon: 'ball', emptyLabel: 'Sin logros' },
+        { label: 'Temporada perfecta', flag: 'perfectSeason', tone: 'gold', icon: 'star', emptyLabel: 'Sin logros' },
+        { label: 'Invicto en Liga', flag: 'invincibleLeague', tone: 'accent', icon: 'win', emptyLabel: 'Sin logros' },
+        { label: 'Invicto en Serie', flag: 'invincibleSeries', tone: 'green', icon: 'win', emptyLabel: 'Sin logros' },
+        { label: 'Temporada Legendaria', flag: 'legendarySeason', tone: 'gold', icon: 'trophy', emptyLabel: 'Sin logros' },
       ]
       const trophyCard = (tr) => {
         const won = rec.seasons.filter((s) => s[tr.flag]).sort((a, b) => a.number - b.number)
         const seasons = won.length
           ? `<ul class="trophy-seasons" aria-label="Temporadas">${won.map((s) => `<li class="trophy-season">T${s.number}</li>`).join('')}</ul>`
-          : `<p class="trophy-none">Sin títulos</p>`
+          : `<p class="trophy-none">${tr.emptyLabel || 'Sin títulos'}</p>`
         return `
           <div class="trophy trophy--${tr.tone}${won.length ? '' : ' is-zero'}">
             <div class="trophy-top">
@@ -162,10 +172,12 @@
             ${seasons}
           </div>`
       }
+      const trophySection = (label, items) => `<section class="trophy-section"><h3 class="card-title trophy-section-title">${label}</h3><dl class="trophy-grid">${items.map(trophyCard).join('')}</dl></section>`
       const palmares = `
         <article class="card">
-          <header class="card-head"><div><h2 class="card-title">Palmarés histórico</h2><p class="card-sub">Goleador = club con más goles de la competición</p></div></header>
-          <dl class="trophy-grid">${trophies.map(trophyCard).join('')}</dl>
+          <header class="card-head"><h2 class="card-title">Palmarés histórico</h2></header>
+          ${trophySection('Títulos', titles)}
+          ${trophySection('Logros', achievements)}
         </article>`
 
       const fileName = `rendimiento-${rec.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'club'}`

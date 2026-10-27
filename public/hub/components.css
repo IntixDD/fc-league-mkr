@@ -55,6 +55,8 @@ a {
   grid-column: 1 / -1;
 }
 
+.table-setup-card { margin-bottom: 18px; }
+
 .card-head {
   display: flex;
   align-items: flex-start;
@@ -614,6 +616,8 @@ select.input option {
   transition: border-color 0.15s;
 }
 
+.season-row { flex-wrap: wrap; }
+
 .team-row:hover,
 .season-row:hover {
   border-color: var(--line);
@@ -727,6 +731,7 @@ select.input option {
 .data-table--league {
   --rank-win: #22c55e;
   --rank-po: #3b82f6;
+  --rank-repechage: #facc15;
   --rank-out: #ef4444;
 }
 
@@ -756,6 +761,10 @@ select.input option {
   --rank: var(--rank-po);
 }
 
+.data-table--league tr.is-repechage {
+  --rank: var(--rank-repechage);
+}
+
 .data-table--league tr.is-out {
   --rank: var(--rank-out);
 }
@@ -779,6 +788,10 @@ select.input option {
 
 .legend-dot.legend-dot--po {
   background: #3b82f6;
+}
+
+.legend-dot.legend-dot--repechage {
+  background: #facc15;
 }
 
 .legend-dot.legend-dot--out {
@@ -1321,6 +1334,16 @@ select.input option {
   box-shadow: 0 0 24px rgba(255, 209, 102, 0.12);
 }
 
+.po-field {
+  align-self: flex-end;
+  padding: 2px 6px;
+  border: 1px solid rgb(var(--accent-rgb) / 0.28);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .po-team {
   display: flex;
   align-items: center;
@@ -1547,6 +1570,236 @@ select.input option {
   color: var(--gold);
 }
 
+.season-awards {
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 12px 0 0 56px;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgb(var(--accent-rgb) / 0.075), rgb(255 255 255 / 0.025));
+  border: 1px solid var(--line-strong);
+  border-radius: 13px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.16);
+}
+
+.season-awards > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 14px;
+  color: var(--text);
+  background: rgb(255 255 255 / 0.025);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.season-awards > summary::-webkit-details-marker { display: none; }
+.season-awards > summary:hover { background: rgb(var(--accent-rgb) / 0.09); color: #fff; }
+.season-awards > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.season-awards[open] > summary { border-bottom: 1px solid var(--line); }
+
+.season-awards-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.season-awards-heading .stat-icon {
+  width: 19px;
+  height: 19px;
+  color: var(--gold);
+}
+
+.season-awards-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 24px;
+  padding: 0 7px;
+  color: var(--accent);
+  background: rgb(var(--accent-rgb) / 0.12);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.season-awards-chevron {
+  width: 8px;
+  height: 8px;
+  margin: 0 3px 3px 2px;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 0.18s ease;
+}
+
+.season-awards[open] .season-awards-chevron {
+  margin-bottom: -3px;
+  transform: rotate(225deg);
+}
+
+.season-awards-content { padding: 12px; }
+
+.season-award-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+  gap: 12px;
+}
+
+.season-award-group {
+  min-width: 0;
+  padding: 12px;
+  background: rgb(0 0 0 / 0.12);
+  border: 1px solid rgb(255 255 255 / 0.065);
+  border-radius: 11px;
+}
+
+.season-award-group h4 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.season-award-group h4 > span {
+  margin-left: auto;
+  color: var(--muted);
+  font-family: system-ui, sans-serif;
+  font-size: 10px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.season-standing-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); gap: 12px; }
+.season-standing-table-wrap { max-width: 100%; margin-top: 8px; }
+.season-standing-table { width: 100%; min-width: 680px; }
+.season-standing-table th, .season-standing-table td { padding: 8px 6px; }
+.season-standing-table .club { min-width: 150px; }
+.season-bracket-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px; }
+.season-mini-bracket { position: relative; display: flex; justify-content: safe center; align-items: stretch; gap: 12px; width: 100%; min-height: 210px; overflow-x: auto; overflow-y: hidden; padding: 10px 8px 14px; border: 1px solid rgb(255 255 255 / 0.06); border-radius: 10px; background: radial-gradient(ellipse at center, rgb(255 209 102 / 0.045), transparent 62%); scrollbar-width: thin; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; scroll-snap-type: x proximity; touch-action: pan-x pan-y; }
+.season-mini-bracket:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.season-mini-lines { position: absolute; top: 0; left: 0; z-index: 0; overflow: visible; pointer-events: none; }
+.season-mini-line { fill: none; stroke: rgb(var(--accent-rgb) / .32); stroke-width: 1.5; stroke-linejoin: round; }
+.season-mini-line.is-live { stroke: rgb(var(--accent-rgb) / .72); }
+.season-mini-line.is-final { stroke: rgb(255 209 102 / .48); }
+.season-mini-col { position: relative; z-index: 1; display: flex; flex: 0 0 148px; flex-direction: column; min-width: 0; scroll-snap-align: center; }
+.season-mini-col > h4 { margin: 0 0 8px; color: var(--muted); font-size: 9px; letter-spacing: .06em; text-align: center; text-transform: uppercase; }
+.season-mini-slots { display: flex; flex: 1; flex-direction: column; }
+.season-mini-pair { position: relative; display: flex; flex: 1; flex-direction: column; }
+.season-mini-slot { position: relative; display: flex; flex: 1; flex-direction: column; justify-content: center; padding: 3px 0; }
+.season-mini-match { position: relative; z-index: 1; display: grid; gap: 2px; padding: 5px; border: 1px solid rgb(255 255 255 / .08); border-radius: 7px; background: #111820; }
+.season-mini-match.is-final { border-color: rgb(255 209 102 / .32); }
+.season-mini-team { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 9px; }
+.season-mini-team > span:not(.crest) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.season-mini-team strong { font-size: 10px; font-variant-numeric: tabular-nums; }
+.season-mini-team.is-winner strong { color: var(--ok); }
+.season-mini-pens { display: block; padding-top: 2px; color: var(--gold); font-size: 8px; text-align: center; }
+.season-mini-col--final { flex-basis: 166px; justify-content: center; }
+.season-mini-final-top { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 32px; margin: 0 0 8px; padding: 4px; border: 1px dashed rgb(255 209 102 / .25); border-radius: 7px; color: var(--gold); font-size: 9px; font-weight: 700; text-align: center; }
+.season-mini-third { margin-top: 10px; }
+.season-mini-third h5 { margin: 0 0 4px; color: var(--muted); font-size: 8px; text-align: center; text-transform: uppercase; }
+.season-mini-col--right { margin-left: 0; }
+.season-tournament-matches { display: grid; gap: 8px; }
+.season-tournament-match { position: relative; padding: 10px; background: rgb(255 255 255 / 0.035); border: 1px solid rgb(255 255 255 / 0.065); border-radius: 9px; }
+.season-match-scoreline { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.season-match-team { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.season-match-team > span:not(.crest) { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 11px; }
+.season-match-team strong { font-size: 14px; font-variant-numeric: tabular-nums; }
+.season-match-team.is-winner strong { color: var(--ok); }
+.season-match-separator { color: var(--muted); font-family: var(--font-display); }
+.season-match-pens { margin: 8px 0 0; color: var(--gold); font-size: 10.5px; text-align: center; }
+.season-match-field { display: block; margin-top: 7px; color: var(--muted); font-size: 10px; text-align: right; }
+
+.season-award {
+  display: grid;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid rgb(255 255 255 / 0.06);
+}
+
+.season-award-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.season-award-icon {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  height: 27px;
+  flex: none;
+  background: color-mix(in srgb, var(--award-tone) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--award-tone) 26%, transparent);
+  border-radius: 8px;
+  color: var(--award-tone);
+}
+
+.season-award-icon .stat-icon { width: 16px; height: 16px; }
+.season-award-icon--gold { --award-tone: var(--gold); }
+.season-award-icon--green { --award-tone: #4ade80; }
+.season-award-icon--silver { --award-tone: var(--silver); }
+.season-award-icon--bronze { --award-tone: var(--bronze); }
+.season-award-icon--accent { --award-tone: var(--accent); }
+.season-award-icon--plain { --award-tone: #8fa3bf; }
+
+.season-award-label {
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.season-award-winners {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 35px;
+}
+
+.season-award-winner {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 8px 4px 5px;
+  background: rgb(255 255 255 / 0.045);
+  border: 1px solid rgb(255 255 255 / 0.075);
+  border-radius: 999px;
+  font-size: 11.5px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.season-award-winner:hover {
+  background: rgb(var(--accent-rgb) / 0.09);
+  border-color: var(--line);
+}
+
+.season-award-winner > span:last-child {
+  overflow-wrap: anywhere;
+}
+
+.season-awards-empty {
+  margin: 0;
+  padding: 8px 4px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+
 @media (max-width: 640px) {
   :root:not(.ui-desktop) .season-row {
     flex-wrap: wrap;
@@ -1556,6 +1809,13 @@ select.input option {
     width: 100%;
     justify-content: flex-start;
   }
+
+  :root:not(.ui-desktop) .season-awards {
+    margin-left: 0;
+  }
+
+  :root:not(.ui-desktop) .season-awards-content { padding: 9px; }
+  :root:not(.ui-desktop) .season-award-group { padding: 10px; }
 }
 
 /* ---------- History ---------- */
@@ -1829,12 +2089,121 @@ select.input option {
   text-align: center;
 }
 
+.compare-pickers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  max-width: 760px;
+  margin: 0 auto 20px;
+}
+
+.compare-summary {
+  max-width: 760px;
+  margin: 0 auto 24px;
+  padding: 18px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+.compare-summary-teams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.compare-summary-team {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  text-align: center;
+}
+
+.compare-summary-team strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.compare-summary-team > span:last-child,
+.compare-summary-score > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.compare-summary-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  text-align: center;
+}
+
+.compare-summary-score strong {
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.compare-bar {
+  display: flex;
+  overflow: hidden;
+  height: 10px;
+  background: rgb(255 255 255 / 7%);
+  border-radius: 999px;
+}
+
+.compare-bar > span { min-width: 0; transition: width 180ms ease; }
+.compare-bar-a { background: var(--ok); }
+.compare-bar-draw { background: var(--gold); }
+.compare-bar-b { background: var(--danger); }
+
+.compare-total {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.compare-matches-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+}
+
+.compare-matches-head > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.compare-matches .feat-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
+.compare-card { margin-top: 20px; }
+.repechage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 12px; }
+.tournament-repechage-toggle { margin: 16px 0; }
+.tournament-repechage-toggle .hint { margin: 0; }
+
+@media (max-width: 520px) {
+  .compare-pickers { grid-template-columns: 1fr; }
+  .compare-summary { padding: 14px 10px; }
+  .compare-summary-teams { gap: 7px; }
+  .compare-summary-score strong { font-size: 20px; }
+}
+
 .trophy-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 10px;
   margin: 0;
 }
+
+.trophy-section + .trophy-section { margin-top: 20px; }
+.trophy-section-title { margin: 0 0 10px; }
 
 .trophy {
   --tone: var(--muted);
@@ -1848,6 +2217,7 @@ select.input option {
 }
 
 .trophy--gold { --tone: var(--gold); }
+.trophy--green { --tone: #4ade80; }
 .trophy--silver { --tone: var(--silver); }
 .trophy--bronze { --tone: var(--bronze); }
 .trophy--accent { --tone: var(--accent); }
@@ -2288,6 +2658,10 @@ select.input option {
   font-variant-numeric: tabular-nums;
   color: var(--muted);
   text-align: center;
+}
+
+.fx-idx.is-field {
+  color: var(--accent);
 }
 
 .fx-team {
