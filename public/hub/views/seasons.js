@@ -147,7 +147,17 @@
     svg.classList.add('season-mini-lines')
     svg.setAttribute('width', map.scrollWidth)
     svg.setAttribute('height', map.scrollHeight)
-    const mapRect = map.getBoundingClientRect()
+    const offsetWithin = (node, ancestor) => {
+      let x = 0
+      let y = 0
+      let current = node
+      while (current && current !== ancestor) {
+        x += current.offsetLeft
+        y += current.offsetTop
+        current = current.offsetParent
+      }
+      return { x, y, w: node.offsetWidth, h: node.offsetHeight }
+    }
     const finalMatch = map.querySelector('.season-mini-final-match')
     for (let round = 0; round < roundsCount - 1; round++) {
       map.querySelectorAll(`[data-bk^="r${round}-"]`).forEach((from) => {
@@ -155,13 +165,13 @@
         const finalRound = round === roundsCount - 2
         const to = finalRound ? finalMatch : map.querySelector(`[data-bk="r${round + 1}-${Math.floor(index / 2)}"]`)
         if (!to) return
-        const a = from.getBoundingClientRect()
-        const b = to.getBoundingClientRect()
+        const a = offsetWithin(from, map)
+        const b = offsetWithin(to, map)
         const leftSide = !!from.closest('.season-mini-col--left')
-        const x1 = (leftSide ? a.right : a.left) - mapRect.left + map.scrollLeft
-        const x2 = (leftSide ? b.left : b.right) - mapRect.left + map.scrollLeft
-        const y1 = a.top + a.height / 2 - mapRect.top + map.scrollTop
-        const y2 = b.top + b.height / 2 - mapRect.top + map.scrollTop
+        const x1 = leftSide ? a.x + a.w : a.x
+        const x2 = leftSide ? b.x : b.x + b.w
+        const y1 = a.y + a.h / 2
+        const y2 = b.y + b.h / 2
         const mid = (x1 + x2) / 2
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
         path.setAttribute('d', `M${x1} ${y1}H${mid}V${y2}H${x2}`)
