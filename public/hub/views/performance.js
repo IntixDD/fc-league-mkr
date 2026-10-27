@@ -57,6 +57,14 @@
       const matches = rec.seasons.flatMap((s) => s.matches.map((m) => ({ ...m, logo: s.logo })))
       const bestFor = [...matches].sort((a, b) => b.gf - a.gf || b.gf - b.ga - (a.gf - a.ga) || b.season - a.season)[0]
       const worstAgainst = [...matches].sort((a, b) => b.ga - a.ga || b.ga - b.gf - (a.ga - a.gf) || b.season - a.season)[0]
+      const isWin = (match) => {
+        if (match.gf !== match.ga) return match.gf > match.ga
+        if (!match.pens) return false
+        const [forPens, againstPens] = match.pens.split('-').map(Number)
+        return Number.isFinite(forPens) && Number.isFinite(againstPens) && forPens > againstPens
+      }
+      const finalsWon = matches.filter((match) => match.type === 'cup' && match.label.startsWith('Final -') && isWin(match)).sort((a, b) => b.season - a.season)[0]
+      const thirdPlacesWon = matches.filter((match) => match.type === 'cup' && match.label.startsWith('Tercer Puesto -') && isWin(match)).sort((a, b) => b.season - a.season)[0]
 
       const picker = `
         <label class="field field--inline perf-picker">
@@ -83,8 +91,8 @@
         { label: 'PG', title: 'Partidos ganados', tone: 'green', icon: 'win', get: (l, c) => l.pg + c.pg },
         { label: 'PE', title: 'Partidos empatados', tone: 'gold', icon: 'draw', get: (l, c) => l.pe + c.pe },
         { label: 'PP', title: 'Partidos perdidos', tone: 'red', icon: 'loss', get: (l, c) => l.pp + c.pp },
-        { label: 'GF Liga', title: 'Goles a favor en liga', tone: 'lime', icon: 'ball', get: (l) => l.gf },
-        { label: 'GC Liga', title: 'Goles en contra en liga', tone: 'rose', icon: 'conceded', get: (l) => l.gc },
+        { label: 'GF L+S', title: 'Goles a favor en liga y series', tone: 'lime', icon: 'ball', get: (l) => l.gf },
+        { label: 'GC L+S', title: 'Goles en contra en liga y series', tone: 'rose', icon: 'conceded', get: (l) => l.gc },
         { label: 'GF Torneo', title: 'Goles a favor en torneo', tone: 'blue', icon: 'ball', get: (l, c) => c.gf },
         { label: 'GC Torneo', title: 'Goles en contra en torneo', tone: 'orange', icon: 'conceded', get: (l, c) => c.gc },
         { label: 'GF Total', title: 'Goles a favor totales', tone: 'cyan', icon: 'trophy', get: (l, c) => l.gf + c.gf },
@@ -135,6 +143,8 @@
           <div class="feat-grid">
             ${matchBox('Más goles a favor', bestFor, rec, 'for')}
             ${matchBox('Más goles en contra', worstAgainst, rec, 'against')}
+            ${matchBox('Finales ganadas', finalsWon, rec, 'for')}
+            ${matchBox('Terceros lugares ganados', thirdPlacesWon, rec, 'for')}
           </div>
         </article>`
 
