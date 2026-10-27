@@ -3,15 +3,32 @@
   const { esc, crest } = H
   const ROTATE_MS = 4500
   const bg = { key: null, index: 0 }
+  let rotateTimer = 0
 
-  setInterval(() => {
-    const list = [...document.querySelectorAll('#performance-body .perf-bg-logo')]
-    if (list.length < 2 || document.getElementById('performance').hidden) return
-    const prev = list[bg.index % list.length]
-    bg.index = (bg.index + 1) % list.length
-    prev.classList.remove('is-active')
-    list[bg.index].classList.add('is-active')
-  }, ROTATE_MS)
+  function stopRotation() {
+    clearTimeout(rotateTimer)
+    rotateTimer = 0
+  }
+
+  function scheduleRotation() {
+    stopRotation()
+    const section = document.getElementById('performance')
+    if (document.hidden || !section || section.hidden) return
+    const list = section.querySelectorAll('.perf-bg-logo')
+    if (list.length < 2) return
+    rotateTimer = setTimeout(() => {
+      rotateTimer = 0
+      const current = section.querySelectorAll('.perf-bg-logo')
+      if (document.hidden || section.hidden || current.length < 2) return
+      current[bg.index % current.length].classList.remove('is-active')
+      bg.index = (bg.index + 1) % current.length
+      current[bg.index].classList.add('is-active')
+      scheduleRotation()
+    }, ROTATE_MS)
+  }
+
+  document.addEventListener('app:sectionchange', (event) => event.detail?.id === 'performance' ? scheduleRotation() : stopRotation())
+  document.addEventListener('visibilitychange', () => document.hidden ? stopRotation() : scheduleRotation())
 
   function matchBox(title, m, rec, kind) {
     if (!m) return `<div class="feat-match"><h3 class="feat-title">${title}</h3><p class="empty">Sin partidos jugados.</p></div>`
@@ -38,6 +55,7 @@
     },
 
     render(el) {
+      stopRotation()
       const records = H.teamRecords().sort((a, b) => a.name.localeCompare(b.name))
       if (!records.length) {
         el.innerHTML = `<article class="card"><p class="empty">Juega partidos o guarda temporadas para ver el rendimiento de cada club.</p></article>`
@@ -190,10 +208,32 @@
           ${trophySection('Logros', achievements)}
         </article>`
 
+      const badgeList = H.badgeCatalog ? H.badgeCatalog(rec) : []
+      const earnedBadges = badgeList.filter((badge) => badge.earned).length
+      const badgeGroups = [...new Set(badgeList.map((badge) => badge.category))].map((category) => ({
+        category,
+        items: badgeList.filter((badge) => badge.category === category),
+      }))
+      const badges = `
+        <article class="card card--wide performance-badges">
+          <header class="card-head"><h2 class="card-title">Badges</h2><span class="badge-team-count">${earnedBadges}/${badgeList.length} obtenidas</span></header>
+          ${badgeList.length
+            ? `<div class="badge-categories">${badgeGroups.map(({ category, items }) => `<section class="badge-category">
+                <header class="badge-category-head"><h3>${esc(category)}</h3><span>${category === 'Títulos' ? `${items[0]?.value || 0} títulos · ` : ''}${items.filter((badge) => badge.earned).length}/${items.length} insignias</span></header>
+                <div class="badge-grid">${items.map((badge) => `<div class="badge-item${badge.earned ? ' is-earned' : ' is-locked'} badge-tone-${badge.tone}">
+                  <span class="badge-item-icon">${H.badgeIcon(badge)}</span>
+                  <span class="badge-item-info"><strong>${esc(badge.name)}</strong><span>${esc(badge.progress)}</span></span>
+                  ${badge.earned ? '<span class="badge-item-check" aria-label="Obtenida">✓</span>' : ''}
+                </div>`).join('')}</div>
+              </section>`).join('')}</div>`
+            : '<p class="empty">No hay insignias disponibles.</p>'}
+        </article>`
+
       const fileName = `rendimiento-${rec.name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'club'}`
       el.innerHTML = `
         <div class="perf-toolbar">${picker}${H.exportButton('#performance-export', fileName, 'Exportar rendimiento PNG')}</div>
-        <div id="performance-export" class="perf-export"><div class="panel-grid panel-grid--even">${hero}${featured}${palmares}${table}</div></div>`
+        <div id="performance-export" class="perf-export"><div class="panel-grid panel-grid--even">${hero}${featured}${palmares}${table}${badges}</div></div>`
+      scheduleRotation()
     },
   })
 })()

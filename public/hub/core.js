@@ -118,7 +118,10 @@ window.Hub = (() => {
 
   addEventListener('pagehide', flush)
   addEventListener('beforeunload', flush)
-  document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flush())
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flush()
+    else scheduleRender()
+  })
 
   /* ---------- Helpers ---------- */
   const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4)
@@ -771,6 +774,7 @@ window.Hub = (() => {
         league: zero(),
         cup: zero(),
         matches: [],
+        tournamentQualifiedByDraws: false,
         leagueChampion: false,
         seriesChampion: false,
         cupChampion: false,
@@ -841,8 +845,19 @@ window.Hub = (() => {
     const tournamentMatches = bracket ? [...repechageMatches, ...bracket.rounds.flat(), bracket.third] : []
     const tournamentDone = !!bracket?.champion && tournamentMatches.every((match) => match.played)
     if (bracket) {
+      const qualified = new Set(bracket.rounds[0].flatMap((match) => [match.home, match.away]).filter(Boolean))
+      byId.forEach((team) => {
+        if (!qualified.has(team.id)) return
+        const phaseMatches = league.filter((match) => match.home === team.id || match.away === team.id)
+        const repMatches = repechageMatches.filter((match) => match.home === team.id || match.away === team.id)
+        // Repechage games decided by penalties remain draws for this badge.
+        team.tournamentQualifiedByDraws = phaseMatches.length > 0 &&
+          phaseMatches.every((match) => played(match) && match.hg === match.ag) &&
+          repMatches.every((match) => match.played && match.hg === match.ag)
+      })
       tournamentMatches.forEach((m) => {
-        if (m.played) record(m, 'cup', m.stage, m.tied && m.decided)
+        if (!m.played) return
+        record(m, 'cup', m.stage, m.tied && m.decided)
       })
       const flag = (id, prop) => id && byId.has(id) && (byId.get(id)[prop] = true)
       flag(bracket.champion, 'cupChampion')
@@ -1072,13 +1087,14 @@ window.Hub = (() => {
     renderQueued = false
     const skip = pendingSkip
     pendingSkip = null
-    if (!state) return
+    if (!state || document.visibilityState === 'hidden') return
     const active = document.activeElement
     const key = active && active.dataset ? active.dataset.key : null
     Object.entries(views).forEach(([id, v]) => {
       if (id === skip) return
       const el = document.getElementById(`${id}-body`)
       if (!el) return
+      if (el.closest('.section')?.hidden) return
       const scrolls = [...el.querySelectorAll('[data-scroll]')].map((s) => [s.dataset.scroll, s.scrollTop, s.scrollLeft])
       v.render(el, state)
       scrolls.forEach(([name, top, left]) => {

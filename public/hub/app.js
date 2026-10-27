@@ -58,6 +58,9 @@
       }
     })
 
+    document.dispatchEvent(new CustomEvent('app:sectionchange', { detail: { id } }))
+    window.Hub?.render?.()
+
     moveIndicator(button)
     button.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: animate ? 'smooth' : 'auto' })
     if (animate) {

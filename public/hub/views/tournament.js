@@ -132,6 +132,12 @@
 
   const SVG_NS = 'http://www.w3.org/2000/svg'
   let bracketObserver = null
+  document.addEventListener('app:sectionchange', (event) => {
+    if (event.detail?.id !== 'tournament') {
+      bracketObserver?.disconnect()
+      bracketObserver = null
+    }
+  })
 
   // offsetLeft/Top are layout pixels, so the lines stay correct under the "-1" UI zoom too.
   function offsetWithin(node, ancestor) {

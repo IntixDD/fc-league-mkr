@@ -1877,6 +1877,30 @@ select.input option {
 }
 
 /* ---------- Performance ---------- */
+.badge-team-count { flex: none; padding: 5px 9px; border: 1px solid var(--line-strong); border-radius: 999px; color: var(--accent); font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.badge-categories { display: grid; gap: 18px; }
+.badge-category { display: grid; gap: 9px; }
+.badge-category-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+.badge-category-head h3 { margin: 0; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.badge-category-head > span { color: var(--muted); font-size: 10px; text-align: right; font-variant-numeric: tabular-nums; }
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 158px), 1fr)); gap: 8px; }
+.badge-item { position: relative; display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 62px; padding: 9px; border: 1px solid rgb(255 255 255 / .08); border-radius: 11px; background: rgb(255 255 255 / .025); }
+.badge-item.is-earned { border-color: color-mix(in srgb, var(--badge-tone) 38%, transparent); background: color-mix(in srgb, var(--badge-tone) 8%, transparent); }
+.badge-item.is-locked { opacity: .56; }
+.badge-tone-gold { --badge-tone: #ffd166; }
+.badge-tone-green { --badge-tone: #4ade80; }
+.badge-tone-blue { --badge-tone: #60a5fa; }
+.badge-tone-accent { --badge-tone: var(--accent); }
+.badge-tone-purple { --badge-tone: #c084fc; }
+.badge-tone-cyan { --badge-tone: #22d3ee; }
+.badge-tone-slate { --badge-tone: #94a3b8; }
+.badge-item-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; color: var(--badge-tone); background: color-mix(in srgb, var(--badge-tone) 13%, transparent); }
+.badge-item-icon .stat-icon { width: 22px; height: 22px; flex: none; }
+.badge-item-info { display: grid; gap: 4px; min-width: 0; }
+.badge-item-info strong { font-size: 10.5px; line-height: 1.25; overflow-wrap: anywhere; }
+.badge-item-info > span { color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+.badge-item-check { margin-left: auto; color: var(--badge-tone); font-size: 16px; font-weight: 900; }
+
 .perf-picker {
   max-width: 360px;
   flex: 1 1 240px;
@@ -1961,7 +1985,6 @@ select.input option {
   filter: blur(10px) saturate(1.2);
   -webkit-mask-image: radial-gradient(closest-side, #000 55%, transparent 100%);
   mask-image: radial-gradient(closest-side, #000 55%, transparent 100%);
-  will-change: opacity, transform, filter;
   transition:
     opacity 2s ease-in-out,
     filter 2s ease-in-out,

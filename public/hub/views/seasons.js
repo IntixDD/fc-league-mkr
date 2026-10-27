@@ -2,6 +2,12 @@
   const H = window.Hub
   const { esc, crest } = H
   let miniBracketObserver = null
+  document.addEventListener('app:sectionchange', (event) => {
+    if (event.detail?.id !== 'seasons') {
+      miniBracketObserver?.disconnect()
+      miniBracketObserver = null
+    }
+  })
 
   const nextNumber = (s) => Math.max(0, s.current.number, ...s.seasons.map((x) => x.number)) + 1
 
@@ -184,7 +190,7 @@
 
   function watchMiniBrackets(el) {
     miniBracketObserver?.disconnect()
-    const maps = [...el.querySelectorAll('.season-mini-bracket')]
+    const maps = [...el.querySelectorAll('.season-tournament-details[open] .season-mini-bracket')]
     if (!maps.length || typeof ResizeObserver === 'undefined') return
     miniBracketObserver = new ResizeObserver((entries) => {
       entries.forEach(({ target }) => {
@@ -319,6 +325,9 @@
 
   H.view('seasons', {
     bind(el) {
+      el.addEventListener('toggle', (e) => {
+        if (e.target.matches('.season-tournament-details')) watchMiniBrackets(el)
+      }, true)
       el.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-action]')
         if (!btn) return
