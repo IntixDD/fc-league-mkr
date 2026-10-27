@@ -16,6 +16,7 @@ window.Hub = (() => {
     historyDir: 'desc',
     newKeepTeams: true,
     repechageEnabled: null,
+    lockSeasonExport: false,
   }
   let state = null
   let saveTimer = 0
@@ -53,7 +54,7 @@ window.Hub = (() => {
   // synchronous mirror so the latest edit survives a reload even if the async write is cut off.
   const LS_STATE = 'league-hub:state'
   const LS_UI = 'league-hub:ui'
-  const UI_KEYS = ['fxMode', 'poSize', 'perfTeam', 'historySort', 'historySortVersion', 'historyDir', 'historyQuery', 'newKeepTeams', 'tableEdit', 'repechageEnabled']
+  const UI_KEYS = ['fxMode', 'poSize', 'perfTeam', 'historySort', 'historySortVersion', 'historyDir', 'historyQuery', 'newKeepTeams', 'tableEdit', 'repechageEnabled', 'lockSeasonExport']
   let dirty = false
   let lastUi = ''
 
@@ -277,6 +278,8 @@ window.Hub = (() => {
         leagueScorer: ids.has(awards.leagueScorer) ? awards.leagueScorer : null,
         cupScorer: ids.has(awards.cupScorer) ? awards.cupScorer : null,
       },
+      readOnly: raw.readOnly === true,
+      librarySource: raw.librarySource === true,
       savedAt: raw.savedAt || null,
     }
   }
@@ -1140,6 +1143,82 @@ window.Hub = (() => {
     scheduleRender(skip)
   }
 
+  async function syncPublishedSeasons() {
+    let data
+    try {
+      const url = new URL('season-library/seasons.json', location.href)
+      const response = await fetch(url, { cache: 'no-store' })
+      if (!response.ok) return
+      data = await response.json()
+    } catch {
+      return
+    }
+    if (data?.app && data.app !== APP_ID) return
+    if (!Array.isArray(data?.seasons) && !Array.isArray(data)) return
+
+    const rawSeasons = Array.isArray(data?.seasons) ? data.seasons : Array.isArray(data) ? data : []
+    const lockEditing = data?.readOnly === true || data?.lockEditing === true
+    const incoming = rawSeasons
+      .map((raw, index) => {
+        if (!raw || typeof raw !== 'object') return null
+        const number = Math.max(1, parseInt(raw.number, 10) || index + 1)
+        return sanitizeSeason({
+          ...raw,
+          id: raw.id || `published-season-${number}`,
+          readOnly: lockEditing || raw.readOnly === true,
+          librarySource: true,
+        })
+      })
+      .filter((season) => season?.id)
+    if (rawSeasons.length && !incoming.length) return
+
+    const previous = JSON.stringify(state.seasons)
+    const previousCurrent = JSON.stringify(state.current)
+    const oldPublished = new Map(state.seasons.filter((season) => season.librarySource).map((season) => [season.id, season]))
+    const incomingIds = new Set(incoming.map((season) => season.id))
+    const next = state.seasons.filter((season) => !season.librarySource && !incomingIds.has(season.id))
+    let nextNumber = Math.max(0, ...next.map((existing) => existing.number), ...incoming.map((season) => season.number)) + 1
+    incoming.forEach((season) => {
+      if (next.some((existing) => existing.number === season.number)) {
+        const old = oldPublished.get(season.id)
+        if (old && !next.some((existing) => existing.number === old.number)) season.number = old.number
+        else {
+          while (next.some((existing) => existing.number === nextNumber)) nextNumber++
+          season.number = nextNumber++
+        }
+      }
+      next.push(season)
+    })
+    next.sort((a, b) => a.number - b.number)
+    const currentPublished = incoming.find((season) => season.id === state.current.id)
+    if (currentPublished?.readOnly) {
+      state.current = clone(currentPublished)
+    } else if (currentPublished) {
+      state.current.readOnly = false
+      state.current.librarySource = true
+    } else if (state.current.librarySource) {
+      state.current.readOnly = false
+      state.current.librarySource = false
+    }
+
+    const knownLogos = new Set(state.logos.map((logo) => logo.data))
+    let logosChanged = false
+    incoming.forEach((season) =>
+      season.teams.forEach((team) => {
+        if (team.logo && !knownLogos.has(team.logo)) {
+          knownLogos.add(team.logo)
+          state.logos.push({ id: uid(), data: team.logo })
+          logosChanged = true
+        }
+      }),
+    )
+    state.seasons = next
+    if (logosChanged || previous !== JSON.stringify(state.seasons) || previousCurrent !== JSON.stringify(state.current)) {
+      persist()
+      scheduleRender()
+    }
+  }
+
   function teamTotals(rec) {
     const t = { cups: 0, leagues: 0, series: 0, runnerUp: 0, third: 0, fourth: 0, leagueScorer: 0, cupScorer: 0, league: zero(), cup: zero() }
     rec.seasons.forEach((s) => {
@@ -1183,6 +1262,7 @@ window.Hub = (() => {
       if (el && v.bind) v.bind(el)
     })
     renderAll()
+    void syncPublishedSeasons()
   }
 
   return {

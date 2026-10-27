@@ -63,6 +63,7 @@
   }
 
   const TABLE_ICON = '<svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16m6-16v16"/></svg>'
+  const TICKET_ICON = '<svg class="stat-icon" viewBox="2 5 20 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6L6 6C5.068 6 4.602 6 4.234 6.152 3.744 6.355 3.355 6.745 3.152 7.235 3 7.602 3 8.068 3 9 4.657 9 6 10.343 6 12s-1.343 3-3 3c0 .932 0 1.398.152 1.765.203.49.592.88 1.082 1.083C4.602 18 5.068 18 6 18h8m0-12h4c.932 0 1.398 0 1.765.152.49.203.88.593 1.083 1.083C21 7.602 21 8.068 21 9c-1.657 0-3 1.343-3 3s1.343 3 3 3c0 .932 0 1.398-.152 1.765-.203.49-.593.88-1.083 1.083C19.398 18 18.932 18 18 18h-4m0-12v12"/></svg>'
 
   function standingsTable(rows) {
     return `<div class="table-wrap season-standing-table-wrap"><table class="data-table season-standing-table">
@@ -178,7 +179,7 @@
           </article>`
         }).join('')}</div>`
       : '<p class="season-awards-empty">No hay cruces de repechaje registrados.</p>'
-    return `<details class="season-awards season-tournament-details"><summary><span class="season-awards-heading">${H.ICONS.medal2}<span>Repechajes</span></span><span class="season-awards-count">${played}/${matches.length} partidos</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
+    return `<details class="season-awards season-tournament-details"><summary><span class="season-awards-heading">${TICKET_ICON}<span>Repechajes</span></span><span class="season-awards-count">${played}/${matches.length} partidos</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
   }
 
   function drawMiniBracketConnectors(map, roundsCount) {
@@ -242,6 +243,7 @@
   function save() {
     const s = H.state
     const cur = s.current
+    if (cur.readOnly) return H.toast('Esta temporada está bloqueada para edición', 'error')
     if (!cur.teams.length) return H.toast('Registra equipos antes de guardar', 'error')
     if (s.seasons.some((x) => x.number === cur.number && x.id !== cur.id))
       return H.toast(`Ya existe una Temporada ${cur.number} guardada. Cambia el número.`, 'error')
@@ -277,13 +279,17 @@
 
   async function edit(id) {
     if (H.state.current.id === id) return H.toast('Esa temporada ya está abierta')
-    if (!(await guardDirty())) return
     const saved = H.state.seasons.find((x) => x.id === id)
     if (!saved) return
+    if (saved.readOnly) return H.toast('Esta temporada está bloqueada para edición', 'error')
+    if (!(await guardDirty())) return
+    const latest = H.state.seasons.find((x) => x.id === id)
+    if (!latest) return
+    if (latest.readOnly) return H.toast('Esta temporada está bloqueada para edición', 'error')
     H.ui.round = 0
     H.ui.fxMode = null
-    H.update((st) => (st.current = H.clone(saved)))
-    H.toast(`Editando Temporada ${saved.number}`)
+    H.update((st) => (st.current = H.clone(latest)))
+    H.toast(`Editando Temporada ${latest.number}`)
   }
 
   async function remove(id) {
@@ -292,7 +298,11 @@
     if (!(await H.confirm(`Se eliminará la Temporada ${saved.number} y sus estadísticas del historial.`, { confirmText: 'Eliminar' }))) return
     H.update((st) => {
       st.seasons = st.seasons.filter((x) => x.id !== id)
-      if (st.current.id === id) st.current.id = null
+      if (st.current.id === id) {
+        st.current.id = null
+        st.current.readOnly = false
+        st.current.librarySource = false
+      }
     })
     H.toast(`Temporada ${saved.number} eliminada`)
   }
@@ -303,10 +313,18 @@
     H.update((st) => {
       st.seasons = []
       st.current.id = null
+      st.current.readOnly = false
+      st.current.librarySource = false
     })
   }
 
-  const payload = (seasons) => ({ app: H.APP_ID, version: 1, exportedAt: new Date().toISOString(), seasons: H.clone(seasons) })
+  const payload = (seasons) => ({
+    app: H.APP_ID,
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    readOnly: !!H.ui.lockSeasonExport,
+    seasons: H.clone(seasons).map(({ readOnly, librarySource, ...season }) => season),
+  })
 
   function exportOne(id) {
     const saved = H.state.seasons.find((x) => x.id === id)
@@ -326,7 +344,10 @@
       return H.toast('El archivo no es un JSON válido', 'error')
     }
     const list = Array.isArray(data?.seasons) ? data.seasons : Array.isArray(data) ? data : [data]
-    const seasons = list.map((raw) => H.sanitizeSeason(raw && { ...raw, id: raw.id || H.uid() })).filter(Boolean)
+    const lockEditing = data?.readOnly === true || data?.lockEditing === true
+    const seasons = list
+      .map((raw) => H.sanitizeSeason(raw && { ...raw, id: raw.id || H.uid(), readOnly: lockEditing || raw.readOnly === true }))
+      .filter(Boolean)
     if (!seasons.length) return H.toast('No se encontraron temporadas en el archivo', 'error')
     let added = 0
     let replaced = 0
@@ -378,7 +399,10 @@
       el.addEventListener('change', (e) => {
         const t = e.target
         if (t.name === 'keep-teams') H.ui.newKeepTeams = t.checked
-        else if (t.name === 'season-number') {
+        else if (t.name === 'lock-season-export') {
+          H.ui.lockSeasonExport = t.checked
+          H.render()
+        } else if (t.name === 'season-number') {
           const n = parseInt(t.value, 10)
           if (!Number.isInteger(n) || n < 1 || n > 999) {
             H.toast('Número de temporada no válido', 'error')
@@ -406,7 +430,7 @@
           <header class="card-head">
             <div>
               <h2 class="card-title">Temporada actual</h2>
-              <p class="card-sub"><span class="badge ${statusCls}">${status}</span></p>
+              <p class="card-sub"><span class="badge ${statusCls}">${status}</span>${cur.readOnly ? ' <span class="badge badge--warn">Solo lectura</span>' : ''}</p>
             </div>
           </header>
           <div class="current-season">
@@ -422,7 +446,7 @@
           </div>
           ${sum.league || sum.cup ? `<p class="hint">${sum.league ? `Liga: <strong>${esc(sum.league.name)}</strong>` : ''}${sum.league && sum.cup ? ' · ' : ''}${sum.cup ? `Copa: <strong>${esc(sum.cup.name)}</strong>` : ''}</p>` : ''}
           <div class="row-actions">
-            <button class="btn btn--primary" data-action="save">${cur.id ? 'Guardar cambios' : 'Guardar temporada'}</button>
+            <button class="btn btn--primary" data-action="save" ${cur.readOnly ? 'disabled title="Edición bloqueada al importar"' : ''}>${cur.id ? 'Guardar cambios' : 'Guardar temporada'}</button>
             <button class="btn btn--ghost" data-action="new">Nueva temporada</button>
           </div>
           <label class="check">
@@ -441,6 +465,10 @@
             </label>
             <button class="btn btn--ghost" data-action="export-all" ${s.seasons.length ? '' : 'disabled'}>Exportar todas</button>
           </div>
+          <label class="check">
+            <input type="checkbox" name="lock-season-export" ${H.ui.lockSeasonExport ? 'checked' : ''}>
+            <span>Bloquear edición al exportar a JSON</span>
+          </label>
           <p class="hint">Si importas una temporada que ya existe, se actualiza. Si su número está ocupado, se le asigna el siguiente libre.</p>
         </article>`
 
@@ -461,7 +489,7 @@
                   <li class="season-row${open ? ' is-open' : ''}">
                     <span class="season-num">T${season.number}</span>
                     <div class="season-info">
-                      <span class="season-title">Temporada ${season.number}${open ? ' <span class="badge badge--accent">Abierta</span>' : ''}</span>
+                      <span class="season-title">Temporada ${season.number}${open ? ' <span class="badge badge--accent">Abierta</span>' : ''}${season.readOnly ? ' <span class="badge badge--warn">Solo lectura</span>' : ''}</span>
                       <span class="season-meta">${selectedSeason.teams.length} equipos${season.savedAt ? ` · ${new Date(season.savedAt).toLocaleDateString('es')}` : ''}</span>
                     </div>
                     <div class="season-champs">
@@ -469,14 +497,14 @@
                       ${sm.cup ? `<span class="champ" title="Campeón de copa">${crest(sm.cup.logo, 'sm', sm.cup.name)}<span>Copa</span></span>` : ''}
                     </div>
                     <div class="team-actions">
-                      <button class="btn btn--ghost btn--sm" data-action="edit" data-id="${esc(season.id)}" ${open ? 'disabled' : ''}>Editar</button>
+                      <button class="btn btn--ghost btn--sm" data-action="edit" data-id="${esc(season.id)}" ${open || season.readOnly ? 'disabled' : ''} ${season.readOnly ? 'title="Edición bloqueada al importar"' : ''}>Editar</button>
                       <button class="btn btn--ghost btn--sm" data-action="export" data-id="${esc(season.id)}">Exportar</button>
                       <button class="btn btn--danger btn--sm" data-action="delete" data-id="${esc(season.id)}" aria-label="Eliminar Temporada ${season.number}">Eliminar</button>
                     </div>
                     ${standingsSummary(selectedSeason)}
                     ${fixtureSummary(selectedSeason)}
-                    ${tournamentSummary(selectedSeason)}
                     ${repechageSummary(selectedSeason)}
+                    ${tournamentSummary(selectedSeason)}
                     ${awardSummary(selectedSeason, open)}
                   </li>`
                   })
