@@ -1654,6 +1654,25 @@ select.input option {
 
 .season-awards-content { padding: 12px; }
 
+.season-json-export-settings { display: grid; gap: 10px; margin-top: 14px; }
+.season-json-export-settings .input { min-height: 38px; font-size: 13px; }
+.season-json-icon-control { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.season-json-icon-preview { display: grid; place-items: center; width: 38px; height: 38px; flex: none; overflow: hidden; color: var(--accent); background: rgb(var(--accent-rgb) / .08); border: 1px solid var(--line); border-radius: 9px; }
+.season-json-icon-preview svg { width: 22px; height: 22px; }
+.season-json-icon-preview img { width: 100%; height: 100%; object-fit: contain; }
+.season-json-icon-name { flex: 1; min-width: 100px; color: var(--muted); font-size: 12px; }
+.season-library-list { display: grid; gap: 6px; margin-top: 14px; }
+.season-library-entry { display: flex; align-items: center; gap: 9px; width: 100%; min-width: 0; padding: 8px; color: inherit; text-align: left; background: rgb(255 255 255 / .025); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.season-library-entry:hover { border-color: var(--line-strong); background: rgb(var(--accent-rgb) / .06); }
+.season-library-entry-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: none; overflow: hidden; color: var(--accent); background: rgb(var(--accent-rgb) / .08); border-radius: 8px; }
+.season-library-entry-icon svg { width: 22px; height: 22px; }
+.season-library-entry-icon img { width: 100%; height: 100%; object-fit: contain; }
+.season-library-entry-name { display: grid; gap: 3px; min-width: 0; flex: 1; }
+.season-library-entry-name strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.season-library-entry-name small { overflow: hidden; color: var(--muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.season-library-entry-action { flex: none; color: var(--accent); font-size: 11px; font-weight: 700; }
+.season-library-empty { margin: 0; padding: 10px; color: var(--muted); font-size: 12px; text-align: center; }
+
 .season-award-groups {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));

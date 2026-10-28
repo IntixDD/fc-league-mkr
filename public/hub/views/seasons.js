@@ -2,6 +2,13 @@
   const H = window.Hub
   const { esc, crest } = H
   let miniBracketObserver = null
+  let libraryExportName = 'Temporadas'
+  let libraryExportIcon = ''
+  let publishedLibraryEntries = null
+  let publishedLibraryLoading = false
+  let publishedLibraryError = ''
+  let publishedLibraryVisible = false
+  const JSON_FILE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M8.5 12h7M8.5 15.5h7M8.5 19h4"/></svg>'
   document.addEventListener('app:sectionchange', (event) => {
     if (event.detail?.id !== 'seasons') {
       miniBracketObserver?.disconnect()
@@ -320,11 +327,12 @@
     })
   }
 
-  const payload = (seasons) => ({
+  const payload = (seasons, library = null) => ({
     app: H.APP_ID,
     version: 1,
     exportedAt: new Date().toISOString(),
     readOnly: !!H.ui.lockSeasonExport,
+    ...(library ? { library } : {}),
     seasons: H.clone(seasons).map(({ readOnly, librarySource, ...season }) => season),
   })
 
@@ -333,18 +341,81 @@
     if (saved) H.download(`league-hub-temporada-${saved.number}.json`, payload([saved]))
   }
 
-  function exportAll() {
+  const safeLibraryFileName = (name) =>
+    name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w-]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 48) || 'temporadas'
+
+  function exportAll(el) {
     if (!H.state.seasons.length) return H.toast('No hay temporadas guardadas', 'error')
-    H.download('league-hub-temporadas.json', payload(H.state.seasons))
+    libraryExportName = el.querySelector('[name="library-export-name"]')?.value.trim() || libraryExportName || 'Temporadas'
+    const name = libraryExportName.slice(0, 48)
+    H.download(`league-hub-${safeLibraryFileName(name)}.json`, payload(H.state.seasons, { name, icon: libraryExportIcon }))
   }
 
-  async function importFile(file) {
-    let data
+  async function chooseLibraryIcon() {
+    if (!H.pickLogo) return H.toast('No se pudo abrir la galería de escudos', 'error')
+    const logo = await H.pickLogo('Escudo del archivo JSON')
+    if (!logo) return
+    libraryExportIcon = logo.data
+    H.render()
+  }
+
+  async function loadPublishedLibrary() {
+    publishedLibraryLoading = true
+    publishedLibraryError = ''
+    H.render()
     try {
-      data = JSON.parse(await file.text())
-    } catch {
-      return H.toast('El archivo no es un JSON válido', 'error')
+      const catalogResponse = await fetch(new URL('season-library/catalog.json', location.href), { cache: 'no-store' })
+      if (!catalogResponse.ok) throw new Error('No se pudo cargar la biblioteca publicada')
+      const catalog = await catalogResponse.json()
+      if (catalog?.app && catalog.app !== H.APP_ID) throw new Error('La biblioteca no corresponde a League Hub')
+      const entries = Array.isArray(catalog?.files) ? catalog.files : []
+      const loaded = await Promise.all(entries.map(async (entry) => {
+        const file = typeof entry === 'string' ? entry : entry?.file
+        if (typeof file !== 'string' || !/^[\w.-]+\.json$/i.test(file) || file.toLowerCase() === 'catalog.json') return null
+        try {
+          const response = await fetch(new URL(`season-library/${encodeURIComponent(file)}`, location.href), { cache: 'no-store' })
+          if (!response.ok) return null
+          const data = await response.json()
+          if (data?.app && data.app !== H.APP_ID) return null
+          const seasons = Array.isArray(data?.seasons) ? data.seasons : Array.isArray(data) ? data : []
+          if (!seasons.length) return null
+          const metadata = !Array.isArray(data) && data && typeof data === 'object' ? data.library : null
+          const metadataName = typeof metadata?.name === 'string' ? metadata.name.trim() : ''
+          const icon = typeof metadata?.icon === 'string' && metadata.icon.startsWith('data:image/')
+            ? metadata.icon
+            : typeof entry?.icon === 'string' && entry.icon.startsWith('data:image/') ? entry.icon : ''
+          return {
+            file,
+            name: metadataName || (typeof entry?.name === 'string' && entry.name.trim()) || file,
+            icon,
+            data,
+          }
+        } catch {
+          return null
+        }
+      }))
+      publishedLibraryEntries = loaded.filter(Boolean)
+    } catch (error) {
+      publishedLibraryEntries = null
+      publishedLibraryError = error.message || 'No se pudo cargar la biblioteca publicada'
+    } finally {
+      publishedLibraryLoading = false
+      H.render()
     }
+  }
+
+  async function togglePublishedLibrary() {
+    publishedLibraryVisible = !publishedLibraryVisible
+    H.render()
+    if (publishedLibraryVisible && (publishedLibraryEntries === null || publishedLibraryError)) await loadPublishedLibrary()
+  }
+
+  function importData(data) {
     const list = Array.isArray(data?.seasons) ? data.seasons : Array.isArray(data) ? data : [data]
     const lockEditing = data?.readOnly === true || data?.lockEditing === true
     const seasons = list
@@ -381,6 +452,16 @@
     H.toast([added && `${added} importada(s)`, replaced && `${replaced} actualizada(s)`].filter(Boolean).join(' · '))
   }
 
+  async function importFile(file) {
+    let data
+    try {
+      data = JSON.parse(await file.text())
+    } catch {
+      return H.toast('El archivo no es un JSON válido', 'error')
+    }
+    importData(data)
+  }
+
   H.view('seasons', {
     bind(el) {
       el.addEventListener('toggle', (e) => {
@@ -394,9 +475,23 @@
         else if (action === 'new') newSeason()
         else if (action === 'edit') edit(id)
         else if (action === 'export') exportOne(id)
-        else if (action === 'export-all') exportAll()
-        else if (action === 'delete') remove(id)
+        else if (action === 'export-all') exportAll(el)
+        else if (action === 'choose-json-icon') chooseLibraryIcon()
+        else if (action === 'clear-json-icon') {
+          libraryExportIcon = ''
+          H.render()
+        } else if (action === 'toggle-published-library') togglePublishedLibrary()
+        else if (action === 'load-published') {
+          const entry = publishedLibraryEntries?.[Number(btn.dataset.index)]
+          if (entry) {
+            publishedLibraryVisible = false
+            importData(entry.data)
+          }
+        } else if (action === 'delete') remove(id)
         else if (action === 'delete-all') removeAll()
+      })
+      el.addEventListener('input', (e) => {
+        if (e.target.name === 'library-export-name') libraryExportName = e.target.value
       })
       el.addEventListener('change', (e) => {
         const t = e.target
@@ -465,8 +560,34 @@
               <input type="file" accept="application/json,.json" class="sr-only" data-import>
               Importar .json
             </label>
+            <button class="btn btn--ghost" data-action="toggle-published-library">${publishedLibraryVisible ? 'Ocultar archivos' : 'Cargar desde GitHub'}</button>
             <button class="btn btn--ghost" data-action="export-all" ${s.seasons.length ? '' : 'disabled'}>Exportar todas</button>
           </div>
+          <div class="season-json-export-settings">
+            <label class="field">
+              <span class="field-label">Nombre del archivo</span>
+              <input class="input" type="text" name="library-export-name" maxlength="48" value="${esc(libraryExportName)}">
+            </label>
+            <div class="season-json-icon-control">
+              <span class="season-json-icon-preview">${libraryExportIcon ? `<img src="${esc(libraryExportIcon)}" alt="Escudo seleccionado">` : JSON_FILE_ICON}</span>
+              <span class="season-json-icon-name">Escudo del JSON</span>
+              <button class="btn btn--ghost btn--sm" data-action="choose-json-icon">${libraryExportIcon ? 'Cambiar' : 'Elegir'}</button>
+              ${libraryExportIcon ? '<button class="btn btn--ghost btn--sm" data-action="clear-json-icon" aria-label="Quitar escudo">Quitar</button>' : ''}
+            </div>
+          </div>
+          ${publishedLibraryVisible ? `<div class="season-library-list" aria-live="polite">
+            ${publishedLibraryLoading
+              ? '<p class="season-library-empty">Cargando archivos…</p>'
+              : publishedLibraryError
+                ? `<p class="season-library-empty">${esc(publishedLibraryError)}</p>`
+                : publishedLibraryEntries?.length
+                  ? publishedLibraryEntries.map((entry, index) => `<button class="season-library-entry" data-action="load-published" data-index="${index}">
+                      <span class="season-library-entry-icon">${entry.icon ? `<img src="${esc(entry.icon)}" alt="">` : JSON_FILE_ICON}</span>
+                      <span class="season-library-entry-name"><strong>${esc(entry.name)}</strong><small>${esc(entry.file)}</small></span>
+                      <span class="season-library-entry-action">Cargar</span>
+                    </button>`).join('')
+                  : '<p class="season-library-empty">No hay temporadas publicadas en la biblioteca.</p>'}
+          </div>` : ''}
           <label class="check">
             <input type="checkbox" name="lock-season-export" ${H.ui.lockSeasonExport ? 'checked' : ''}>
             <span>Bloquear edición al exportar a JSON</span>

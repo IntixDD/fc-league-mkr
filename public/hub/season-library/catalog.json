@@ -1,0 +1,9 @@
+{
+  "app": "league-hub",
+  "version": 1,
+  "files": [
+    {
+      "file": "seasons.json"
+    }
+  ]
+}

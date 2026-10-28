@@ -1,7 +1,14 @@
-# Temporadas públicas
+# Biblioteca pública de temporadas
 
-Reemplaza `seasons.json` con el JSON que exportes desde League Hub. Al abrir la app, se descargará la versión más reciente publicada en esta carpeta y aparecerá en **Seasons → Temporadas guardadas**.
+`seasons.json` se sincroniza automáticamente al abrir la app. También puedes publicar más archivos JSON y cargarlos manualmente desde **Seasons → Importar / Exportar → Cargar desde GitHub**.
 
-Si activas **Bloquear edición al exportar a JSON** antes de exportar, las temporadas importadas mostrarán **Solo lectura** y el botón **Editar** estará deshabilitado.
+Para publicar un archivo adicional:
 
-En GitHub, sube o reemplaza el archivo en `public/hub/season-library/seasons.json` y espera a que GitHub Pages publique los cambios. La app conserva sus datos locales si no hay conexión.
+1. En la app, escribe el nombre del archivo, elige un escudo y pulsa **Exportar todas**.
+2. Sube el JSON descargado a esta carpeta.
+3. Agrega su nombre de archivo a la lista `files` de `catalog.json`, por ejemplo: `{ "file": "league-hub-temporada-final.json" }`.
+4. Espera a que GitHub Pages publique los cambios. El archivo aparecerá en **Cargar desde GitHub** con el nombre y el escudo incluidos al exportarlo.
+
+Si activas **Bloquear edición al exportar a JSON**, las temporadas importadas mostrarán **Solo lectura** y el botón **Editar** estará deshabilitado.
+
+La app conserva sus datos locales si no hay conexión. Para actualizar una temporada publicada, reemplaza su JSON en GitHub y vuelve a cargarlo desde la biblioteca.
