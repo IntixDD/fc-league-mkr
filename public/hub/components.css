@@ -1344,6 +1344,9 @@ select.input option {
   font-weight: 700;
 }
 
+.po-leg-fields { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 4px; }
+.po-leg-fields .po-field { align-self: auto; font-size: 9px; }
+
 .po-team {
   display: flex;
   align-items: center;
@@ -1394,6 +1397,11 @@ select.input option {
   height: 30px;
   font-size: 13px;
 }
+
+.po-leg-inputs { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.po-leg-score { display: grid; justify-items: center; gap: 2px; color: var(--muted); font-size: 8px; line-height: 1; }
+.po-leg-score .score-input { width: 30px; height: 28px; font-size: 13px; border-radius: 7px; }
+.po-global { margin: 4px 4px 0; color: var(--accent); font-size: 11px; font-weight: 700; text-align: center; }
 
 .po-pens {
   margin: 2px 4px 0;
@@ -1718,6 +1726,11 @@ select.input option {
 .season-mini-pair { position: relative; display: flex; flex: 1; flex-direction: column; }
 .season-mini-slot { position: relative; display: flex; flex: 1; flex-direction: column; justify-content: center; padding: 3px 0; }
 .season-mini-match { position: relative; z-index: 1; display: grid; gap: 2px; padding: 5px; border: 1px solid rgb(255 255 255 / .08); border-radius: 7px; background: #111820; }
+.season-mini-global { color: var(--accent); font-size: 8px; text-align: center; }
+.season-mini-leg-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; }
+.season-mini-leg { display: grid; align-content: start; gap: 2px; min-width: 0; padding: 3px 2px; border-radius: 5px; background: rgb(255 255 255 / .035); text-align: center; }
+.season-mini-leg span { color: var(--muted); font-size: 7px; line-height: 1.2; overflow-wrap: anywhere; }
+.season-mini-leg strong { font-size: 9px; font-variant-numeric: tabular-nums; }
 .season-mini-match.is-final { border-color: rgb(255 209 102 / .32); }
 .season-mini-team { display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 9px; }
 .season-mini-team > span:not(.crest) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2072,6 +2085,50 @@ select.input option {
   gap: 12px;
 }
 
+.feat-disclosure {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.feat-disclosure > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 50px;
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.feat-disclosure > summary::-webkit-details-marker { display: none; }
+.feat-disclosure > summary:hover { background: rgb(var(--accent-rgb) / 0.08); }
+.feat-disclosure > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.feat-disclosure[open] > summary { border-bottom: 1px solid var(--line); }
+
+.feat-disclosure-heading {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.feat-disclosure-heading .stat-icon { width: 19px; height: 19px; flex: none; }
+.feat-disclosure-heading--final .stat-icon { color: var(--gold); }
+.feat-disclosure-heading--third .stat-icon { color: #cd7f32; }
+.feat-disclosure-content { padding: 12px; }
+.feat-match-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.feat-disclosure-chevron { width: 8px; height: 8px; margin: 0 3px 3px 2px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform 0.18s ease; }
+.feat-disclosure[open] .feat-disclosure-chevron { margin-bottom: -3px; transform: rotate(225deg); }
+
 .feat-match {
   padding: 14px;
   background: var(--surface-2);
@@ -2238,7 +2295,8 @@ select.input option {
 .compare-matches .feat-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
 .compare-card { margin-top: 20px; }
 .repechage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 12px; }
-.tournament-repechage-toggle { margin: 16px 0; }
+.tournament-options { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 16px 0; }
+.tournament-repechage-toggle { margin: 0; }
 .tournament-repechage-toggle .hint { margin: 0; }
 
 @media (max-width: 520px) {

@@ -30,19 +30,39 @@
   document.addEventListener('app:sectionchange', (event) => event.detail?.id === 'performance' ? scheduleRotation() : stopRotation())
   document.addEventListener('visibilitychange', () => document.hidden ? stopRotation() : scheduleRotation())
 
+  function matchContent(m, rec) {
+    return `
+      <div class="feat-score">
+        <span class="feat-team">${crest(m.logo, 'md', rec.name)}<span>${esc(rec.name)}</span></span>
+        <span class="feat-result">${m.gf} - ${m.ga}</span>
+        <span class="feat-team">${crest(m.oppLogo, 'md', m.opp)}<span>${esc(m.opp)}</span></span>
+      </div>
+      ${m.pens ? `<p class="feat-pens">Penales ${esc(m.pens)}</p>` : ''}
+      <p class="feat-when">${esc(m.label)}</p>`
+  }
+
   function matchBox(title, m, rec, kind) {
     if (!m) return `<div class="feat-match"><h3 class="feat-title">${title}</h3><p class="empty">Sin partidos jugados.</p></div>`
     return `
       <div class="feat-match feat-match--${kind}">
         <h3 class="feat-title">${title}</h3>
-        <div class="feat-score">
-          <span class="feat-team">${crest(m.logo, 'md', rec.name)}<span>${esc(rec.name)}</span></span>
-          <span class="feat-result">${m.gf} - ${m.ga}</span>
-          <span class="feat-team">${crest(m.oppLogo, 'md', m.opp)}<span>${esc(m.opp)}</span></span>
-        </div>
-        ${m.pens ? `<p class="feat-pens">Penales ${esc(m.pens)}</p>` : ''}
-        <p class="feat-when">${esc(m.label)}</p>
+        ${matchContent(m, rec)}
       </div>`
+  }
+
+  function matchListDropdown(title, icon, tone, matches, rec, isWin) {
+    const content = matches.length
+      ? `<div class="feat-match-list">${matches.map((match) => `<div class="feat-match feat-match--${isWin(match) ? 'for' : 'against'}">${matchContent(match, rec)}</div>`).join('')}</div>`
+      : '<p class="empty">Sin partidos disputados.</p>'
+    return `
+      <details class="feat-disclosure">
+        <summary>
+          <span class="feat-disclosure-heading feat-disclosure-heading--${tone}">${H.ICONS[icon]}<span>${title}</span></span>
+          <span class="season-awards-count">${matches.length}</span>
+          <span class="feat-disclosure-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="feat-disclosure-content">${content}</div>
+      </details>`
   }
 
   H.view('performance', {
@@ -81,8 +101,8 @@
         const [forPens, againstPens] = match.pens.split('-').map(Number)
         return Number.isFinite(forPens) && Number.isFinite(againstPens) && forPens > againstPens
       }
-      const finalsWon = matches.filter((match) => match.type === 'cup' && match.label.startsWith('Final -') && isWin(match)).sort((a, b) => b.season - a.season)[0]
-      const thirdPlacesWon = matches.filter((match) => match.type === 'cup' && match.label.startsWith('Tercer Puesto -') && isWin(match)).sort((a, b) => b.season - a.season)[0]
+      const finalsPlayed = matches.filter((match) => match.type === 'cup' && match.label.startsWith('Final -')).sort((a, b) => b.season - a.season)
+      const thirdPlacesPlayed = matches.filter((match) => match.type === 'cup' && match.label.startsWith('Tercer Puesto -')).sort((a, b) => b.season - a.season)
 
       const picker = `
         <label class="field field--inline perf-picker">
@@ -161,8 +181,8 @@
           <div class="feat-grid">
             ${matchBox('Más goles a favor', bestFor, rec, 'for')}
             ${matchBox('Más goles en contra', worstAgainst, rec, 'against')}
-            ${matchBox('Finales ganadas', finalsWon, rec, 'for')}
-            ${matchBox('Terceros lugares ganados', thirdPlacesWon, rec, 'for')}
+            ${matchListDropdown('Finales disputadas', 'trophy', 'final', finalsPlayed, rec, isWin)}
+            ${matchListDropdown('Terceros lugares disputados', 'medal3', 'third', thirdPlacesPlayed, rec, isWin)}
           </div>
         </article>`
 

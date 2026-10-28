@@ -8,6 +8,8 @@
   ]
   let repechageDraftSeason = null
   let repechageDraft = null
+  let twoLeggedDraftSeason = null
+  let twoLeggedDraft = null
 
   function repechageSetup(season, size, grouped) {
     if (grouped) {
@@ -118,8 +120,9 @@
     H.update((s) => (s.current.playoffs = {
       size,
       seeds,
+      twoLegged: !!twoLeggedDraft,
       results: {},
-      fields: H.generateTournamentFields(size, season.fields || 2),
+      fields: H.generateTournamentFields(size, season.fields || 2, !!twoLeggedDraft),
       ...(repechage ? { repechage, bracketOrder: randomBracketOrder(size) } : {}),
     }))
     H.toast('Tournament creado')
@@ -239,6 +242,12 @@
           H.render()
           return
         }
+        if (e.target.name === 'two-legged-enabled') {
+          twoLeggedDraft = e.target.checked
+          H.ui.tournamentTwoLegged = twoLeggedDraft
+          H.render()
+          return
+        }
         if (e.target.closest('[data-po]')) H.render()
       })
     },
@@ -260,6 +269,11 @@
         repechageDraft = po ? !!po.repechage?.enabled : !!H.ui.repechageEnabled
         H.ui.repechageEnabled = repechageDraft
       }
+      if (twoLeggedDraftSeason !== season.id || twoLeggedDraft == null) {
+        twoLeggedDraftSeason = season.id
+        twoLeggedDraft = po ? !!po.twoLegged : !!H.ui.tournamentTwoLegged
+        H.ui.tournamentTwoLegged = twoLeggedDraft
+      }
       const repechageEnabled = repechageDraft
       const canRepechage = (size) => !!repechageSetup(season, size, grouped)
       if (po) H.ui.poSize = po.size
@@ -279,7 +293,10 @@
                 `<button class="seg-btn" data-action="size" data-size="${o.size}" aria-pressed="${H.ui.poSize === o.size}" ${repechageEnabled ? !canRepechage(o.size) ? 'disabled' : '' : available < o.size && !canRepechage(o.size) ? 'disabled' : ''}>${o.label}<small>${o.size} equipos</small></button>`,
             ).join('')}
           </div>
-          <label class="series-choice tournament-repechage-toggle"><input type="checkbox" name="repechage-enabled" ${repechageEnabled ? 'checked' : ''} ${canRepechage(H.ui.poSize) ? '' : 'disabled'}> Repechajes <span class="hint">(mínimo ${repechageMinimum(H.ui.poSize, grouped)})</span></label>
+          <div class="tournament-options">
+            <label class="series-choice tournament-repechage-toggle"><input type="checkbox" name="repechage-enabled" ${repechageEnabled ? 'checked' : ''} ${canRepechage(H.ui.poSize) ? '' : 'disabled'}> <span>Repechajes</span> <span class="hint">(mínimo ${repechageMinimum(H.ui.poSize, grouped)})</span></label>
+            <label class="series-choice"><input type="checkbox" name="two-legged-enabled" ${twoLeggedDraft ? 'checked' : ''}> Ida y vuelta</label>
+          </div>
           ${total && played < total ? `<p class="notice">La liga aún no termina (${played}/${total}). Los clasificados se toman de la tabla actual.</p>` : ''}
           <div class="row-actions">
             <button class="btn btn--primary" data-action="generate" ${repechageEnabled ? !canRepechage(H.ui.poSize) ? 'disabled' : '' : available < H.ui.poSize ? 'disabled' : ''}>${po ? 'Recrear cuadro' : 'Crear cuadro'}</button>
@@ -305,6 +322,15 @@
         const pen = side === 'home' ? 'hp' : 'ap'
         const won = m.winner && m.winner === id
         const lost = m.loser && m.loser === id
+        const scoreInput = (scoreField, value, label = '', disabled = false) => `<input class="score-input" type="number" inputmode="numeric" min="0" max="99" value="${value ?? ''}"
+          data-key="po:${m.key}:${scoreField}" data-po="${m.key}" data-pair="${esc(m.pair || '')}" data-field="${scoreField}" data-repechage="${m.stage === 'Repechaje'}"
+          aria-label="${label ? `${label}, ` : ''}goles de ${esc(t?.name || 'por definir')}" ${m.pair && !disabled ? '' : 'disabled'}>`
+        const legFields = side === 'home'
+          ? [{ label: 'Ida', field: 'leg1hg', value: m.leg1?.hg }, { label: 'Vuelta', field: 'leg2ag', value: m.leg2?.ag, disabled: !m.leg1Played }]
+          : [{ label: 'Ida', field: 'leg1ag', value: m.leg1?.ag }, { label: 'Vuelta', field: 'leg2hg', value: m.leg2?.hg, disabled: !m.leg1Played }]
+        const scores = m.twoLegged
+          ? `<span class="po-leg-inputs">${legFields.map((leg) => `<label class="po-leg-score"><span>${leg.label}</span>${scoreInput(leg.field, leg.value, leg.label, leg.disabled)}</label>`).join('')}</span>`
+          : scoreInput(field, m[field])
         return `
           <div class="po-team${won ? ' is-winner' : ''}${lost ? ' is-loser' : ''}">
             <span class="po-seed">${t && seed && !po.bracketOrder ? seed : ''}</span>
@@ -312,17 +338,18 @@
             <span class="po-name">${t ? esc(t.name) : 'Por definir'}</span>
             ${m.tied ? `<input class="score-input score-input--pen" type="number" inputmode="numeric" min="0" max="99" value="${m[pen] ?? ''}"
               data-key="po:${m.key}:${pen}" data-po="${m.key}" data-pair="${esc(m.pair)}" data-field="${pen}" data-repechage="${m.stage === 'Repechaje'}" aria-label="Penales de ${esc(t?.name)}" title="Penales">` : ''}
-            <input class="score-input" type="number" inputmode="numeric" min="0" max="99" value="${m[field] ?? ''}"
-              data-key="po:${m.key}:${field}" data-po="${m.key}" data-pair="${esc(m.pair || '')}" data-field="${field}" data-repechage="${m.stage === 'Repechaje'}"
-              aria-label="Goles de ${esc(t?.name || 'por definir')}" ${m.pair ? '' : 'disabled'}>
+            ${scores}
           </div>`
       }
 
       const matchCard = (m, extra = '') => `
         <div class="po-match${m.decided ? ' is-decided' : ''} ${extra}" data-bk="${esc(m.key)}">
-          ${m.field ? `<span class="po-field">Cancha ${m.field}</span>` : ''}
+          ${m.twoLegged
+            ? `<div class="po-leg-fields"><span class="po-field">Ida · Cancha ${m.leg1Field || '—'}</span><span class="po-field">Vuelta · Cancha ${m.leg2Field || '—'}</span></div>`
+            : m.field ? `<span class="po-field">Cancha ${m.field}</span>` : ''}
           ${teamLine(m, 'home')}
           ${teamLine(m, 'away')}
+          ${m.twoLegged ? `<p class="po-global">Global ${m.hg ?? '—'} – ${m.ag ?? '—'}</p>` : ''}
           ${m.tied ? `<p class="po-pens">${m.penaltiesTied ? 'Los penales no pueden terminar empatados' : m.decided ? 'Definido por penales' : 'Empate: ingresa la tanda de penales'}</p>` : ''}
         </div>`
 
@@ -398,6 +425,7 @@
               ${place(bracket.fourth, '4to lugar', '')}
             </ol>
           </article>
+          ${repechageCard}
           <article class="card card--wide" id="tournament-export">
             <header class="card-head">
               <div><h2 class="card-title">Cuadro</h2></div>
@@ -410,7 +438,6 @@
               ${leftCols}${finalCol}${rightCols}
             </div>
           </article>
-          ${repechageCard}
         </div>`
       watchBracket(el, bracket.rounds.length)
     },

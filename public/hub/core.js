@@ -17,6 +17,7 @@ window.Hub = (() => {
     newKeepTeams: true,
     repechageEnabled: null,
     lockSeasonExport: false,
+    tournamentTwoLegged: false,
   }
   let state = null
   let saveTimer = 0
@@ -54,7 +55,7 @@ window.Hub = (() => {
   // synchronous mirror so the latest edit survives a reload even if the async write is cut off.
   const LS_STATE = 'league-hub:state'
   const LS_UI = 'league-hub:ui'
-  const UI_KEYS = ['fxMode', 'poSize', 'perfTeam', 'historySort', 'historySortVersion', 'historyDir', 'historyQuery', 'newKeepTeams', 'tableEdit', 'repechageEnabled', 'lockSeasonExport']
+  const UI_KEYS = ['fxMode', 'poSize', 'perfTeam', 'historySort', 'historySortVersion', 'historyDir', 'historyQuery', 'newKeepTeams', 'tableEdit', 'repechageEnabled', 'lockSeasonExport', 'tournamentTwoLegged']
   let dirty = false
   let lastUi = ''
 
@@ -225,19 +226,46 @@ window.Hub = (() => {
       playoffs = {
         size: raw.playoffs.size,
         seeds: raw.playoffs.seeds.map((id) => (ids.has(id) ? id : null)),
+        twoLegged: raw.playoffs.twoLegged === true,
         bracketOrder: Array.isArray(raw.playoffs.bracketOrder) && raw.playoffs.bracketOrder.length === raw.playoffs.size && new Set(raw.playoffs.bracketOrder).size === raw.playoffs.size && raw.playoffs.bracketOrder.every((seed) => Number.isInteger(seed) && seed >= 1 && seed <= raw.playoffs.size)
           ? raw.playoffs.bracketOrder.slice()
           : null,
         results: {},
-        fields: generateTournamentFields(raw.playoffs.size, fields || 2),
+        fields: generateTournamentFields(raw.playoffs.size, fields || 2, raw.playoffs.twoLegged === true),
       }
       Object.entries(raw.playoffs.fields || {}).forEach(([key, value]) => {
         const field = Number(value)
         if (Number.isInteger(field) && field >= 1 && field <= (fields || 2)) playoffs.fields[key] = field
       })
+      if (playoffs.twoLegged) {
+        const fieldCount = fields || 2
+        const roundsCount = Math.log2(playoffs.size)
+        for (let round = 0; round < roundsCount - 1; round++) {
+          const matchCount = playoffs.size / 2 ** (round + 1)
+          for (let i = 0; i < matchCount; i++) {
+            const key = `r${round}-${i}`
+            const firstLegField = playoffs.fields[key] || 1
+            const secondLegKey = `${key}-leg2`
+            const secondLegField = playoffs.fields[secondLegKey]
+            if (!secondLegField || secondLegField === firstLegField) {
+              playoffs.fields[secondLegKey] = (firstLegField % fieldCount) + 1
+            }
+          }
+        }
+      }
       Object.entries(raw.playoffs.results || {}).forEach(([key, r]) => {
         if (r && typeof r.pair === 'string') {
-          playoffs.results[key] = { pair: r.pair, hg: sc(r.hg), ag: sc(r.ag), hp: sc(r.hp), ap: sc(r.ap) }
+          playoffs.results[key] = {
+            pair: r.pair,
+            hg: sc(r.hg),
+            ag: sc(r.ag),
+            hp: sc(r.hp),
+            ap: sc(r.ap),
+            leg1hg: sc(r.leg1hg),
+            leg1ag: sc(r.leg1ag),
+            leg2hg: sc(r.leg2hg),
+            leg2ag: sc(r.leg2ag),
+          }
         }
       })
       const rawRepechage = raw.playoffs.repechage
@@ -558,14 +586,19 @@ window.Hub = (() => {
     return { rounds, roundsPerLeg }
   }
 
-  function generateTournamentFields(size, fieldCount) {
+  function generateTournamentFields(size, fieldCount, twoLegged = false) {
     const count = Math.max(2, Math.min(999, Math.trunc(Number(fieldCount)) || 2))
     const roundsCount = Math.log2(size)
     const fields = {}
     for (let round = 0; round < roundsCount; round++) {
       const matchCount = size / 2 ** (round + 1)
       const order = shuffle(Array.from({ length: count }, (_, i) => i + 1))
-      for (let i = 0; i < matchCount; i++) fields[`r${round}-${i}`] = order[i % order.length]
+      const legOffset = twoLegged && round < roundsCount - 1 ? 1 + Math.floor(Math.random() * (count - 1)) : 0
+      for (let i = 0; i < matchCount; i++) {
+        const key = `r${round}-${i}`
+        fields[key] = order[i % order.length]
+        if (twoLegged && round < roundsCount - 1) fields[`${key}-leg2`] = order[(i + legOffset) % order.length]
+      }
     }
     const lastRound = roundsCount - 1
     const finalAndThird = shuffle(Array.from({ length: count }, (_, i) => i + 1)).slice(0, 2)
@@ -651,21 +684,34 @@ window.Hub = (() => {
     const pair = home && away ? `${home}|${away}` : null
     const raw = po.results[key]
     const res = raw && pair && raw.pair === pair ? raw : null
+    const twoLegged = po.twoLegged === true && ['Octavos', 'Cuartos', 'Semifinales'].includes(stage)
+    const leg1 = twoLegged ? { hg: sc(res?.leg1hg), ag: sc(res?.leg1ag) } : null
+    const leg2 = twoLegged ? { hg: sc(res?.leg2hg), ag: sc(res?.leg2ag) } : null
+    const leg1Played = !!pair && !!leg1 && played(leg1)
+    const leg2Played = !!pair && !!leg2 && played(leg2)
+    const anyLegPlayed = leg1Played || leg2Played
     const m = {
       key,
       stage,
+      twoLegged,
+      leg1,
+      leg2,
+      leg1Played,
+      leg2Played,
       field: po.fields?.[key] || null,
+      leg1Field: twoLegged ? po.fields?.[key] || null : null,
+      leg2Field: twoLegged ? po.fields?.[`${key}-leg2`] || null : null,
       home,
       away,
       homeSeed,
       awaySeed,
       pair,
-      hg: res ? res.hg : null,
-      ag: res ? res.ag : null,
+      hg: twoLegged ? (anyLegPlayed ? (leg1Played ? leg1.hg : 0) + (leg2Played ? leg2.ag : 0) : null) : res ? res.hg : null,
+      ag: twoLegged ? (anyLegPlayed ? (leg1Played ? leg1.ag : 0) + (leg2Played ? leg2.hg : 0) : null) : res ? res.ag : null,
       hp: res ? res.hp : null,
       ap: res ? res.ap : null,
     }
-    m.played = !!pair && played(m)
+    m.played = !!pair && (twoLegged ? leg1Played && leg2Played : played(m))
     m.tied = m.played && m.hg === m.ag
     let side = null
     if (m.played) {
@@ -793,6 +839,7 @@ window.Hub = (() => {
         invincibleSeries: false,
         perfectSeason: false,
         legendarySeason: false,
+        centuryComeback: false,
         leagueCleanSheets: 0,
         cupCleanSheets: 0,
       }),
@@ -859,8 +906,26 @@ window.Hub = (() => {
           repMatches.every((match) => match.played && match.hg === match.ag)
       })
       tournamentMatches.forEach((m) => {
-        if (!m.played) return
-        record(m, 'cup', m.stage, m.tied && m.decided)
+        if (m.twoLegged) {
+          if (m.played && m.winner) {
+            const teamThatLostTheFirstLeg = m.leg1.hg === 0 && m.leg1.ag === 4
+              ? m.home
+              : m.leg1.hg === 4 && m.leg1.ag === 0
+                ? m.away
+                : null
+            if (teamThatLostTheFirstLeg && m.winner === teamThatLostTheFirstLeg) {
+              byId.get(teamThatLostTheFirstLeg).centuryComeback = true
+            }
+          }
+          if (m.leg1Played) {
+            record({ home: m.home, away: m.away, hg: m.leg1.hg, ag: m.leg1.ag }, 'cup', `${m.stage} · Ida`, false)
+          }
+          if (m.leg2Played) {
+            record({ home: m.away, away: m.home, hg: m.leg2.hg, ag: m.leg2.ag }, 'cup', `${m.stage} · Vuelta`, false)
+          }
+          return
+        }
+        if (m.played) record(m, 'cup', m.stage, m.tied && m.decided)
       })
       const flag = (id, prop) => id && byId.has(id) && (byId.get(id)[prop] = true)
       flag(bracket.champion, 'cupChampion')
