@@ -105,6 +105,11 @@
         paintRow(input.closest('tr'), row)
       })
       el.addEventListener('change', (e) => {
+        if (e.target.name === 'table-repechage') {
+          H.ui.repechageEnabled = e.target.checked
+          H.render()
+          return
+        }
         if (e.target.name === 'table-format') {
           const twoSeries = H.state.current.tableConfig?.type === 'two-series'
           const selected = e.target.value
@@ -154,7 +159,9 @@
           : [16, 8, 4].find((size) => size <= n) || 0
       const stage = STAGE[zone]
       const availableForTournament = twoSeries ? 2 * Math.min(season.tableConfig.series1.length, season.tableConfig.series2.length) : n
-      const configuredTournamentSize = season.playoffs?.size || (twoSeries && !H.ui.repechageEnabled ? [16, 8, 4].find((size) => size <= availableForTournament) || 0 : H.ui.poSize)
+      const configuredTournamentSize = season.playoffs?.size || (twoSeries
+        ? !H.ui.repechageEnabled ? [16, 8, 4].find((size) => size <= availableForTournament) || 0 : H.ui.poSize
+        : zone || H.ui.poSize)
       const repechageMatches = configuredTournamentSize ? (configuredTournamentSize === 4 ? 2 : configuredTournamentSize / 4) : 0
       const directPerSeries = twoSeries ? configuredTournamentSize / 2 - repechageMatches / 2 : 0
       const directCount = configuredTournamentSize - repechageMatches
@@ -204,9 +211,18 @@
         </table>
       </div>`
 
+      const repechageMinimum = twoSeries
+        ? `${directPerSeries + repechageMatches} equipos por serie`
+        : `${configuredTournamentSize + repechageMatches} equipos`
+      const repechageHelp = season.playoffs
+        ? 'El cuadro actual ya está creado. Para cambiar este formato, recrea Tournament.'
+        : repechageEligible
+          ? 'Los equipos en repechaje jugarán por los últimos lugares del cuadro.'
+          : `Se necesitan ${repechageMinimum} para usar repechajes.`
       const tableSetup = `<article class="card card--wide table-setup-card" data-export-hide>
         <header class="card-head"><h2 class="card-title">Crear tabla</h2></header>
         <div class="row-actions"><label class="field-label" for="table-format">Formato</label><select class="input table-format" id="table-format" name="table-format"><option value="regular" ${!twoSeries ? 'selected' : ''}>Tabla regular</option><option value="two-series" ${twoSeries ? 'selected' : ''}>2 Series</option></select><button class="btn btn--primary" data-action="create-table" ${twoSeries ? '' : 'disabled'}>${twoSeries ? 'Tabla de 2 series activa' : 'Tabla regular activa'}</button></div>
+        <div class="table-repechage-setting"><label class="series-choice"><input type="checkbox" name="table-repechage" ${repechageEnabled ? 'checked' : ''} ${!repechageEligible || season.playoffs ? 'disabled' : ''}> <span>Usar repechajes en Tournament</span></label><p class="hint">${repechageHelp}</p></div>
         ${twoSeries ? `<p class="hint">Asigna cada equipo a una serie. Los partidos de liga se jugarán solo entre equipos de la misma serie.</p><div class="team-series-list">${season.teams.map((t) => `<div class="team-series-row"><span class="club-cell">${crest(t.logo, 'xs', t.name)}<span>${esc(t.name)}</span></span><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="1" ${season.tableConfig.series1.includes(t.id) ? 'checked' : ''}> Serie 1</label><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="2" ${season.tableConfig.series2.includes(t.id) ? 'checked' : ''}> Serie 2</label></div>`).join('')}</div><div class="row-actions"><button class="btn btn--ghost" data-action="random-series">Randomizar equipos</button><button class="btn btn--primary" data-action="save-series">Guardar series</button></div><p class="hint">Las series pueden tener tamaños distintos.${seriesReady ? '' : ' Asigna al menos 2 equipos a cada serie y guarda antes de generar el calendario.'}</p>` : ''}
       </article>`
 

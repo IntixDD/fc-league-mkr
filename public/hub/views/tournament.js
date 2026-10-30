@@ -264,7 +264,7 @@
       }
       const grouped = season.tableConfig?.type === 'two-series'
       const available = grouped ? 2 * Math.min(season.tableConfig.series1.length, season.tableConfig.series2.length) : n
-      if (repechageDraftSeason !== season.id || repechageDraft == null) {
+      if (repechageDraftSeason !== season.id || repechageDraft == null || (!po && repechageDraft !== !!H.ui.repechageEnabled)) {
         repechageDraftSeason = season.id
         repechageDraft = po ? !!po.repechage?.enabled : !!H.ui.repechageEnabled
         H.ui.repechageEnabled = repechageDraft

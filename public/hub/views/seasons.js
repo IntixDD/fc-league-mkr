@@ -141,7 +141,7 @@
         const score = side === 'home' ? match.hg : match.ag
         return `<div class="season-mini-team${match.winner === id && id ? ' is-winner' : ''}">${team ? crest(team.logo, 'xs', team.name) : '<span class="crest crest--xs crest--tbd"></span>'}<span>${team ? esc(team.name) : 'Por definir'}</span><strong>${score ?? '–'}</strong></div>`
       }).join('')}
-      ${match.twoLegged ? `<div class="season-mini-leg-columns"><div class="season-mini-leg"><span>Ida · Cancha ${match.leg1Field || '–'}</span><strong>${match.leg1?.hg ?? '–'}–${match.leg1?.ag ?? '–'}</strong></div><div class="season-mini-leg"><span>Vuelta · Cancha ${match.leg2Field || '–'}</span><strong>${match.leg2?.hg ?? '–'}–${match.leg2?.ag ?? '–'}</strong></div></div><span class="season-mini-global">Global ${match.hg ?? '–'}–${match.ag ?? '–'}</span>` : ''}
+      ${match.twoLegged ? `<div class="season-mini-leg-columns"><div class="season-mini-leg"><span>Ida · Cancha ${match.leg1Field || '–'}</span><strong>${match.leg1?.hg ?? '–'}–${match.leg1?.ag ?? '–'}</strong></div><div class="season-mini-leg"><span>Vuelta · Cancha ${match.leg2Field || '–'}</span><strong>${match.leg2?.hg ?? '–'}–${match.leg2?.ag ?? '–'}</strong></div></div>` : ''}
       ${match.tied && match.decided ? `<span class="season-mini-pens">Pen. ${match.hp}–${match.ap}</span>` : ''}
     </article>`
     const miniSlot = (match) => `<div class="season-mini-slot">${miniMatch(match)}</div>`
@@ -444,7 +444,7 @@
         season.teams.forEach((t) => {
           if (t.logo && !known.has(t.logo)) {
             known.add(t.logo)
-            st.logos.push({ id: H.uid(), data: t.logo })
+            st.logos.push({ id: st.logos.length, data: t.logo })
           }
         }),
       )

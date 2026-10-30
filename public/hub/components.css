@@ -1944,6 +1944,7 @@ select.input option {
 .badge-tone-purple { --badge-tone: #c084fc; }
 .badge-tone-cyan { --badge-tone: #22d3ee; }
 .badge-tone-slate { --badge-tone: #94a3b8; }
+.badge-tone-silver { --badge-tone: #cbd5e1; }
 .badge-item-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; color: var(--badge-tone); background: color-mix(in srgb, var(--badge-tone) 13%, transparent); }
 .badge-item-icon .stat-icon { width: 22px; height: 22px; flex: none; }
 .badge-item-info { display: grid; gap: 4px; min-width: 0; }
@@ -2317,6 +2318,8 @@ select.input option {
 .tournament-options { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 16px 0; }
 .tournament-repechage-toggle { margin: 0; }
 .tournament-repechage-toggle .hint { margin: 0; }
+.table-repechage-setting { display: grid; justify-items: start; gap: 4px; margin-top: 12px; }
+.table-repechage-setting .hint { margin: 0; }
 
 @media (max-width: 520px) {
   .compare-pickers { grid-template-columns: 1fr; }

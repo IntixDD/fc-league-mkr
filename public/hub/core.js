@@ -314,13 +314,23 @@ window.Hub = (() => {
 
   function sanitizeState(raw) {
     if (!raw || typeof raw !== 'object') return defaultState()
+    const logoData = []
+    const seenLogos = new Set()
+    const addLogo = (data) => {
+      if (typeof data !== 'string' || !data.startsWith('data:image/') || seenLogos.has(data)) return
+      seenLogos.add(data)
+      logoData.push(data)
+    }
+    // Older saved states used random string IDs and could contain repeated gallery entries.
+    ;(Array.isArray(raw.logos) ? raw.logos : []).forEach((logo) => addLogo(logo?.data))
+    const current = sanitizeSeason(raw.current) || emptySeason(1)
+    const seasons = Array.isArray(raw.seasons) ? raw.seasons.map(sanitizeSeason).filter((s) => s && s.id) : []
+    ;[current, ...seasons].forEach((season) => season.teams.forEach((team) => addLogo(team.logo)))
     return {
-      logos: Array.isArray(raw.logos)
-        ? raw.logos.filter((l) => l && typeof l.data === 'string' && l.data.startsWith('data:image/'))
-        : [],
+      logos: logoData.map((data, id) => ({ id, data })),
       brandLogo: typeof raw.brandLogo === 'string' && raw.brandLogo.startsWith('data:image/') ? raw.brandLogo : null,
-      current: sanitizeSeason(raw.current) || emptySeason(1),
-      seasons: Array.isArray(raw.seasons) ? raw.seasons.map(sanitizeSeason).filter((s) => s && s.id) : [],
+      current,
+      seasons,
     }
   }
 
@@ -358,7 +368,7 @@ window.Hub = (() => {
           added.push(existing.id)
           continue
         }
-        const id = uid()
+        const id = state.logos.length
         state.logos.push({ id, data })
         added.push(id)
       } catch (err) {
@@ -367,6 +377,27 @@ window.Hub = (() => {
     }
     persist()
     scheduleRender()
+    return added
+  }
+
+  function importLogoData(entries) {
+    const added = []
+    for (const entry of entries) {
+      const data = typeof entry === 'string' ? entry : entry?.data
+      if (typeof data !== 'string' || !data.startsWith('data:image/')) continue
+      const existing = state.logos.find((logo) => logo.data === data)
+      if (existing) {
+        added.push(existing.id)
+        continue
+      }
+      const id = state.logos.length
+      state.logos.push({ id, data })
+      added.push(id)
+    }
+    if (added.length) {
+      persist()
+      scheduleRender()
+    }
     return added
   }
 
@@ -510,6 +541,7 @@ window.Hub = (() => {
     crown: SVG(
       '<path d="M11.562 3.266a.5.5 0 0 1 .876 0L15.39 8.87a1 1 0 0 0 1.516.294L21.183 5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z"/><path d="M5 21h14"/>',
     ),
+    medal1: medal(1),
     medal2: medal(2),
     medal3: medal(3),
     medal4: medal(4),
@@ -824,8 +856,14 @@ window.Hub = (() => {
         cup: zero(),
         matches: [],
         tournamentQualifiedByDraws: false,
+        tournamentQualifiedByRepechage: false,
+        cineAbsoluto: false,
+        fergusonUnbeatenFinalLoss: false,
+        repechageSevenGoals: false,
         leagueChampion: false,
         seriesChampion: false,
+        wonTitleOnGoalDifference: false,
+        wonTitleWithNonPositiveGoalDifference: false,
         cupChampion: false,
         runnerUp: false,
         third: false,
@@ -842,6 +880,7 @@ window.Hub = (() => {
         centuryComeback: false,
         leagueCleanSheets: 0,
         cupCleanSheets: 0,
+        cupTournamentGoals: 0,
       }),
     )
 
@@ -879,7 +918,13 @@ window.Hub = (() => {
         const rows = computeTable(season, series)
         rows.forEach((row, i) => (byId.get(row.team.id).leaguePosition = i + 1))
         const winner = rows[0]
-        if (winner && (winner.pj || winner.pts)) byId.get(winner.team.id).seriesChampion = true
+        if (winner && (winner.pj || winner.pts)) {
+          byId.get(winner.team.id).seriesChampion = true
+          if (rows[1] && winner.pts === rows[1].pts && winner.dg > rows[1].dg) {
+            byId.get(winner.team.id).wonTitleOnGoalDifference = true
+          }
+          if (winner.dg <= 0) byId.get(winner.team.id).wonTitleWithNonPositiveGoalDifference = true
+        }
         const maxGoals = Math.max(0, ...rows.map((row) => row.gf))
         if (maxGoals > 0) rows.filter((row) => row.gf === maxGoals).forEach((row) => (byId.get(row.team.id).seriesScorer = true))
         rows.filter((row) => row.pj > 0 && row.pp === 0).forEach((row) => (byId.get(row.team.id).invincibleSeries = true))
@@ -887,6 +932,10 @@ window.Hub = (() => {
     } else if (leagueDone && !twoSeries && table[0] && (table[0].pj || table[0].pts)) {
       table.forEach((row, i) => (byId.get(row.team.id).leaguePosition = i + 1))
       byId.get(table[0].team.id).leagueChampion = true
+      if (table[1] && table[0].pts === table[1].pts && table[0].dg > table[1].dg) {
+        byId.get(table[0].team.id).wonTitleOnGoalDifference = true
+      }
+      if (table[0].dg <= 0) byId.get(table[0].team.id).wonTitleWithNonPositiveGoalDifference = true
       table.filter((row) => row.pj > 0 && row.pp === 0).forEach((row) => (byId.get(row.team.id).invincibleLeague = true))
     }
 
@@ -896,8 +945,15 @@ window.Hub = (() => {
     const tournamentDone = !!bracket?.champion && tournamentMatches.every((match) => match.played)
     if (bracket) {
       const qualified = new Set(bracket.rounds[0].flatMap((match) => [match.home, match.away]).filter(Boolean))
+      const repechageQualified = new Set(repechageMatches.map((match) => match.winner).filter(Boolean))
+      repechageMatches.forEach((match) => {
+        if (!match.played) return
+        if (match.hg >= 7 && byId.has(match.home)) byId.get(match.home).repechageSevenGoals = true
+        if (match.ag >= 7 && byId.has(match.away)) byId.get(match.away).repechageSevenGoals = true
+      })
       byId.forEach((team) => {
         if (!qualified.has(team.id)) return
+        team.tournamentQualifiedByRepechage = repechageQualified.has(team.id)
         const phaseMatches = league.filter((match) => match.home === team.id || match.away === team.id)
         const repMatches = repechageMatches.filter((match) => match.home === team.id || match.away === team.id)
         // Repechage games decided by penalties remain draws for this badge.
@@ -906,6 +962,7 @@ window.Hub = (() => {
           repMatches.every((match) => match.played && match.hg === match.ag)
       })
       tournamentMatches.forEach((m) => {
+        const countsForTournamentScorer = m.stage !== 'Repechaje'
         if (m.twoLegged) {
           if (m.played && m.winner) {
             const teamThatLostTheFirstLeg = m.leg1.hg === 0 && m.leg1.ag === 4
@@ -919,19 +976,60 @@ window.Hub = (() => {
           }
           if (m.leg1Played) {
             record({ home: m.home, away: m.away, hg: m.leg1.hg, ag: m.leg1.ag }, 'cup', `${m.stage} · Ida`, false)
+            if (countsForTournamentScorer) {
+              byId.get(m.home).cupTournamentGoals += m.leg1.hg
+              byId.get(m.away).cupTournamentGoals += m.leg1.ag
+            }
           }
           if (m.leg2Played) {
             record({ home: m.away, away: m.home, hg: m.leg2.hg, ag: m.leg2.ag }, 'cup', `${m.stage} · Vuelta`, false)
+            if (countsForTournamentScorer) {
+              byId.get(m.away).cupTournamentGoals += m.leg2.hg
+              byId.get(m.home).cupTournamentGoals += m.leg2.ag
+            }
           }
           return
         }
-        if (m.played) record(m, 'cup', m.stage, m.tied && m.decided)
+        if (m.played) {
+          record(m, 'cup', m.stage, m.tied && m.decided)
+          if (countsForTournamentScorer) {
+            byId.get(m.home).cupTournamentGoals += m.hg
+            byId.get(m.away).cupTournamentGoals += m.ag
+          }
+        }
       })
       const flag = (id, prop) => id && byId.has(id) && (byId.get(id)[prop] = true)
       flag(bracket.champion, 'cupChampion')
       flag(bracket.runnerUp, 'runnerUp')
       flag(bracket.thirdPlace, 'third')
       flag(bracket.fourth, 'fourth')
+      if (bracket.champion && byId.has(bracket.champion) && byId.get(bracket.champion).tournamentQualifiedByRepechage) {
+        byId.get(bracket.champion).cineAbsoluto = true
+      }
+      const final = bracket.final
+      if (season.playoffs?.twoLegged === true && final.played && final.loser && !final.tied) {
+        const finalist = final.loser
+        const noRegularLoss = (match, teamId) => {
+          if (!match.played) return false
+          if (!match.twoLegged) {
+            const goalsFor = match.home === teamId ? match.hg : match.ag
+            const goalsAgainst = match.home === teamId ? match.ag : match.hg
+            return goalsFor >= goalsAgainst
+          }
+          const firstFor = match.home === teamId ? match.leg1.hg : match.leg1.ag
+          const firstAgainst = match.home === teamId ? match.leg1.ag : match.leg1.hg
+          const secondFor = match.home === teamId ? match.leg2.ag : match.leg2.hg
+          const secondAgainst = match.home === teamId ? match.leg2.hg : match.leg2.ag
+          return firstFor >= firstAgainst && secondFor >= secondAgainst
+        }
+        const priorMatches = [
+          ...repechageMatches.filter((match) => match.home === finalist || match.away === finalist),
+          ...bracket.rounds.slice(0, -1).flat().filter((match) => match.home === finalist || match.away === finalist),
+        ]
+        if (priorMatches.length && priorMatches.every((match) => noRegularLoss(match, finalist))) {
+          byId.get(finalist).fergusonUnbeatenFinalLoss = true
+        }
+      }
     }
 
     // "Goleador" awards go to the highest-scoring club once the competition is finished.
@@ -942,7 +1040,8 @@ window.Hub = (() => {
     }
     if (leagueDone && !twoSeries) award('league', 'leagueScorer')
     if (tournamentDone) {
-      award('cup', 'cupScorer')
+      const maxTournamentGoals = Math.max(0, ...all.map((team) => team.cupTournamentGoals))
+      if (maxTournamentGoals > 0) all.forEach((team) => (team.cupScorer = team.cupTournamentGoals === maxTournamentGoals))
     }
     if (leagueDone && tournamentDone) {
       const candidates = all.filter((team) => team.league.pj + team.cup.pj > 0)
@@ -1272,7 +1371,7 @@ window.Hub = (() => {
       season.teams.forEach((team) => {
         if (team.logo && !knownLogos.has(team.logo)) {
           knownLogos.add(team.logo)
-          state.logos.push({ id: uid(), data: team.logo })
+          state.logos.push({ id: state.logos.length, data: team.logo })
           logosChanged = true
         }
       }),
@@ -1318,7 +1417,9 @@ window.Hub = (() => {
     }
     const fromLocal = readLocal()
     const newest = (fromLocal?.updatedAt || 0) > (fromDb?.updatedAt || 0) ? fromLocal : fromDb || fromLocal
+    const oldLogoLibrary = JSON.stringify(newest?.logos || [])
     state = sanitizeState(newest)
+    const migratedLogoLibrary = JSON.stringify(state.logos) !== oldLogoLibrary
     if (newest?.updatedAt) state.updatedAt = newest.updatedAt
     if (!dbOk && !writeLocal()) toast('Almacenamiento no disponible: los datos no se guardarán', 'error')
     navigator.storage?.persist?.().catch(() => {})
@@ -1327,6 +1428,7 @@ window.Hub = (() => {
       if (el && v.bind) v.bind(el)
     })
     renderAll()
+    if (migratedLogoLibrary) persist()
     void syncPublishedSeasons()
   }
 
@@ -1350,6 +1452,7 @@ window.Hub = (() => {
     emptySeason,
     sanitizeSeason,
     importLogos,
+    importLogoData,
     unzipImages,
     isZipFile,
     exportButton,

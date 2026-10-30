@@ -25,6 +25,8 @@
     if (badge.icon === 'steaua') return STEAUA_BADGE_ICON
     const sharedIcons = {
       ball: H.ICONS.ball,
+      medal1: H.ICONS.medal1,
+      medal2: H.ICONS.medal2,
       league: H.ICONS.crown,
       series: H.ICONS.crown,
       draw: H.ICONS.draw,
@@ -52,7 +54,7 @@
       season.league.pj > 0 &&
       season.league.pts === season.league.pj * 3,
     )
-    const maxTournamentGoals = Math.max(0, ...record.seasons.map((season) => season.cup?.gf || 0))
+    const maxTournamentGoals = Math.max(0, ...record.seasons.map((season) => season.cupTournamentGoals || 0))
     const tournamentWins = new Set(record.seasons.filter((season) => season.cupChampion).map((season) => Number(season.number)))
     const threeTournamentStreak = [...tournamentWins].some((season) =>
       Number.isFinite(season) && tournamentWins.has(season + 1) && tournamentWins.has(season + 2),
@@ -61,6 +63,15 @@
     const fourLeagueSeriesStreak = [...leagueSeriesWins].some((season) =>
       Number.isFinite(season) && leagueSeriesWins.has(season + 1) && leagueSeriesWins.has(season + 2) && leagueSeriesWins.has(season + 3),
     )
+    const leagueRunnerUps = new Set(record.seasons.filter((season) => season.leaguePosition === 2).map((season) => Number(season.number)))
+    const threeLeagueRunnerUpStreak = [...leagueRunnerUps].some((season) =>
+      Number.isFinite(season) && leagueRunnerUps.has(season + 1) && leagueRunnerUps.has(season + 2),
+    )
+    const aguerooooo = record.seasons.some((season) => season.wonTitleOnGoalDifference)
+    const campeonIncomprendido = record.seasons.some((season) => season.wonTitleWithNonPositiveGoalDifference)
+    const repescaAnarquica = record.seasons.some((season) => season.repechageSevenGoals)
+    const cineAbsoluto = record.seasons.some((season) => season.cupChampion && season.tournamentQualifiedByRepechage)
+    const fergusonUnbeatenFinalLoss = record.seasons.some((season) => season.fergusonUnbeatenFinalLoss)
     const chronologicalLeagueMatches = record.seasons
       .flatMap((season) => season.matches
         .filter((match) => match.type === 'league')
@@ -103,7 +114,13 @@
       { category: 'Especiales', name: 'Campeón sin pólvora', description: 'Gana Tournament sin marcar goles durante los partidos; puedes avanzar y ganar mediante tandas de penales.', icon: 'noGoals', tone: 'slate', earned: scorelessTournament, progress: scorelessTournament ? 'Obtenida' : 'Pendiente' },
       { category: 'Especiales', name: '¡Como Zidane!', description: 'Gana Tournament en tres temporadas consecutivas.', icon: 'zidane', tone: 'gold', earned: threeTournamentStreak, progress: threeTournamentStreak ? 'Obtenida' : 'Pendiente' },
       { category: 'Especiales', name: '4 in a row', description: 'Gana el título de Liga o Serie en cuatro temporadas consecutivas.', icon: 'guardiola', tone: 'gold', earned: fourLeagueSeriesStreak, progress: fourLeagueSeriesStreak ? 'Obtenida' : 'Pendiente' },
-      { category: 'Especiales', name: 'Mister Tournament', description: 'Consigue 17 goles en una sola edición de Tournament.', icon: 'ball', tone: 'gold', value: maxTournamentGoals, target: 17, earned: maxTournamentGoals >= 17, progress: `${maxTournamentGoals}/17` },
+      { category: 'Especiales', name: 'La racha de Arteta', description: 'Termina en segundo lugar de Liga o Serie durante tres temporadas consecutivas.', icon: 'medal2', tone: 'silver', earned: threeLeagueRunnerUpStreak, progress: threeLeagueRunnerUpStreak ? 'Obtenida' : 'Pendiente' },
+      { category: 'Especiales', name: '¡Agüerooooo!', description: 'Gana la Liga o Serie con más diferencia de goles que el segundo lugar, estando ambos empatados en puntos.', icon: 'medal1', tone: 'cyan', earned: aguerooooo, progress: aguerooooo ? 'Obtenida' : 'Pendiente' },
+      { category: 'Especiales', name: 'Campeón Incomprendido', description: 'Gana una Liga o Serie con una diferencia de goles igual o inferior a cero.', icon: 'draw', tone: 'gold', earned: campeonIncomprendido, progress: campeonIncomprendido ? 'Obtenida' : 'Pendiente' },
+      { category: 'Especiales', name: 'Repesca Anarquica', description: 'Marca 7 o más goles en un mismo partido de repechaje.', icon: 'ball', tone: 'slate', earned: repescaAnarquica, progress: repescaAnarquica ? 'Obtenida' : 'Pendiente' },
+      { category: 'Especiales', name: 'Cine Absoluto', description: 'Gana Tournament tras clasificar por repechaje.', icon: 'trophy', tone: 'gold', earned: cineAbsoluto, progress: cineAbsoluto ? 'Obtenida' : 'Pendiente' },
+      { category: 'Especiales', name: 'El invicto de Ferguson', description: 'Llega invicto a la final de Tournament con ida y vuelta y pierde la final en el tiempo regular.', icon: 'medal2', tone: 'gold', earned: fergusonUnbeatenFinalLoss, progress: fergusonUnbeatenFinalLoss ? 'Obtenida' : 'Pendiente' },
+      { category: 'Especiales', name: 'Mister Tournament', description: 'Consigue 17 goles en una sola edición de Tournament, sin contar los repechajes.', icon: 'ball', tone: 'gold', value: maxTournamentGoals, target: 17, earned: maxTournamentGoals >= 17, progress: `${maxTournamentGoals}/17` },
       { category: 'Especiales', name: 'Invicto de Bucarest', description: 'Completa 105 partidos consecutivos sin perder en Liga/Serie, sumando todas las temporadas.', icon: 'steaua', tone: 'gold', value: longestUnbeaten, target: 105, earned: longestUnbeaten >= 105, progress: `${longestUnbeaten}/105` },
       { category: 'Especiales', name: 'Puntuación Perfecta', description: 'Gana una Liga o Serie consiguiendo todos los puntos posibles: 3 por cada partido jugado.', icon: 'star', tone: 'gold', earned: perfectPoints, progress: perfectPoints ? 'Obtenida' : 'Pendiente' },
       { category: 'Especiales', name: 'El milagro del siglo', description: 'Avanza en Tournament tras perder 0–4 en la Ida y remontar en la Vuelta. También cuenta si empatas el global y clasificas por penales.', icon: 'achievement', tone: 'gold', earned: centuryComeback, progress: centuryComeback ? 'Obtenida' : 'Pendiente' },

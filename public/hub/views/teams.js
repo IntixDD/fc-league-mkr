@@ -32,7 +32,7 @@
         () => {
           extraBtn?.remove()
           const value = dlg.returnValue
-          resolve(extra && value === extra.value ? extra.value : logos.find((l) => l.id === value) || null)
+          resolve(extra && value === extra.value ? extra.value : logos.find((l) => String(l.id) === value) || null)
         },
         { once: true },
       )
@@ -76,46 +76,51 @@
     H.toast(data ? 'Logo de la liga actualizado' : 'Logo original restaurado')
   }
 
-  const EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/svg+xml': 'svg', 'image/webp': 'webp', 'image/gif': 'gif' }
-  const safeName = (name) =>
-    name
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^\w\- ]+/g, '')
-      .trim()
-      .replace(/\s+/g, '-')
-      .slice(0, 40) || 'club'
-
-  function downloadLogosZip() {
+  function downloadLogosJson() {
     const s = H.state
-    const files = []
-    const used = new Set()
-    const push = (path, data) => {
-      try {
-        const { mime, bytes } = H.dataUrlBytes(data)
-        let name = `${path}.${EXT[mime] || 'png'}`
-        for (let n = 2; used.has(name); n++) name = `${path}-${n}.${EXT[mime] || 'png'}`
-        used.add(name)
-        files.push({ name, bytes })
-      } catch {
-        /* skip unreadable image */
-      }
+    const logos = []
+    const known = new Set()
+    const add = (data, id = logos.length) => {
+      if (typeof data !== 'string' || !data.startsWith('data:image/') || known.has(data)) return
+      known.add(data)
+      logos.push({ id, data })
     }
-    const pad = String(Math.max(s.logos.length, 1)).length
-    s.logos.forEach((l, i) => push(`galeria/escudo-${String(i + 1).padStart(Math.max(2, pad), '0')}`, l.data))
-    s.current.teams.forEach((t) => t.logo && push(`equipos/${safeName(t.name)}`, t.logo))
-    if (!files.length) return H.toast('No hay escudos para descargar', 'error')
-    H.downloadBlob(`escudos-temporada-${s.current.number}.zip`, H.makeZip(files))
-    H.toast(`${files.length} escudo(s) descargados en ZIP`)
+    s.logos.forEach((logo) => add(logo.data, logo.id))
+    s.current.teams.forEach((team) => add(team.logo))
+    s.seasons.forEach((season) => (season.teams || []).forEach((team) => add(team.logo)))
+    add(s.brandLogo)
+    if (!logos.length) return H.toast('No hay escudos para descargar', 'error')
+    const data = { format: 'league-hub-logo-library', version: 1, logos }
+    H.downloadBlob('escudos-league-hub.json', new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
+    H.toast(`${logos.length} escudo(s) descargados en JSON`)
   }
 
   async function handleFiles(files, selectLast) {
     const list = [...files]
     const zips = list.filter(H.isZipFile)
+    const jsonFiles = list.filter((f) => /\.json$/i.test(f.name) || f.type === 'application/json')
     const images = list.filter((f) => f.type.startsWith('image/'))
+    const ids = []
+    for (const file of jsonFiles) {
+      let parsed
+      try {
+        parsed = JSON.parse(await file.text())
+      } catch {
+        H.toast(`${file.name}: el archivo no es un JSON válido`, 'error')
+        continue
+      }
+      const entries = Array.isArray(parsed) ? parsed : parsed?.logos
+      if (!Array.isArray(entries)) {
+        H.toast(`${file.name}: no contiene una galería de escudos`, 'error')
+        continue
+      }
+      const imported = H.importLogoData(entries)
+      if (!imported.length) H.toast(`${file.name}: no contiene escudos compatibles`, 'error')
+      ids.push(...imported)
+    }
     for (const zip of zips) {
       try {
-        H.toast(`Leyendo ${zip.name}…`)
+        H.toast(`Leyendo ZIP antiguo ${zip.name}…`)
         const found = await H.unzipImages(zip)
         if (!found.length) H.toast(`${zip.name} no contiene imágenes`, 'error')
         images.push(...found)
@@ -123,10 +128,9 @@
         H.toast(`${zip.name}: ${err.message}`, 'error')
       }
     }
-    if (!images.length) return zips.length ? undefined : H.toast('Selecciona imágenes o un archivo ZIP', 'error')
-    const ids = await H.importLogos(images)
+    if (images.length) ids.push(...await H.importLogos(images))
     if (!ids.length) return
-    if (selectLast || !H.ui.selectedLogo) H.ui.selectedLogo = ids[ids.length - 1]
+    if (selectLast || H.ui.selectedLogo == null) H.ui.selectedLogo = ids[ids.length - 1]
     H.toast(ids.length === 1 ? 'Escudo guardado en la galería' : `${ids.length} escudos guardados en la galería`)
     H.render()
   }
@@ -138,7 +142,7 @@
     if (s.current.teams.length >= MAX_TEAMS) return H.toast(`Máximo ${MAX_TEAMS} equipos por temporada`, 'error')
     if (s.current.teams.some((t) => H.norm(t.name) === H.norm(name)))
       return H.toast('Ya existe un club con ese nombre', 'error')
-    const logo = s.logos.find((l) => l.id === H.ui.selectedLogo)
+    const logo = s.logos.find((l) => String(l.id) === String(H.ui.selectedLogo))
     if (!logo) return H.toast('Selecciona un escudo para el club', 'error')
     H.ui.teamDraft = ''
     H.ui.selectedLogo = null
@@ -230,7 +234,7 @@
         if (!btn) return
         const { action, id } = btn.dataset
         if (action === 'select-logo') {
-          H.ui.selectedLogo = H.ui.selectedLogo === id ? null : id
+          H.ui.selectedLogo = String(H.ui.selectedLogo) === id ? null : id
           H.render()
         } else if (action === 'pick-logo') {
           const logo = await pickLogo()
@@ -239,10 +243,10 @@
             H.render()
           }
         } else if (action === 'delete-logo') {
-          if (H.ui.selectedLogo === id) H.ui.selectedLogo = null
-          H.update((st) => (st.logos = st.logos.filter((l) => l.id !== id)))
+          if (String(H.ui.selectedLogo) === id) H.ui.selectedLogo = null
+          H.update((st) => (st.logos = st.logos.filter((l) => String(l.id) !== id).map((logo, index) => ({ ...logo, id: index }))))
         } else if (action === 'clear-logos') clearLogos()
-        else if (action === 'zip-logos') downloadLogosZip()
+        else if (action === 'export-json-logos') downloadLogosJson()
         else if (action === 'delete-team') deleteTeam(id)
         else if (action === 'change-logo') changeLogo(id)
         else if (action === 'clear-teams') clearTeams()
@@ -267,7 +271,7 @@
     },
 
     render(el, s) {
-      const selected = s.logos.find((l) => l.id === H.ui.selectedLogo)
+      const selected = s.logos.find((l) => String(l.id) === String(H.ui.selectedLogo))
       const teams = s.current.teams
 
       const register = `
@@ -308,17 +312,17 @@
             ${
               s.logos.length || teams.length
                 ? `<div class="row-actions row-actions--tight">
-                    <button class="btn btn--ghost btn--sm" data-action="zip-logos">Descargar ZIP</button>
+                    <button class="btn btn--ghost btn--sm" data-action="export-json-logos">Descargar JSON</button>
                     ${s.logos.length ? '<button class="btn btn--ghost btn--sm" data-action="clear-logos">Vaciar</button>' : ''}
                   </div>`
                 : ''
             }
           </header>
           <div class="dropzone">
-            <p>Arrastra imágenes o un ZIP aquí o</p>
+            <p>Arrastra imágenes, un JSON de escudos o un ZIP antiguo aquí o</p>
             <div class="row-actions row-actions--tight">
               ${fileButton('Importar imágenes', 'gallery', 'btn btn--primary btn--sm')}
-              ${fileButton('Importar ZIP', 'zip', 'btn btn--ghost btn--sm', '.zip,application/zip,application/x-zip-compressed')}
+              ${fileButton('Importar JSON', 'json', 'btn btn--ghost btn--sm', '.json,application/json')}
             </div>
           </div>
           ${
@@ -327,15 +331,15 @@
                   .map(
                     (l) => `
                 <div class="logo-tile-wrap">
-                  <button class="logo-tile${l.id === H.ui.selectedLogo ? ' is-selected' : ''}" data-action="select-logo"
-                    data-id="${esc(l.id)}" aria-pressed="${l.id === H.ui.selectedLogo}" aria-label="Seleccionar escudo">
+                    <button class="logo-tile${String(l.id) === String(H.ui.selectedLogo) ? ' is-selected' : ''}" data-action="select-logo"
+                    data-id="${esc(l.id)}" aria-pressed="${String(l.id) === String(H.ui.selectedLogo)}" aria-label="Seleccionar escudo">
                     <img src="${esc(l.data)}" alt="" loading="lazy">
                   </button>
                   <button class="logo-remove" data-action="delete-logo" data-id="${esc(l.id)}" aria-label="Quitar escudo de la galería">&times;</button>
                 </div>`,
                   )
                   .join('')}</div>`
-              : '<p class="empty">Aún no hay escudos. Importa PNG, JPG, SVG o WEBP, o un ZIP con varios escudos.</p>'
+              : '<p class="empty">Aún no hay escudos. Importa PNG, JPG, SVG o WEBP, un JSON de escudos o arrastra un ZIP antiguo.</p>'
           }
         </article>`
 
