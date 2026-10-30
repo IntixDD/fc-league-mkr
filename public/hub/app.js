@@ -7,6 +7,38 @@
   const ids = buttons.map((b) => b.dataset.section)
   let current = null
 
+  const intro = document.getElementById('app-intro')
+  if (intro) {
+    const skipIntro = intro.querySelector('.intro-skip')
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      intro.remove()
+    } else {
+      let closing = false
+      let timer = 0
+      const finishIntro = () => {
+        if (closing) return
+        closing = true
+        clearTimeout(timer)
+        document.removeEventListener('keydown', onIntroKeydown)
+        intro.classList.add('is-closing')
+        window.setTimeout(() => {
+          intro.remove()
+          document.querySelector('.shell')?.removeAttribute('inert')
+        }, 360)
+      }
+      const onIntroKeydown = (event) => {
+        if (event.key === 'Escape') finishIntro()
+      }
+      skipIntro?.addEventListener('click', finishIntro)
+      intro.addEventListener('click', finishIntro)
+      document.addEventListener('keydown', onIntroKeydown)
+      document.querySelector('.shell')?.setAttribute('inert', '')
+      skipIntro?.focus({ preventScroll: true })
+      requestAnimationFrame(() => intro.classList.add('is-playing'))
+      timer = window.setTimeout(finishIntro, 2680)
+    }
+  }
+
   sections.forEach((section) => {
     const title = section.querySelector('.section-title')
     const text = title.textContent.trim()

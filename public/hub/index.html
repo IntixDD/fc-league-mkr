@@ -17,13 +17,37 @@
     <meta name="apple-mobile-web-app-title" content="League Hub" />
     <script src="prefs.js?v=12"></script>
     <link rel="stylesheet" href="styles.css?v=12" />
-    <link rel="stylesheet" href="components.css?v=44" />
+    <link rel="stylesheet" href="components.css?v=46" />
   </head>
   <body>
     <div class="background" aria-hidden="true">
       <div class="glow"></div>
       <div class="bg-custom"></div>
       <div class="grid"></div>
+    </div>
+
+    <div class="app-intro" id="app-intro" role="dialog" aria-modal="true" aria-label="Animación de inicio de League Hub">
+      <div class="intro-field" aria-hidden="true">
+        <span class="intro-sweep intro-sweep--left"></span>
+        <span class="intro-sweep intro-sweep--right"></span>
+        <span class="intro-shard intro-shard--lime"></span>
+        <span class="intro-shard intro-shard--violet"></span>
+        <span class="intro-shard intro-shard--pink"></span>
+        <span class="intro-shard intro-shard--white"></span>
+        <span class="intro-shard intro-shard--green"></span>
+        <span class="intro-orbit intro-orbit--outer"></span>
+        <span class="intro-orbit intro-orbit--inner"></span>
+        <span class="intro-flare intro-flare--one"></span>
+        <span class="intro-flare intro-flare--two"></span>
+      </div>
+      <button type="button" class="intro-skip" aria-label="Omitir animación">Omitir <span>ESC</span></button>
+      <div class="intro-content" aria-hidden="true">
+        <span class="intro-kicker">EL JUEGO COMIENZA</span>
+        <div class="intro-emblem"><span class="intro-emblem-ring"></span><img src="logo.svg" alt=""></div>
+        <h1 class="intro-wordmark"><span>LEAGUE</span><strong>HUB</strong></h1>
+        <span class="intro-tagline">TU LIGA · TU HISTORIA</span>
+        <span class="intro-progress"><i></i></span>
+      </div>
     </div>
 
     <div class="shell">
@@ -156,8 +180,8 @@
     <script src="views/history.js?v=16" defer></script>
     <script src="views/performance.js?v=24" defer></script>
     <script src="views/badges.js?v=23" defer></script>
-    <script src="views/settings.js?v=11" defer></script>
-    <script src="app.js?v=11" defer></script>
+    <script src="views/settings.js?v=12" defer></script>
+    <script src="app.js?v=12" defer></script>
   </body>
 </html>
 
