@@ -140,7 +140,6 @@
 
 
 
-
 //Beta 3: (Planes)
 
 
@@ -152,5 +151,6 @@
 \- Crear changelog.md
 
 \- Table/Crear tabla: Añadir una nueva opción de creación de tabla: Fase de grupos (4) (6) (8).
-- Registrar Tarjetas
+
+* Registrar Tarjetas
 
