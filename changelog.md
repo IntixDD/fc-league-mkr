@@ -133,6 +133,12 @@
 
 
 
+**Beta 2.5:**
+
+* Añadida Animación de inicio
+* App optimizada
+
+
 
 
 //Beta 3: (Planes)
