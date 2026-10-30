@@ -17,7 +17,7 @@
     <meta name="apple-mobile-web-app-title" content="League Hub" />
     <script src="prefs.js?v=12"></script>
     <link rel="stylesheet" href="styles.css?v=12" />
-    <link rel="stylesheet" href="components.css?v=46" />
+    <link rel="stylesheet" href="components.css?v=55" />
   </head>
   <body>
     <div class="background" aria-hidden="true">
@@ -26,27 +26,31 @@
       <div class="grid"></div>
     </div>
 
-    <div class="app-intro" id="app-intro" role="dialog" aria-modal="true" aria-label="Animación de inicio de League Hub">
-      <div class="intro-field" aria-hidden="true">
-        <span class="intro-sweep intro-sweep--left"></span>
-        <span class="intro-sweep intro-sweep--right"></span>
-        <span class="intro-shard intro-shard--lime"></span>
-        <span class="intro-shard intro-shard--violet"></span>
-        <span class="intro-shard intro-shard--pink"></span>
-        <span class="intro-shard intro-shard--white"></span>
-        <span class="intro-shard intro-shard--green"></span>
-        <span class="intro-orbit intro-orbit--outer"></span>
-        <span class="intro-orbit intro-orbit--inner"></span>
-        <span class="intro-flare intro-flare--one"></span>
-        <span class="intro-flare intro-flare--two"></span>
+    <div class="app-intro" id="app-intro" role="presentation">
+      <div class="intro-backdrop" aria-hidden="true"></div>
+      <div class="intro-pattern" aria-hidden="true">
+        <svg class="intro-pattern-svg" viewBox="0 0 1200 800" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="intro-line-gradient" gradientUnits="userSpaceOnUse" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0" style="stop-color:rgb(var(--glow-1));stop-opacity:1" />
+              <stop offset=".48" style="stop-color:rgb(var(--accent-rgb));stop-opacity:1" />
+              <stop offset="1" style="stop-color:rgb(var(--glow-g));stop-opacity:1" />
+            </linearGradient>
+            <radialGradient id="intro-triangle-fill" gradientUnits="userSpaceOnUse" cx="50%" cy="50%" r="72%">
+              <stop offset="0" stop-color="#2A172E" />
+              <stop offset=".62" stop-color="#140B17" />
+              <stop offset="1" stop-color="#000000" />
+            </radialGradient>
+          </defs>
+          <g class="intro-triangle-mesh"></g>
+        </svg>
       </div>
-      <button type="button" class="intro-skip" aria-label="Omitir animación">Omitir <span>ESC</span></button>
-      <div class="intro-content" aria-hidden="true">
-        <span class="intro-kicker">EL JUEGO COMIENZA</span>
-        <div class="intro-emblem"><span class="intro-emblem-ring"></span><img src="logo.svg" alt=""></div>
-        <h1 class="intro-wordmark"><span>LEAGUE</span><strong>HUB</strong></h1>
-        <span class="intro-tagline">TU LIGA · TU HISTORIA</span>
-        <span class="intro-progress"><i></i></span>
+      <div class="intro-brand" aria-hidden="true">
+        <div class="intro-icon"><img src="logo.svg" alt=""></div>
+        <div class="intro-details">
+          <div class="intro-app-name">League Hub</div>
+          <div class="intro-loader"><span></span></div>
+        </div>
       </div>
     </div>
 
@@ -181,7 +185,7 @@
     <script src="views/performance.js?v=24" defer></script>
     <script src="views/badges.js?v=23" defer></script>
     <script src="views/settings.js?v=12" defer></script>
-    <script src="app.js?v=12" defer></script>
+    <script src="app.js?v=20" defer></script>
   </body>
 </html>
 

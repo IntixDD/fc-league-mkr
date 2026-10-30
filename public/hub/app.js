@@ -9,33 +9,63 @@
 
   const intro = document.getElementById('app-intro')
   if (intro) {
-    const skipIntro = intro.querySelector('.intro-skip')
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
       intro.remove()
     } else {
+      const mesh = intro.querySelector('.intro-triangle-mesh')
+      if (mesh) {
+        const namespace = 'http://www.w3.org/2000/svg'
+        const viewportWidth = Math.max(320, window.innerWidth || 1200)
+        const viewportHeight = Math.max(320, window.innerHeight || 800)
+        mesh.ownerSVGElement?.setAttribute('viewBox', `0 0 ${viewportWidth} ${viewportHeight}`)
+        const side = Math.max(58, Math.min(110, Math.min(viewportWidth, viewportHeight) / 7.5))
+        const halfSide = side / 2
+        const rowHeight = side * Math.sqrt(3) / 2
+        const rows = Math.ceil(viewportHeight / rowHeight) + 1
+        const columns = Math.ceil(viewportWidth / side) + 2
+        const triangles = []
+        for (let row = 0; row < rows; row += 1) {
+          const topOffset = row % 2 === 0 ? 0 : halfSide
+          const y = row * rowHeight
+          for (let column = -1; column < columns; column += 1) {
+            const x = column * side + topOffset
+            const shapes = [
+              [[x, y], [x + side, y], [x + halfSide, y + rowHeight]],
+              [[x, y], [x - halfSide, y + rowHeight], [x + halfSide, y + rowHeight]],
+            ]
+
+            shapes.forEach((vertices, part) => {
+              const triangle = document.createElementNS(namespace, 'polygon')
+              triangle.setAttribute('points', vertices.map((point) => point.join(',')).join(' '))
+              triangle.setAttribute('class', 'intro-triangle')
+              const centerX = vertices.reduce((sum, point) => sum + point[0], 0) / 3
+              const centerY = vertices.reduce((sum, point) => sum + point[1], 0) / 3
+              triangles.push({ triangle, centerX, centerY, part })
+              mesh.appendChild(triangle)
+            })
+          }
+        }
+
+        triangles
+          .sort((a, b) => ((viewportWidth - a.centerX) + (viewportHeight - a.centerY)) - ((viewportWidth - b.centerX) + (viewportHeight - b.centerY))
+            || b.centerY - a.centerY
+            || b.centerX - a.centerX
+            || a.part - b.part)
+          .forEach(({ triangle }, order) => triangle.style.setProperty('--triangle-delay', `${order * 0.62 / triangles.length}s`))
+      }
       let closing = false
-      let timer = 0
       const finishIntro = () => {
         if (closing) return
         closing = true
-        clearTimeout(timer)
-        document.removeEventListener('keydown', onIntroKeydown)
         intro.classList.add('is-closing')
         window.setTimeout(() => {
           intro.remove()
           document.querySelector('.shell')?.removeAttribute('inert')
-        }, 360)
+        }, 1040)
       }
-      const onIntroKeydown = (event) => {
-        if (event.key === 'Escape') finishIntro()
-      }
-      skipIntro?.addEventListener('click', finishIntro)
-      intro.addEventListener('click', finishIntro)
-      document.addEventListener('keydown', onIntroKeydown)
       document.querySelector('.shell')?.setAttribute('inert', '')
-      skipIntro?.focus({ preventScroll: true })
       requestAnimationFrame(() => intro.classList.add('is-playing'))
-      timer = window.setTimeout(finishIntro, 2680)
+      window.setTimeout(finishIntro, 2430)
     }
   }
 
