@@ -39,7 +39,7 @@
         ...Array.from({ length: repechagePerSide }, (_, i) => order[2 * (directPerSeries + i)]),
         ...Array.from({ length: repechagePerSide }, (_, i) => order[2 * i + 1]),
       ]
-      return { seeds, repechage: { enabled: true, pairs, seedSlots, fields: H.generateRepechageFields(matchCount, season.fields || 2), results: {} } }
+      return { seeds, repechage: { enabled: true, pairs, seedSlots, fields: H.generateRepechageFields(matchCount, season.fields || 2, !!twoLeggedDraft), results: {} } }
     }
     const table = H.computeTable(season)
     const matchCount = size / 4
@@ -56,7 +56,7 @@
         enabled: true,
         pairs,
         seedSlots: Array.from({ length: matchCount }, (_, i) => directCount + i + 1),
-        fields: H.generateRepechageFields(matchCount, season.fields || 2),
+        fields: H.generateRepechageFields(matchCount, season.fields || 2, !!twoLeggedDraft),
         results: {},
       },
     }
@@ -123,7 +123,7 @@
       twoLegged: !!twoLeggedDraft,
       results: {},
       fields: H.generateTournamentFields(size, season.fields || 2, !!twoLeggedDraft),
-      ...(repechage ? { repechage, bracketOrder: randomBracketOrder(size) } : {}),
+      ...(repechage ? { repechage: { ...repechage, twoLegged: !!twoLeggedDraft }, bracketOrder: randomBracketOrder(size) } : {}),
     }))
     H.toast('Tournament creado')
   }
@@ -353,12 +353,10 @@
           ${m.tied ? `<p class="po-pens">${m.penaltiesTied ? 'Los penales no pueden terminar empatados' : m.decided ? 'Definido por penales' : 'Empate: ingresa la tanda de penales'}</p>` : ''}
         </div>`
 
-      const repechageCard = po.repechage?.enabled ? `
-        <article class="card card--wide repechage-card" id="repechage-export">
-          <header class="card-head"><h2 class="card-title">Repechajes</h2><div class="row-actions">${H.exportButton('#repechage-export', 'repechajes')}</div></header>
-          <div class="repechage-grid">${repechageMatches.map((match) => matchCard(match)).join('')}</div>
-        </article>` : ''
-
+      const repechageBySeed = new Map((po.repechage?.seedSlots || []).map((seed, index) => [seed, repechageMatches[index]]).filter(([, match]) => match))
+      const feedsForMatch = (match) => match.key.startsWith('r0-')
+        ? [repechageBySeed.get(match.homeSeed), repechageBySeed.get(match.awaySeed)].filter(Boolean)
+        : []
       const slot = (m) => `<div class="bk-slot">${matchCard(m)}</div>`
       const sideColumn = (matches, stage, side) => {
         const body =
@@ -375,12 +373,31 @@
           </div>`
       }
 
+      const repechageSideColumn = (matches, side) => {
+        const maxFeeds = Math.max(0, ...matches.map((match) => feedsForMatch(match).length))
+        if (!maxFeeds) return ''
+        const slot = (match) => {
+          const feeds = feedsForMatch(match)
+          return `<div class="bk-slot bk-repechage-slot${feeds.length ? ' bk-repechage-slot--active' : ''}${feeds.length > 1 ? ' bk-repechage-slot--multi' : ''}">
+            ${feeds.map((feed) => matchCard(feed, `po-match--repechage po-match--rep-${side}`)).join('')}
+          </div>`
+        }
+        const body = matches.length > 1
+          ? Array.from({ length: matches.length / 2 }, (_, i) => `<div class="bk-pair">${slot(matches[2 * i])}${slot(matches[2 * i + 1])}</div>`).join('')
+          : matches.map(slot).join('')
+        return `<div class="bk-col bk-col--repechage-feed bk-col--repechage-feed-${side}${maxFeeds > 1 ? ' bk-col--repechage-feed-multi' : ''}">
+          <h3 class="bracket-stage">Repechaje</h3><div class="bk-slots">${body}</div>
+        </div>`
+      }
+
       const sideRounds = bracket.rounds.slice(0, -1)
-      const leftCols = sideRounds.map((r) => sideColumn(r.slice(0, r.length / 2), r[0].stage, 'left')).join('')
+      const leftRoundOne = bracket.rounds[0].slice(0, bracket.rounds[0].length / 2)
+      const rightRoundOne = bracket.rounds[0].slice(bracket.rounds[0].length / 2)
+      const leftCols = `${repechageSideColumn(leftRoundOne, 'left')}${sideRounds.map((r) => sideColumn(r.slice(0, r.length / 2), r[0].stage, 'left')).join('')}`
       const rightCols = sideRounds
         .map((r) => sideColumn(r.slice(r.length / 2), r[0].stage, 'right'))
         .reverse()
-        .join('')
+        .join('') + repechageSideColumn(rightRoundOne, 'right')
       const champ = bracket.champion ? teams.get(bracket.champion) : null
 
       const finalCol = `
@@ -425,7 +442,6 @@
               ${place(bracket.fourth, '4to lugar', '')}
             </ol>
           </article>
-          ${repechageCard}
           <article class="card card--wide" id="tournament-export">
             <header class="card-head">
               <div><h2 class="card-title">Cuadro</h2></div>

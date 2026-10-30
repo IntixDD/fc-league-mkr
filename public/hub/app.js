@@ -23,8 +23,8 @@
           || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)
         const shortestSide = Math.min(viewportWidth, viewportHeight)
         const side = lowPowerDevice
-          ? Math.max(92, Math.min(116, shortestSide / 5.5))
-          : Math.max(132, Math.min(164, shortestSide / 6))
+          ? Math.max(116, Math.min(144, shortestSide / 4.7))
+          : Math.max(164, Math.min(196, shortestSide / 5.4))
         const halfSide = side / 2
         const rowHeight = side * Math.sqrt(3) / 2
         const rows = Math.ceil(viewportHeight / rowHeight) + 1
@@ -57,7 +57,7 @@
             || b.centerY - a.centerY
             || b.centerX - a.centerX
             || a.part - b.part)
-          .forEach(({ triangle }, order) => triangle.style.setProperty('--triangle-delay', `${order * 0.82 / triangles.length}s`))
+          .forEach(({ triangle }, order) => triangle.style.setProperty('--triangle-delay', `${order * 1.9 / triangles.length}s`))
       }
       let closing = false
       const finishIntro = () => {
@@ -67,11 +67,11 @@
         window.setTimeout(() => {
           intro.remove()
           document.querySelector('.shell')?.removeAttribute('inert')
-        }, 1350)
+        }, 2600)
       }
       document.querySelector('.shell')?.setAttribute('inert', '')
       requestAnimationFrame(() => intro.classList.add('is-playing'))
-      window.setTimeout(finishIntro, 2430)
+      window.setTimeout(finishIntro, 4500)
     }
   }
 
@@ -187,8 +187,18 @@
     tipOwner = button
     const rect = button.getBoundingClientRect()
     tip.textContent = button.getAttribute('aria-label') || ''
-    tip.style.left = `${rect.right + 14}px`
-    tip.style.top = `${rect.top + rect.height / 2}px`
+    tip.style.left = '0px'
+    tip.style.top = '0px'
+    const tipRect = tip.getBoundingClientRect()
+    const gap = 12
+    const right = window.innerWidth - rect.right - gap >= tipRect.width || rect.left < tipRect.width + gap
+    const left = right
+      ? Math.min(window.innerWidth - tipRect.width - 8, rect.right + gap)
+      : Math.max(8, rect.left - tipRect.width - gap)
+    const top = Math.max(8, Math.min(window.innerHeight - tipRect.height - 8, rect.top + rect.height / 2))
+    tip.classList.toggle('is-left', !right)
+    tip.style.left = `${left}px`
+    tip.style.top = `${top}px`
     tip.classList.add('is-visible')
     // Keep the label brief, especially after a touch on mobile.
     tipTimer = setTimeout(() => hideTip(button), 1600)
@@ -204,6 +214,7 @@
 
   buttons.forEach((button) => {
     button.addEventListener('mouseenter', () => showTip(button))
+    button.addEventListener('pointerdown', (event) => event.pointerType !== 'mouse' && showTip(button))
     button.addEventListener('mouseleave', () => hideTip(button))
     button.addEventListener('focus', () => button.matches(':focus-visible') && showTip(button))
     button.addEventListener('blur', () => hideTip(button))

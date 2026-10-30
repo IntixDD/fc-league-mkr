@@ -266,6 +266,9 @@ body {
   transform: translate(0, -50%);
 }
 
+.nav-tooltip.is-left { transform: translate(8px, -50%); }
+.nav-tooltip.is-visible.is-left { transform: translate(0, -50%); }
+
 .nav-indicator {
   position: absolute;
   top: 0;
@@ -552,10 +555,6 @@ body {
   :root:not(.ui-desktop) .nav-indicator {
     width: 52px;
     height: 52px;
-  }
-
-  :root:not(.ui-desktop) .nav-tooltip {
-    display: none;
   }
 
   :root:not(.ui-desktop) .nav-icon,

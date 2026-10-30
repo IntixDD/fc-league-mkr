@@ -272,6 +272,7 @@ window.Hub = (() => {
       if (rawRepechage?.enabled && Array.isArray(rawRepechage.pairs)) {
         playoffs.repechage = {
           enabled: true,
+          twoLegged: rawRepechage.twoLegged === true,
           pairs: rawRepechage.pairs
             .filter((pair) => Array.isArray(pair) && pair.length === 2 && pair.every((id) => ids.has(id)))
             .map((pair) => [pair[0], pair[1]]),
@@ -284,9 +285,28 @@ window.Hub = (() => {
           const field = Number(value)
           if (Number.isInteger(field) && field >= 1 && field <= fieldCount) playoffs.repechage.fields[key] = field
         })
+        if (playoffs.repechage.twoLegged) {
+          playoffs.repechage.pairs.forEach((_, index) => {
+            const key = `rep-${index}`
+            const firstField = playoffs.repechage.fields[key] || 1
+            const secondKey = `${key}-leg2`
+            const secondField = playoffs.repechage.fields[secondKey]
+            if (!secondField || secondField === firstField) playoffs.repechage.fields[secondKey] = (firstField % fieldCount) + 1
+          })
+        }
         Object.entries(rawRepechage.results || {}).forEach(([key, r]) => {
           if (r && typeof r.pair === 'string') {
-            playoffs.repechage.results[key] = { pair: r.pair, hg: sc(r.hg), ag: sc(r.ag), hp: sc(r.hp), ap: sc(r.ap) }
+            playoffs.repechage.results[key] = {
+              pair: r.pair,
+              hg: sc(r.hg),
+              ag: sc(r.ag),
+              hp: sc(r.hp),
+              ap: sc(r.ap),
+              leg1hg: sc(r.leg1hg),
+              leg1ag: sc(r.leg1ag),
+              leg2hg: sc(r.leg2hg),
+              leg2ag: sc(r.leg2ag),
+            }
           }
         })
       }
@@ -639,10 +659,16 @@ window.Hub = (() => {
     return fields
   }
 
-  function generateRepechageFields(matchCount, fieldCount) {
+  function generateRepechageFields(matchCount, fieldCount, twoLegged = false) {
     const count = Math.max(2, Math.min(999, Math.trunc(Number(fieldCount)) || 2))
     const order = shuffle(Array.from({ length: count }, (_, i) => i + 1))
-    return Object.fromEntries(Array.from({ length: matchCount }, (_, i) => [`rep-${i}`, order[i % order.length]]))
+    const fields = {}
+    const legOffset = twoLegged ? 1 + Math.floor(Math.random() * (count - 1)) : 0
+    Array.from({ length: matchCount }, (_, i) => {
+      fields[`rep-${i}`] = order[i % order.length]
+      if (twoLegged) fields[`rep-${i}-leg2`] = order[(i + legOffset) % order.length]
+    })
+    return fields
   }
 
   function leagueMatches(season) {
@@ -716,7 +742,8 @@ window.Hub = (() => {
     const pair = home && away ? `${home}|${away}` : null
     const raw = po.results[key]
     const res = raw && pair && raw.pair === pair ? raw : null
-    const twoLegged = po.twoLegged === true && ['Octavos', 'Cuartos', 'Semifinales'].includes(stage)
+    const twoLegged = (po.twoLegged === true && ['Octavos', 'Cuartos', 'Semifinales'].includes(stage))
+      || (stage === 'Repechaje' && po.twoLegged === true)
     const leg1 = twoLegged ? { hg: sc(res?.leg1hg), ag: sc(res?.leg1ag) } : null
     const leg2 = twoLegged ? { hg: sc(res?.leg2hg), ag: sc(res?.leg2ag) } : null
     const leg1Played = !!pair && !!leg1 && played(leg1)
@@ -947,9 +974,22 @@ window.Hub = (() => {
       const qualified = new Set(bracket.rounds[0].flatMap((match) => [match.home, match.away]).filter(Boolean))
       const repechageQualified = new Set(repechageMatches.map((match) => match.winner).filter(Boolean))
       repechageMatches.forEach((match) => {
-        if (!match.played) return
-        if (match.hg >= 7 && byId.has(match.home)) byId.get(match.home).repechageSevenGoals = true
-        if (match.ag >= 7 && byId.has(match.away)) byId.get(match.away).repechageSevenGoals = true
+        const scoreSeven = (teamId, goals) => {
+          if (goals >= 7 && byId.has(teamId)) byId.get(teamId).repechageSevenGoals = true
+        }
+        if (match.twoLegged) {
+          if (match.leg1Played) {
+            scoreSeven(match.home, match.leg1.hg)
+            scoreSeven(match.away, match.leg1.ag)
+          }
+          if (match.leg2Played) {
+            scoreSeven(match.away, match.leg2.hg)
+            scoreSeven(match.home, match.leg2.ag)
+          }
+        } else if (match.played) {
+          scoreSeven(match.home, match.hg)
+          scoreSeven(match.away, match.ag)
+        }
       })
       byId.forEach((team) => {
         if (!qualified.has(team.id)) return

@@ -81,7 +81,7 @@
             s.current.fields = count
             if (s.current.playoffs) {
               s.current.playoffs.fields = H.generateTournamentFields(s.current.playoffs.size, count)
-              if (s.current.playoffs.repechage) s.current.playoffs.repechage.fields = H.generateRepechageFields(s.current.playoffs.repechage.pairs.length, count)
+              if (s.current.playoffs.repechage) s.current.playoffs.repechage.fields = H.generateRepechageFields(s.current.playoffs.repechage.pairs.length, count, !!s.current.playoffs.repechage.twoLegged)
             }
           })
           H.toast('Canchas guardadas')
@@ -90,7 +90,7 @@
             s.current.fields = null
             if (s.current.playoffs) {
               s.current.playoffs.fields = H.generateTournamentFields(s.current.playoffs.size, 2)
-              if (s.current.playoffs.repechage) s.current.playoffs.repechage.fields = H.generateRepechageFields(s.current.playoffs.repechage.pairs.length, 2)
+              if (s.current.playoffs.repechage) s.current.playoffs.repechage.fields = H.generateRepechageFields(s.current.playoffs.repechage.pairs.length, 2, !!s.current.playoffs.repechage.twoLegged)
             }
           })
           H.toast('Asignación de canchas eliminada')

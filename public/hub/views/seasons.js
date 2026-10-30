@@ -171,7 +171,10 @@
     if (!season.playoffs?.repechage?.enabled) return ''
     const teams = new Map(season.teams.map((team) => [team.id, team]))
     const matches = H.computeRepechage(season)
-    const played = matches.filter((match) => match.played).length
+    const played = matches.reduce((count, match) => count + (match.twoLegged
+      ? Number(match.leg1Played) + Number(match.leg2Played)
+      : Number(match.played)), 0)
+    const total = matches.reduce((count, match) => count + (match.twoLegged ? 2 : 1), 0)
     const content = matches.length
       ? `<div class="feat-grid season-repechage-grid">${matches.map((match, index) => {
           const home = teams.get(match.home)
@@ -183,12 +186,15 @@
               <span class="feat-result">${match.hg ?? '—'} - ${match.ag ?? '—'}</span>
               <span class="feat-team">${away ? crest(away.logo, 'md', away.name) : '<span class="crest crest--md crest--tbd"></span>'}<span>${away ? esc(away.name) : 'Por definir'}</span></span>
             </div>
+            ${match.twoLegged ? `<div class="season-mini-leg-columns">
+              <div class="season-mini-leg"><span>Ida · Cancha ${match.leg1Field || '–'}</span><strong>${match.leg1?.hg ?? '–'}–${match.leg1?.ag ?? '–'}</strong></div>
+              <div class="season-mini-leg"><span>Vuelta · Cancha ${match.leg2Field || '–'}</span><strong>${match.leg2?.hg ?? '–'}–${match.leg2?.ag ?? '–'}</strong></div>
+            </div><p class="feat-when">Global ${match.hg ?? '–'}–${match.ag ?? '–'}</p>` : match.field ? `<p class="feat-when">Cancha ${match.field}</p>` : ''}
             ${match.tied && match.decided ? `<p class="feat-pens">Penales ${match.hp}–${match.ap}</p>` : ''}
-            ${match.field ? `<p class="feat-when">Cancha ${match.field}</p>` : ''}
           </article>`
         }).join('')}</div>`
       : '<p class="season-awards-empty">No hay cruces de repechaje registrados.</p>'
-    return `<details class="season-awards season-tournament-details"><summary><span class="season-awards-heading">${TICKET_ICON}<span>Repechajes</span></span><span class="season-awards-count">${played}/${matches.length} partidos</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
+    return `<details class="season-awards season-tournament-details"><summary><span class="season-awards-heading">${TICKET_ICON}<span>Repechajes</span></span><span class="season-awards-count">${played}/${total} partidos</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
   }
 
   function drawMiniBracketConnectors(map, roundsCount) {

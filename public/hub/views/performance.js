@@ -1,7 +1,7 @@
 ;(() => {
   const H = window.Hub
   const { esc, crest } = H
-  const ROTATE_MS = 4500
+  const ROTATE_MS = 7000
   const bg = { key: null, index: 0 }
   let rotateTimer = 0
 
@@ -90,7 +90,9 @@
         bg.key = rec.key
         bg.index = 0
       }
-      const bgIndex = bg.index % Math.max(1, rec.logos.length)
+      const backgroundLogos = rec.logos.slice(0, 5)
+      bg.index %= Math.max(1, backgroundLogos.length)
+      const bgIndex = bg.index
       const t = H.teamTotals(rec)
       const matches = rec.seasons.flatMap((s) => s.matches.map((m) => ({ ...m, logo: s.logo })))
       const bestFor = [...matches].sort((a, b) => b.gf - a.gf || b.gf - b.ga - (a.gf - a.ga) || b.season - a.season)[0]
@@ -115,7 +117,7 @@
       const hero = `
         <article class="card card--wide perf-hero">
           <div class="perf-bg" aria-hidden="true">
-            ${rec.logos.map((l, i) => `<img class="perf-bg-logo${i === bgIndex ? ' is-active' : ''}" src="${esc(l)}" alt="" decoding="async">`).join('')}
+            ${backgroundLogos.map((l, i) => `<img class="perf-bg-logo${i === bgIndex ? ' is-active' : ''}" src="${esc(l)}" alt="" decoding="async">`).join('')}
           </div>
           <div class="perf-hero-inner">
             <p class="perf-eyebrow">${rec.seasons.length} temporada(s) · ${rec.logos.length} escudo(s)</p>

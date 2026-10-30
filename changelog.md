@@ -140,6 +140,16 @@
 
 
 
+**Beta 2.6:**
+
+* Performance: Arreglo de opacidad de los escudos de fondo
+* Tournament: Eliminado el recuadro Repechajes
+* Tournament/Cuadro: Ahora los repechajes aparecen al lado de las llaves
+* Repechajes: Ahora Ida y Vuelta afectan a los partidos de repechaje
+* Animación de inicio actualizada.
+
+
+
 //Beta 3: (Planes)
 
 
