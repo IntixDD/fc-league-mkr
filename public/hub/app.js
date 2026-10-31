@@ -9,11 +9,8 @@
 
   const intro = document.getElementById('app-intro')
   if (intro) {
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      intro.remove()
-    } else {
-      const mesh = intro.querySelector('.intro-triangle-mesh')
-      if (mesh) {
+    const mesh = intro.querySelector('.intro-triangle-mesh')
+    if (mesh) {
         const namespace = 'http://www.w3.org/2000/svg'
         const viewportWidth = Math.max(320, window.innerWidth || 1200)
         const viewportHeight = Math.max(320, window.innerHeight || 800)
@@ -58,21 +55,20 @@
             || b.centerX - a.centerX
             || a.part - b.part)
           .forEach(({ triangle }, order) => triangle.style.setProperty('--triangle-delay', `${order * 1.9 / triangles.length}s`))
-      }
-      let closing = false
-      const finishIntro = () => {
-        if (closing) return
-        closing = true
-        intro.classList.add('is-closing')
-        window.setTimeout(() => {
-          intro.remove()
-          document.querySelector('.shell')?.removeAttribute('inert')
-        }, 2600)
-      }
-      document.querySelector('.shell')?.setAttribute('inert', '')
-      requestAnimationFrame(() => intro.classList.add('is-playing'))
-      window.setTimeout(finishIntro, 4500)
     }
+    let closing = false
+    const finishIntro = () => {
+      if (closing) return
+      closing = true
+      intro.classList.add('is-closing')
+      window.setTimeout(() => {
+        intro.remove()
+        document.querySelector('.shell')?.removeAttribute('inert')
+      }, 2600)
+    }
+    document.querySelector('.shell')?.setAttribute('inert', '')
+    requestAnimationFrame(() => intro.classList.add('is-playing'))
+    window.setTimeout(finishIntro, 4500)
   }
 
   sections.forEach((section) => {
@@ -190,15 +186,17 @@
     tip.style.left = '0px'
     tip.style.top = '0px'
     const tipRect = tip.getBoundingClientRect()
-    const gap = 12
-    const right = window.innerWidth - rect.right - gap >= tipRect.width || rect.left < tipRect.width + gap
+    const gap = 10
+    const canShowRight = rect.right + gap + tipRect.width <= window.innerWidth - 8
+    const right = canShowRight || rect.left < tipRect.width + gap + 8
     const left = right
       ? Math.min(window.innerWidth - tipRect.width - 8, rect.right + gap)
       : Math.max(8, rect.left - tipRect.width - gap)
-    const top = Math.max(8, Math.min(window.innerHeight - tipRect.height - 8, rect.top + rect.height / 2))
+    const top = Math.max(8, Math.min(window.innerHeight - tipRect.height - 8, rect.top + (rect.height - tipRect.height) / 2))
+    const rootZoom = Number.parseFloat(getComputedStyle(document.documentElement).zoom) || 1
     tip.classList.toggle('is-left', !right)
-    tip.style.left = `${left}px`
-    tip.style.top = `${top}px`
+    tip.style.left = `${left / rootZoom}px`
+    tip.style.top = `${top / rootZoom}px`
     tip.classList.add('is-visible')
     // Keep the label brief, especially after a touch on mobile.
     tipTimer = setTimeout(() => hideTip(button), 1600)
@@ -220,6 +218,8 @@
     button.addEventListener('blur', () => hideTip(button))
   })
   document.querySelector('.nav').addEventListener('scroll', () => hideTip(), { passive: true })
+  window.addEventListener('resize', () => hideTip(), { passive: true })
+  window.visualViewport?.addEventListener('resize', () => hideTip(), { passive: true })
 
   const brand = document.querySelector('[data-brand-picker]')
   if (brand) brand.addEventListener('click', () => window.Hub?.pickBrand?.())

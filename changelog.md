@@ -150,6 +150,17 @@
 
 
 
+**Beta 2.7:**
+
+* Arreglo en la lógica de los repechajes y aleatoriedad
+* En la app móvil, al colocar la escala a -1, el sistema forzara el modo landscape
+* Nombres flotantes de los iconos de apartado arreglados
+* Carga de el apartado Seasons optimizada
+* Forzamiento de las animaciones para funcionar en todos los dispositivos
+* Animación de inicio actualizada (sip otra vez)
+
+
+
 //Beta 3: (Planes)
 
 

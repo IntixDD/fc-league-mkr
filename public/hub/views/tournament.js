@@ -22,23 +22,11 @@
         first[directPerSeries + i].team.id,
         second[directPerSeries + matchCount - i - 1].team.id,
       ])
-      const seeds = Array(size).fill(null)
-      let order = [1]
-      while (order.length < size) {
-        const next = order.length * 2 + 1
-        order = order.flatMap((seed) => [seed, next - seed])
-      }
-      const teamsPerSide = size / 2
-      for (let i = 0; i < teamsPerSide; i++) {
-        if (i < directPerSeries) seeds[order[2 * i] - 1] = first[i].team.id
-        const secondRank = teamsPerSide - i - 1
-        if (secondRank < directPerSeries) seeds[order[2 * i + 1] - 1] = second[secondRank].team.id
-      }
-      const repechagePerSide = matchCount / 2
-      const seedSlots = [
-        ...Array.from({ length: repechagePerSide }, (_, i) => order[2 * (directPerSeries + i)]),
-        ...Array.from({ length: repechagePerSide }, (_, i) => order[2 * i + 1]),
-      ]
+      // Keep same-place finishers from each series adjacent in seed order. The
+      // randomized bracket map can then split every rank pair across its halves.
+      const seeds = Array.from({ length: directPerSeries }, (_, i) => [first[i].team.id, second[i].team.id]).flat()
+        .concat(Array(size - directPerSeries * 2).fill(null))
+      const seedSlots = Array.from({ length: matchCount }, (_, i) => directPerSeries * 2 + i + 1)
       return { seeds, repechage: { enabled: true, pairs, seedSlots, fields: H.generateRepechageFields(matchCount, season.fields || 2, !!twoLeggedDraft), results: {} } }
     }
     const table = H.computeTable(season)
@@ -68,13 +56,47 @@
     return `${size / 2 - matchCount / 2 + matchCount} equipos por serie`
   }
 
-  function randomBracketOrder(size) {
-    const order = Array.from({ length: size }, (_, i) => i + 1)
-    for (let i = order.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[order[i], order[j]] = [order[j], order[i]]
+  function randomBracketOrder(size, repechageSlots = []) {
+    const slots = new Set(repechageSlots)
+    const sides = [[], []]
+    for (let seed = 1; seed <= size; seed += 2) {
+      const side = Math.random() < 0.5 ? 0 : 1
+      sides[side].push(seed)
+      sides[1 - side].push(seed + 1)
     }
-    return order
+
+    const shuffle = (values) => {
+      for (let i = values.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[values[i], values[j]] = [values[j], values[i]]
+      }
+      return values
+    }
+
+    const targetRepsPerSide = repechageSlots.length / 2
+    if (Number.isInteger(targetRepsPerSide) && targetRepsPerSide > 0) {
+      for (let side = 0; side < 2; side += 1) {
+        while (sides[side].filter((seed) => slots.has(seed)).length > targetRepsPerSide) {
+          const other = 1 - side
+          const rep = sides[side].find((seed) => slots.has(seed))
+          const direct = sides[other].find((seed) => !slots.has(seed))
+          if (rep == null || direct == null) break
+          sides[side][sides[side].indexOf(rep)] = direct
+          sides[other][sides[other].indexOf(direct)] = rep
+        }
+      }
+    }
+
+    sides.forEach(shuffle)
+    if (size === 16 && repechageSlots.length === 4) {
+      sides.forEach((side) => {
+        const reps = side.filter((seed) => slots.has(seed))
+        const direct = side.filter((seed) => !slots.has(seed))
+        // One repechage winner per octavos llave: put each in a separate match.
+        side.splice(0, side.length, reps[0], direct[0], reps[1], direct[1], ...direct.slice(2))
+      })
+    }
+    return sides.flat()
   }
 
   async function generate() {
@@ -123,7 +145,7 @@
       twoLegged: !!twoLeggedDraft,
       results: {},
       fields: H.generateTournamentFields(size, season.fields || 2, !!twoLeggedDraft),
-      ...(repechage ? { repechage: { ...repechage, twoLegged: !!twoLeggedDraft }, bracketOrder: randomBracketOrder(size) } : {}),
+      ...(repechage ? { repechage: { ...repechage, twoLegged: !!twoLeggedDraft }, bracketOrder: randomBracketOrder(size, repechage.seedSlots) } : {}),
     }))
     H.toast('Tournament creado')
   }
@@ -257,7 +279,7 @@
       const n = season.teams.length
       const po = season.playoffs
       if (po?.repechage?.enabled && !Array.isArray(po.bracketOrder)) {
-        const draw = randomBracketOrder(po.size)
+        const draw = randomBracketOrder(po.size, po.repechage.seedSlots || [])
         H.update((st) => {
           if (st.current.playoffs === po) st.current.playoffs.bracketOrder = draw
         }, { skip: 'tournament' })

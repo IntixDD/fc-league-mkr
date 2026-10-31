@@ -20,10 +20,20 @@
       rotateTimer = 0
       const current = section.querySelectorAll('.perf-bg-logo')
       if (document.hidden || section.hidden || current.length < 2) return
-      current[bg.index % current.length].classList.remove('is-active')
-      bg.index = (bg.index + 1) % current.length
-      current[bg.index].classList.add('is-active')
-      scheduleRotation()
+      const nextIndex = (bg.index + 1) % current.length
+      const next = current[nextIndex]
+      const activateNext = () => {
+        if (document.hidden || section.hidden || !next.isConnected) return
+        current[bg.index % current.length].classList.remove('is-active')
+        bg.index = nextIndex
+        next.classList.add('is-active')
+        scheduleRotation()
+      }
+      if (!next.getAttribute('src') && next.dataset.src) {
+        next.addEventListener('load', activateNext, { once: true })
+        next.addEventListener('error', activateNext, { once: true })
+        next.src = next.dataset.src
+      } else activateNext()
     }, ROTATE_MS)
   }
 
@@ -95,16 +105,24 @@
       const bgIndex = bg.index
       const t = H.teamTotals(rec)
       const matches = rec.seasons.flatMap((s) => s.matches.map((m) => ({ ...m, logo: s.logo })))
-      const bestFor = [...matches].sort((a, b) => b.gf - a.gf || b.gf - b.ga - (a.gf - a.ga) || b.season - a.season)[0]
-      const worstAgainst = [...matches].sort((a, b) => b.ga - a.ga || b.ga - b.gf - (a.ga - a.gf) || b.season - a.season)[0]
+      let bestFor
+      let worstAgainst
+      const finalsPlayed = []
+      const thirdPlacesPlayed = []
+      matches.forEach((match) => {
+        if (!bestFor || match.gf > bestFor.gf || (match.gf === bestFor.gf && match.gf - match.ga > bestFor.gf - bestFor.ga) || (match.gf === bestFor.gf && match.gf - match.ga === bestFor.gf - bestFor.ga && match.season > bestFor.season)) bestFor = match
+        if (!worstAgainst || match.ga > worstAgainst.ga || (match.ga === worstAgainst.ga && match.ga - match.gf > worstAgainst.ga - worstAgainst.gf) || (match.ga === worstAgainst.ga && match.ga - match.gf === worstAgainst.ga - worstAgainst.gf && match.season > worstAgainst.season)) worstAgainst = match
+        if (match.type === 'cup' && match.label.startsWith('Final -')) finalsPlayed.push(match)
+        if (match.type === 'cup' && match.label.startsWith('Tercer Puesto -')) thirdPlacesPlayed.push(match)
+      })
       const isWin = (match) => {
         if (match.gf !== match.ga) return match.gf > match.ga
         if (!match.pens) return false
         const [forPens, againstPens] = match.pens.split('-').map(Number)
         return Number.isFinite(forPens) && Number.isFinite(againstPens) && forPens > againstPens
       }
-      const finalsPlayed = matches.filter((match) => match.type === 'cup' && match.label.startsWith('Final -')).sort((a, b) => b.season - a.season)
-      const thirdPlacesPlayed = matches.filter((match) => match.type === 'cup' && match.label.startsWith('Tercer Puesto -')).sort((a, b) => b.season - a.season)
+      finalsPlayed.sort((a, b) => b.season - a.season)
+      thirdPlacesPlayed.sort((a, b) => b.season - a.season)
 
       const picker = `
         <label class="field field--inline perf-picker">
@@ -117,7 +135,7 @@
       const hero = `
         <article class="card card--wide perf-hero">
           <div class="perf-bg" aria-hidden="true">
-            ${backgroundLogos.map((l, i) => `<img class="perf-bg-logo${i === bgIndex ? ' is-active' : ''}" src="${esc(l)}" alt="" decoding="async">`).join('')}
+            ${backgroundLogos.map((l, i) => `<img class="perf-bg-logo${i === bgIndex ? ' is-active' : ''}" ${i === bgIndex ? `src="${esc(l)}"` : `data-src="${esc(l)}"`} alt="" decoding="async">`).join('')}
           </div>
           <div class="perf-hero-inner">
             <p class="perf-eyebrow">${rec.seasons.length} temporada(s) · ${rec.logos.length} escudo(s)</p>

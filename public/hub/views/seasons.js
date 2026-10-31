@@ -9,6 +9,7 @@
   let publishedLibraryError = ''
   let publishedLibraryVisible = false
   const JSON_FILE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M8.5 12h7M8.5 15.5h7M8.5 19h4"/></svg>'
+  const seasonStatsCache = new WeakMap()
   document.addEventListener('app:sectionchange', (event) => {
     if (event.detail?.id !== 'seasons') {
       miniBracketObserver?.disconnect()
@@ -19,7 +20,11 @@
   const nextNumber = (s) => Math.max(0, s.current.number, ...s.seasons.map((x) => x.number)) + 1
 
   function summary(season) {
-    const stats = H.seasonStats(season)
+    let stats = seasonStatsCache.get(season)
+    if (!stats) {
+      stats = H.seasonStats(season)
+      seasonStatsCache.set(season, stats)
+    }
     const find = (prop) => stats.find((x) => x[prop])
     return { league: find('leagueChampion'), cup: find('cupChampion') }
   }
@@ -52,8 +57,9 @@
     },
   ]
 
-  function awardSummary(season, open) {
-    const stats = H.seasonStats(season)
+  function awardSummary(season, open, lazy = false) {
+    const stats = seasonStatsCache.get(season) || H.seasonStats(season)
+    seasonStatsCache.set(season, stats)
     const groups = AWARD_SECTIONS.map(({ label, awards }) => {
       const items = awards.flatMap(([title, flag, icon, tone]) => {
         const winners = stats.filter((team) => team[flag])
@@ -66,7 +72,7 @@
     const content = count
       ? `<div class="season-award-groups">${groups.filter((group) => group.items.length).map((group) => `<section class="season-award-group"><h4>${group.label}</h4>${group.items.join('')}</section>`).join('')}</div>`
       : '<p class="season-awards-empty">Todavía no hay títulos ni logros registrados.</p>'
-    return `<details class="season-awards" ${open ? 'open' : ''}><summary><span class="season-awards-heading">${H.ICONS.trophy}<span>Títulos y Logros</span></span><span class="season-awards-count">${count} distinciones</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
+    return `<details class="season-awards" data-season-detail="awards" data-season-id="${esc(season.id || '')}" ${open ? 'open data-hydrated="true"' : ''}><summary><span class="season-awards-heading">${H.ICONS.trophy}<span>Títulos y Logros</span></span><span class="season-awards-count">${count} distinciones</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${lazy && !open ? '' : content}</div></details>`
   }
 
   const TABLE_ICON = '<svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16m6-16v16"/></svg>'
@@ -79,30 +85,32 @@
     </table></div>`
   }
 
-  function standingsSummary(season) {
+  function standingsSummary(season, lazy = false) {
     const grouped = season.tableConfig?.type === 'two-series'
-    const groups = grouped
+    const groups = lazy
+      ? []
+      : grouped
       ? [
           ['Serie 1', H.computeTable(season, season.tableConfig.series1)],
           ['Serie 2', H.computeTable(season, season.tableConfig.series2)],
         ]
       : [['Tabla regular', H.computeTable(season)]]
     const count = grouped ? '2 series' : `${season.teams.length} equipos`
-    const content = `<div class="season-standing-groups">${groups.map(([label, rows]) => `<section class="season-award-group"><h4>${label}<span>${rows.length} equipos</span></h4>${standingsTable(rows)}</section>`).join('')}</div>`
-    return `<details class="season-awards season-standings"><summary><span class="season-awards-heading">${TABLE_ICON}<span>${grouped ? 'Series' : 'Tabla'}</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
+    const content = lazy ? '' : `<div class="season-standing-groups">${groups.map(([label, rows]) => `<section class="season-award-group"><h4>${label}<span>${rows.length} equipos</span></h4>${standingsTable(rows)}</section>`).join('')}</div>`
+    return `<details class="season-awards season-standings" data-season-detail="standings" data-season-id="${esc(season.id || '')}"><summary><span class="season-awards-heading">${TABLE_ICON}<span>${grouped ? 'Series' : 'Tabla'}</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
   }
 
-  function fixtureSummary(season) {
+  function fixtureSummary(season, lazy = false) {
     const fixtures = season.fixtures
     const rounds = fixtures?.rounds || []
-    const matches = rounds.flat()
+    const matches = lazy ? [] : rounds.flat()
     const played = matches.filter(H.played).length
     const teams = new Map(season.teams.map((team) => [team.id, team]))
     const seriesFor = new Map()
     ;(fixtures?.series1 || []).forEach((id) => seriesFor.set(id, 'Serie 1'))
     ;(fixtures?.series2 || []).forEach((id) => seriesFor.set(id, 'Serie 2'))
     const roundCount = fixtures?.roundsPerLeg || (fixtures?.mode === 'double' ? rounds.length / 2 : 0)
-    const content = rounds.length
+    const content = lazy ? '' : rounds.length
       ? `<div class="season-fixture-rounds">${rounds.map((round, index) => {
           const done = round.filter(H.played).length
           const leg = fixtures.mode === 'double' ? ` · ${index < roundCount ? 'Ida' : 'Vuelta'}` : ''
@@ -123,13 +131,13 @@
           return `<section class="season-fixture-round"><header><h4>Jornada ${index + 1}${leg}</h4><span>${done}/${round.length} partidos</span></header><div class="season-fixture-games">${games}</div>${rest.length ? `<p class="season-fixture-rest">Descansa: ${rest.map((team) => esc(team.name)).join(', ')}</p>` : ''}</section>`
         }).join('')}</div>`
       : '<p class="season-awards-empty">No se creó un fixture para esta temporada.</p>'
-    const count = rounds.length ? `${played}/${matches.length} partidos` : 'No creado'
-    return `<details class="season-awards season-fixture-details"><summary><span class="season-awards-heading">${TABLE_ICON}<span>Fixture</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
+    const count = rounds.length ? lazy ? `${rounds.length} jornadas` : `${played}/${matches.length} partidos` : 'No creado'
+    return `<details class="season-awards season-fixture-details" data-season-detail="fixture" data-season-id="${esc(season.id || '')}"><summary><span class="season-awards-heading">${TABLE_ICON}<span>Fixture</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
   }
 
-  function tournamentSummary(season) {
+  function tournamentSummary(season, lazy = false) {
     const playoffs = season.playoffs
-    const bracket = H.computeBracket(season)
+    const bracket = lazy ? null : H.computeBracket(season)
     const teams = new Map(season.teams.map((team) => [team.id, team]))
     const allMatches = bracket ? [...bracket.rounds.flat(), bracket.third] : []
     const played = allMatches.reduce((count, match) => count + (match.twoLegged ? Number(match.leg1Played) + Number(match.leg2Played) : Number(match.played)), 0)
@@ -151,7 +159,7 @@
         : matches.map(miniSlot).join('')
       return `<section class="season-mini-col season-mini-col--${side}"><h4>${esc(matches[0]?.stage || 'Ronda')}</h4><div class="season-mini-slots">${body}</div></section>`
     }
-    const miniMap = bracket ? (() => {
+    const miniMap = !lazy && bracket ? (() => {
       const sideRounds = bracket.rounds.slice(0, -1)
       const left = sideRounds.map((round) => sideColumn(round.slice(0, round.length / 2), 'left')).join('')
       const right = sideRounds.map((round) => sideColumn(round.slice(round.length / 2), 'right')).reverse().join('')
@@ -160,22 +168,22 @@
         <section class="season-mini-col season-mini-col--final"><h4>Final</h4><div class="season-mini-final-top">${champion ? `${crest(champion.logo, 'xs', champion.name)}<span>${esc(champion.name)}</span>` : '<span>Campeón por definir</span>'}</div>${miniMatch(bracket.final, true)}<div class="season-mini-third"><h5>Tercer Puesto</h5>${miniMatch(bracket.third)}</div></section>
         ${right}</div>`
     })() : ''
-    const content = bracket
+    const content = lazy ? '' : bracket
       ? miniMap
       : '<p class="season-awards-empty">No se creó Tournament en esta temporada.</p>'
-    const count = playoffs ? `${played}/${totalMatches} partidos` : 'No creado'
-    return `<details class="season-awards season-tournament-details"><summary><span class="season-awards-heading">${H.ICONS.trophy}<span>Tournament</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
+    const count = playoffs ? lazy ? `${playoffs.size} equipos` : `${played}/${totalMatches} partidos` : 'No creado'
+    return `<details class="season-awards season-tournament-details" data-season-detail="tournament" data-season-id="${esc(season.id || '')}"><summary><span class="season-awards-heading">${H.ICONS.trophy}<span>Tournament</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
   }
 
-  function repechageSummary(season) {
+  function repechageSummary(season, lazy = false) {
     if (!season.playoffs?.repechage?.enabled) return ''
     const teams = new Map(season.teams.map((team) => [team.id, team]))
-    const matches = H.computeRepechage(season)
+    const matches = lazy ? [] : H.computeRepechage(season)
     const played = matches.reduce((count, match) => count + (match.twoLegged
       ? Number(match.leg1Played) + Number(match.leg2Played)
       : Number(match.played)), 0)
     const total = matches.reduce((count, match) => count + (match.twoLegged ? 2 : 1), 0)
-    const content = matches.length
+    const content = lazy ? '' : matches.length
       ? `<div class="feat-grid season-repechage-grid">${matches.map((match, index) => {
           const home = teams.get(match.home)
           const away = teams.get(match.away)
@@ -194,7 +202,8 @@
           </article>`
         }).join('')}</div>`
       : '<p class="season-awards-empty">No hay cruces de repechaje registrados.</p>'
-    return `<details class="season-awards season-tournament-details"><summary><span class="season-awards-heading">${TICKET_ICON}<span>Repechajes</span></span><span class="season-awards-count">${played}/${total} partidos</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
+    const count = lazy ? `${season.playoffs.repechage.pairs?.length || 0} cruces` : `${played}/${total} partidos`
+    return `<details class="season-awards season-tournament-details" data-season-detail="repechage" data-season-id="${esc(season.id || '')}"><summary><span class="season-awards-heading">${TICKET_ICON}<span>Repechajes</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
   }
 
   function drawMiniBracketConnectors(map, roundsCount) {
@@ -471,7 +480,31 @@
   H.view('seasons', {
     bind(el) {
       el.addEventListener('toggle', (e) => {
-        if (e.target.matches('.season-tournament-details')) watchMiniBrackets(el)
+        const detail = e.target
+        if (detail.matches('details[data-season-detail]') && detail.open && !detail.dataset.hydrated) {
+          const season = H.state.seasons.find((item) => item.id === detail.dataset.seasonId)
+          if (season) {
+            const renderers = {
+              awards: (item) => awardSummary(item, true),
+              standings: standingsSummary,
+              fixture: fixtureSummary,
+              repechage: repechageSummary,
+              tournament: tournamentSummary,
+            }
+            const renderDetail = renderers[detail.dataset.seasonDetail]
+            if (renderDetail) {
+              const template = document.createElement('template')
+              template.innerHTML = renderDetail(season)
+              const hydrated = template.content.firstElementChild
+              if (hydrated) {
+                hydrated.open = true
+                hydrated.dataset.hydrated = 'true'
+                detail.replaceWith(hydrated)
+              }
+            }
+          }
+        }
+        if (detail.matches('.season-tournament-details')) watchMiniBrackets(el)
       }, true)
       el.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-action]')
@@ -630,11 +663,11 @@
                       <button class="btn btn--ghost btn--sm" data-action="export" data-id="${esc(season.id)}">Exportar</button>
                       <button class="btn btn--danger btn--sm" data-action="delete" data-id="${esc(season.id)}" aria-label="Eliminar Temporada ${season.number}">Eliminar</button>
                     </div>
-                    ${standingsSummary(selectedSeason)}
-                    ${fixtureSummary(selectedSeason)}
-                    ${repechageSummary(selectedSeason)}
-                    ${tournamentSummary(selectedSeason)}
-                    ${awardSummary(selectedSeason, open)}
+                    ${standingsSummary(selectedSeason, true)}
+                    ${fixtureSummary(selectedSeason, true)}
+                    ${repechageSummary(selectedSeason, true)}
+                    ${tournamentSummary(selectedSeason, true)}
+                    ${awardSummary(selectedSeason, open, true)}
                   </li>`
                   })
                   .join('')}</ul>`

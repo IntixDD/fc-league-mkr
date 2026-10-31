@@ -34,10 +34,26 @@
 
   let prefs = read()
   const root = document.documentElement
+  let landscapeLockRequested = false
+
+  function syncLandscapeLock(desktop) {
+    const mobile = matchMedia('(pointer: coarse)').matches
+    const orientation = screen.orientation
+    if (desktop && mobile) {
+      if (!landscapeLockRequested && orientation?.lock) {
+        landscapeLockRequested = true
+        orientation.lock('landscape').catch(() => { landscapeLockRequested = false })
+      }
+    } else if (landscapeLockRequested) {
+      landscapeLockRequested = false
+      orientation?.unlock?.()
+    }
+  }
 
   function applyScale() {
     const desktop = prefs.scale === -1 && window.innerWidth < DESKTOP_WIDTH
     root.classList.toggle('ui-desktop', desktop)
+    syncLandscapeLock(prefs.scale === -1)
     if (desktop) {
       const z = window.innerWidth / DESKTOP_WIDTH
       root.style.zoom = String(z)
@@ -69,6 +85,9 @@
 
   window.addEventListener('resize', applyScale)
   window.addEventListener('orientationchange', applyScale)
+  document.addEventListener('pointerdown', () => {
+    if (prefs.scale === -1) syncLandscapeLock(true)
+  }, { passive: true })
 
   window.HubPrefs = {
     THEMES,

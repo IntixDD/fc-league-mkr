@@ -24,6 +24,7 @@ window.Hub = (() => {
   let renderQueued = false
   let pendingSkip = null
   let dbPromise = null
+  let teamRecordsCache = null
 
   /* ---------- Persistence (IndexedDB) ---------- */
   function openDb() {
@@ -1139,6 +1140,7 @@ window.Hub = (() => {
   }
 
   function teamRecords() {
+    if (teamRecordsCache) return teamRecordsCache.slice()
     const map = new Map()
     statSeasons().forEach((season) =>
       seasonStats(season).forEach((s) => {
@@ -1149,7 +1151,8 @@ window.Hub = (() => {
         rec.seasons.push(s)
       }),
     )
-    return [...map.values()]
+    teamRecordsCache = [...map.values()]
+    return teamRecordsCache.slice()
   }
 
   function savedCopy() {
@@ -1343,6 +1346,7 @@ window.Hub = (() => {
 
   function update(mutator, { skip = null } = {}) {
     mutator(state)
+    teamRecordsCache = null
     persist()
     scheduleRender(skip)
   }
@@ -1417,6 +1421,7 @@ window.Hub = (() => {
       }),
     )
     state.seasons = next
+    teamRecordsCache = null
     if (logosChanged || previous !== JSON.stringify(state.seasons) || previousCurrent !== JSON.stringify(state.current)) {
       persist()
       scheduleRender()
@@ -1459,6 +1464,7 @@ window.Hub = (() => {
     const newest = (fromLocal?.updatedAt || 0) > (fromDb?.updatedAt || 0) ? fromLocal : fromDb || fromLocal
     const oldLogoLibrary = JSON.stringify(newest?.logos || [])
     state = sanitizeState(newest)
+    teamRecordsCache = null
     const migratedLogoLibrary = JSON.stringify(state.logos) !== oldLogoLibrary
     if (newest?.updatedAt) state.updatedAt = newest.updatedAt
     if (!dbOk && !writeLocal()) toast('Almacenamiento no disponible: los datos no se guardarán', 'error')
