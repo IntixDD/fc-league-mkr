@@ -51,16 +51,35 @@
   }
 
   function applyScale() {
-    const desktop = prefs.scale === -1 && window.innerWidth < DESKTOP_WIDTH
+    const mobile = matchMedia('(pointer: coarse)').matches
+    const forceLandscape = prefs.scale === -1 && mobile && matchMedia('(orientation: portrait)').matches
+    const appWidth = forceLandscape ? window.innerHeight : window.innerWidth
+    const desktop = prefs.scale === -1 && appWidth < DESKTOP_WIDTH
     root.classList.toggle('ui-desktop', desktop)
+    root.classList.toggle('force-landscape', forceLandscape)
     syncLandscapeLock(prefs.scale === -1)
     if (desktop) {
-      const z = window.innerWidth / DESKTOP_WIDTH
+      const z = appWidth / DESKTOP_WIDTH
       root.style.zoom = String(z)
-      root.style.setProperty('--app-h', `${window.innerHeight / z}px`)
+      root.style.setProperty('--app-h', `${(forceLandscape ? window.innerWidth : window.innerHeight) / z}px`)
+      if (forceLandscape) {
+        root.style.setProperty('--force-landscape-width', `${window.innerHeight / z}px`)
+        root.style.setProperty('--force-landscape-height', `${window.innerWidth / z}px`)
+        root.style.setProperty('--force-landscape-left', `${window.innerWidth / z}px`)
+      }
     } else {
       root.style.zoom = ''
       root.style.removeProperty('--app-h')
+      if (forceLandscape) {
+        root.style.setProperty('--force-landscape-width', `${window.innerHeight}px`)
+        root.style.setProperty('--force-landscape-height', `${window.innerWidth}px`)
+        root.style.setProperty('--force-landscape-left', `${window.innerWidth}px`)
+      }
+    }
+    if (!forceLandscape) {
+      root.style.removeProperty('--force-landscape-width')
+      root.style.removeProperty('--force-landscape-height')
+      root.style.removeProperty('--force-landscape-left')
     }
   }
 

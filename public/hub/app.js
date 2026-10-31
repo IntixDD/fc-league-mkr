@@ -14,8 +14,11 @@
         const namespace = 'http://www.w3.org/2000/svg'
         const svg = mesh.ownerSVGElement
         const svgRect = svg?.getBoundingClientRect()
-        const viewportWidth = Math.max(1, svgRect?.width || window.visualViewport?.width || window.innerWidth || 1200)
-        const viewportHeight = Math.max(1, svgRect?.height || window.visualViewport?.height || window.innerHeight || 800)
+        const rotatedPortrait = document.documentElement.classList.contains('force-landscape')
+        const renderedWidth = svgRect?.width || window.visualViewport?.width || window.innerWidth || 1200
+        const renderedHeight = svgRect?.height || window.visualViewport?.height || window.innerHeight || 800
+        const viewportWidth = Math.max(1, rotatedPortrait ? renderedHeight : renderedWidth)
+        const viewportHeight = Math.max(1, rotatedPortrait ? renderedWidth : renderedHeight)
         svg?.setAttribute('viewBox', `0 0 ${viewportWidth} ${viewportHeight}`)
         const lowPowerDevice = window.matchMedia('(max-width: 767px)').matches
           || (navigator.deviceMemory && navigator.deviceMemory <= 4)
