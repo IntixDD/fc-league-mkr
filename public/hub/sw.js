@@ -1,4 +1,4 @@
-const CACHE = 'league-hub-v105'
+const CACHE = 'league-hub-v106'
 
 const BASE = new URL('./', self.location.href)
 
@@ -20,8 +20,8 @@ const SHELL = [
   'views/history.js?v=16',
   'views/performance.js?v=26',
   'views/badges.js?v=23',
-  'views/settings.js?v=13',
-  'app.js?v=27',
+  'views/settings.js?v=14',
+  'app.js?v=28',
   'logo.svg',
   'grid.svg',
   'krona-one.woff2',

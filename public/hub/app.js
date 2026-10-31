@@ -12,9 +12,11 @@
     const mesh = intro.querySelector('.intro-triangle-mesh')
     if (mesh) {
         const namespace = 'http://www.w3.org/2000/svg'
-        const viewportWidth = Math.max(320, window.innerWidth || 1200)
-        const viewportHeight = Math.max(320, window.innerHeight || 800)
-        mesh.ownerSVGElement?.setAttribute('viewBox', `0 0 ${viewportWidth} ${viewportHeight}`)
+        const svg = mesh.ownerSVGElement
+        const svgRect = svg?.getBoundingClientRect()
+        const viewportWidth = Math.max(1, svgRect?.width || window.visualViewport?.width || window.innerWidth || 1200)
+        const viewportHeight = Math.max(1, svgRect?.height || window.visualViewport?.height || window.innerHeight || 800)
+        svg?.setAttribute('viewBox', `0 0 ${viewportWidth} ${viewportHeight}`)
         const lowPowerDevice = window.matchMedia('(max-width: 767px)').matches
           || (navigator.deviceMemory && navigator.deviceMemory <= 4)
           || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)
