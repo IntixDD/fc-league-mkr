@@ -179,6 +179,11 @@
 * Arreglos visuales en todos los apartados para ambas escalas.
 * Teams/Galería de escudos: Ahora se respetan los formatos cargados (En lugar de convertirlos)
 * Seasons/Temporadas guardadas/Botón desplegable Títulos y Logros: Ahora se muestran a los ganadores de los títulos y logros correctamente.
+
+
+
+**Beta 3.1:**
+
 * Seasons/Importar / Exportar: Arreglado el botón Importar .json en celular (el archivo elegido se perdía al volver del selector).
 * Teams/Galería de escudos: Arreglados los botones Importar JSON, Importar imágenes y Subir escudo en celular (mismo problema).
 * Menú/Hall of fame: Recuadro más corto, ahora se ajusta a su contenido.
