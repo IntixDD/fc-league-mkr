@@ -377,12 +377,12 @@ body {
   width: calc(var(--btn) * 0.6);
   height: calc(var(--btn) * 0.6);
   pointer-events: none;
-  background-color: currentColor;
-  -webkit-mask: var(--icon) center / contain no-repeat;
-  mask: var(--icon) center / contain no-repeat;
+  object-fit: contain;
+  opacity: .76;
   transition:
     transform 0.35s var(--ease-pop),
-    filter 0.3s ease;
+    filter 0.3s ease,
+    opacity 0.3s ease;
 }
 
 .nav-icon--history {
@@ -397,6 +397,7 @@ body {
 }
 
 .nav-button:hover .nav-icon {
+  opacity: 1;
   transform: scale(1.1);
 }
 
@@ -410,6 +411,7 @@ body {
 }
 
 .nav-button[aria-current='page'] .nav-icon {
+  opacity: 1;
   filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.35));
 }
 
