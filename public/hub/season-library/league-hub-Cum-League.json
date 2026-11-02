@@ -1,7 +1,7 @@
 {
   "app": "league-hub",
   "version": 1,
-  "exportedAt": "2026-10-28T22:55:51.460Z",
+  "exportedAt": "2026-11-02T05:00:14.607Z",
   "readOnly": true,
   "library": {
     "name": "Cum League",
@@ -53,6 +53,7 @@
         "roundsPerLeg": 0,
         "series1": null,
         "series2": null,
+        "groups": null,
         "rounds": [
           [
             {
@@ -282,6 +283,7 @@
       },
       "fields": null,
       "tableConfig": null,
+      "seasonMode": "clubs",
       "manual": null,
       "awards": {
         "leagueScorer": null,
@@ -390,6 +392,7 @@
       },
       "fields": null,
       "tableConfig": null,
+      "seasonMode": "clubs",
       "manual": {
         "rows": {
           "sm7uztzf6v4": {
@@ -500,6 +503,7 @@
         "roundsPerLeg": 0,
         "series1": null,
         "series2": null,
+        "groups": null,
         "rounds": [
           [
             {
@@ -729,6 +733,7 @@
       },
       "fields": null,
       "tableConfig": null,
+      "seasonMode": "clubs",
       "manual": null,
       "awards": {
         "leagueScorer": null,
@@ -791,6 +796,7 @@
         "roundsPerLeg": 0,
         "series1": null,
         "series2": null,
+        "groups": null,
         "rounds": [
           [
             {
@@ -1181,6 +1187,7 @@
       },
       "fields": null,
       "tableConfig": null,
+      "seasonMode": "clubs",
       "manual": null,
       "awards": {
         "leagueScorer": null,
@@ -1238,6 +1245,7 @@
         "roundsPerLeg": 0,
         "series1": null,
         "series2": null,
+        "groups": null,
         "rounds": [
           [
             {
@@ -1568,6 +1576,7 @@
       },
       "fields": null,
       "tableConfig": null,
+      "seasonMode": "clubs",
       "manual": null,
       "awards": {
         "leagueScorer": null,

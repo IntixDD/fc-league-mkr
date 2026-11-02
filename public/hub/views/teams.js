@@ -286,12 +286,28 @@
 
   const fileButton = (label, mode, cls = 'btn btn--ghost', accept = 'image/*') =>
     `<label class="${cls} file-btn">
-      <input type="file" accept="${accept}${mode === 'json' ? ',text/json,text/plain,application/octet-stream' : ''}" multiple class="file-picker-input" aria-label="${esc(label)}" data-logo-input="${mode}">
+      <input type="file" accept="${accept}${mode === 'json' ? ',text/json,text/plain,application/octet-stream' : ''}" ${mode === 'json' ? '' : 'multiple'} class="file-picker-input" aria-label="${esc(label)}" data-logo-input="${mode}">
       ${label}
     </label>`
 
   H.view('teams', {
     bind(el) {
+      const processLogoInput = (input) => {
+        if (input.dataset.fileBusy === 'true') return
+        const files = [...(input.files || [])]
+        if (!files.length) { input.value = ''; return }
+        input.dataset.fileBusy = 'true'
+        H.toast(`Leyendo ${files.length === 1 ? (files[0].name || 'archivo') : `${files.length} archivos`}…`)
+        handleFiles(files, input.dataset.logoInput === 'select', input.dataset.logoInput === 'json')
+          .catch((error) => H.toast(`No se pudo importar el archivo: ${error?.message || 'error de lectura'}`, 'error'))
+          .finally(() => { input.value = ''; delete input.dataset.fileBusy })
+      }
+      const captureLogoInput = (event) => {
+        const input = event.target.closest?.('[data-logo-input]')
+        if (input) processLogoInput(input)
+      }
+      el.addEventListener('input', captureLogoInput, true)
+      el.addEventListener('change', captureLogoInput, true)
       el.addEventListener('input', (e) => {
         if (e.target.name === 'team-name') H.ui.teamDraft = e.target.value
       })
@@ -302,22 +318,13 @@
       })
       el.addEventListener('change', (e) => {
         const input = e.target.closest('[data-logo-input]')
+        if (input) { processLogoInput(input); return }
         if (e.target.matches('[data-logo-category]')) {
           const id = e.target.dataset.logoCategory
           const category = e.target.value
           H.update((state) => { const logo = state.logos.find((item) => String(item.id) === id); if (logo) logo.category = category })
           return
         }
-        if (!input) return
-        const files = [...input.files]
-        if (!files.length) {
-          input.value = ''
-          return
-        }
-        H.toast(`Leyendo ${files.length === 1 ? (files[0].name || 'archivo') : `${files.length} archivos`}…`)
-        handleFiles(files, input.dataset.logoInput === 'select', input.dataset.logoInput === 'json')
-          .catch((error) => H.toast(`No se pudo importar el archivo: ${error?.message || 'error de lectura'}`, 'error'))
-          .finally(() => { input.value = '' })
       })
       el.addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-action]')

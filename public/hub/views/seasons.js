@@ -528,6 +528,22 @@
 
   H.view('seasons', {
     bind(el) {
+      const processSeasonInput = (input) => {
+        if (input.dataset.fileBusy === 'true') return
+        const file = input.files?.[0]
+        if (!file) { input.value = ''; return }
+        input.dataset.fileBusy = 'true'
+        H.toast(`Leyendo ${file.name || 'archivo'}…`)
+        importFile(file)
+          .catch((error) => H.toast(`No se pudo importar ${file.name || 'el archivo'}: ${error?.message || 'error de lectura'}`, 'error'))
+          .finally(() => { input.value = ''; delete input.dataset.fileBusy })
+      }
+      const captureSeasonInput = (event) => {
+        const input = event.target.closest?.('[data-import]')
+        if (input) processSeasonInput(input)
+      }
+      el.addEventListener('input', captureSeasonInput, true)
+      el.addEventListener('change', captureSeasonInput, true)
       el.addEventListener('toggle', (e) => {
         const detail = e.target
         if (detail.matches('details[data-season-detail]') && detail.open && !detail.dataset.hydrated) {
@@ -595,15 +611,7 @@
           }
           H.update((st) => (st.current.number = n))
         } else if (t.matches('[data-import]')) {
-          const file = t.files[0]
-          if (!file) {
-            t.value = ''
-            return
-          }
-          H.toast(`Leyendo ${file.name || 'archivo'}…`)
-          importFile(file)
-            .catch((error) => H.toast(`No se pudo importar ${file.name || 'el archivo'}: ${error?.message || 'error de lectura'}`, 'error'))
-            .finally(() => { t.value = '' })
+          processSeasonInput(t)
         }
       })
     },

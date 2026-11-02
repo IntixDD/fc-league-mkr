@@ -1,4 +1,4 @@
-const CACHE = 'league-hub-v157'
+const CACHE = 'league-hub-v158'
 
 const BASE = new URL('./', self.location.href)
 
