@@ -5,6 +5,7 @@ window.HUB_MUSIC_TRACKS = [
   { file: 'Joy Crookes - Feet Dont Fail Me Now (Official Video).mp3', title: 'Joy Crookes - Feet Dont Fail Me Now', cover: '1.jpg' },
   { file: 'John Newman - Love Me Again.mp3', title: 'John Newman - Love Me Again', cover: '2.jpg' },
   { file: 'SOFY - Big Talk (Official Video).mp3', title: 'SOFY - Big Talk', cover: '3.jpg' },
+  { file: 'Myke Towers - Lala (Video Oficial).mp3', title: 'Myke Towers - Lala', cover: '9.jpg' },
   { file: 'JVKE x Tilly Birds x John Michael Howell - colors (official lyric video)(MP3_320K).mp3', title: 'JVKE x Tilly Birds x John Michael Howell - Colors', cover: '4.jpg' },
   { file: 'INOHA - Seventh Heaven (Official Tour Lyric Video).mp3', title: 'INOHA - Seventh Heaven', cover: '5.jpg' },
   { file: 'JVKE - lavender ft. Pink Sweat_(MP3_320K).mp3', title: 'JVKE - lavender ft. Pink Sweat', cover: '6.jpg' },

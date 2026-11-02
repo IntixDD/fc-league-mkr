@@ -140,7 +140,7 @@
           <header class="card-head">
             <div>
               <h2 class="card-title">Calendario</h2>
-              <p class="card-sub">Temporada ${season.number} · ${n} equipos${groupMode ? ` · ${season.tableConfig.count} grupos` : twoSeries ? ' · 2 series' : ''}</p>
+              <p class="card-sub card-sub--meta">Temporada ${season.number} · ${n} equipos${groupMode ? ` · ${season.tableConfig.count} grupos` : twoSeries ? ' · 2 series' : ''}</p>
             </div>
           </header>
           <div class="seg" role="group" aria-label="Formato">
@@ -271,7 +271,7 @@
             <header class="card-head">
               <div>
                 <h2 class="card-title">Todas las jornadas</h2>
-                <p class="card-sub">Temporada ${season.number} · ${rounds.length} jornadas · ${all.filter(H.played).length}/${all.length} partidos jugados</p>
+                <p class="card-sub card-sub--meta">Temporada ${season.number} · ${rounds.length} jornadas · ${all.filter(H.played).length}/${all.length} partidos jugados</p>
               </div>
               <div class="row-actions">
                 ${H.exportButton('#fx-export', 'fixture')}

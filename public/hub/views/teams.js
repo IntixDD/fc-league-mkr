@@ -59,6 +59,20 @@
     })
   }
 
+  const LOGO_CATEGORIES = { custom: 'Custom', selections: 'Selecciones', premier: 'Premier League', laliga: 'LaLiga', other: 'Otras ligas' }
+
+  function openLogoCategoryDialog(logo) {
+    const dlg = document.getElementById('logo-category-dialog')
+    const options = dlg.querySelector('[data-category-options]')
+    dlg.querySelector('[data-title]').textContent = 'Categorizar escudo'
+    options.innerHTML = Object.entries(LOGO_CATEGORIES).map(([value, label]) =>
+      `<button type="submit" class="btn ${value === (logo.category || 'custom') ? 'btn--primary' : 'btn--ghost'}" value="${value}" aria-pressed="${value === (logo.category || 'custom')}">${label}</button>`,
+    ).join('')
+    dlg.returnValue = ''
+    dlg.showModal()
+    return new Promise((resolve) => dlg.addEventListener('close', () => resolve(LOGO_CATEGORIES[dlg.returnValue] ? dlg.returnValue : null), { once: true }))
+  }
+
   function pickLogo(title = 'Elegir escudo') {
     const mode = H.state.current.seasonMode || 'clubs'
     const allowed = { clubs: ['custom', 'premier', 'laliga', 'other'], selections: ['selections'], premier: ['premier'], laliga: ['laliga'] }[mode] || []
@@ -313,14 +327,6 @@
         e.preventDefault()
         addTeam()
       })
-      el.addEventListener('change', (e) => {
-        if (e.target.matches('[data-logo-category]')) {
-          const id = e.target.dataset.logoCategory
-          const category = e.target.value
-          H.update((state) => { const logo = state.logos.find((item) => String(item.id) === id); if (logo) logo.category = category })
-          return
-        }
-      })
       el.addEventListener('click', async (e) => {
         const pick = e.target.closest('[data-pick]')
         if (pick) { pickLogos(pick.dataset.pick, pick.dataset.accept); return }
@@ -336,9 +342,20 @@
             H.ui.selectedLogo = logo.id
             H.render()
           }
-        } else if (action === 'delete-logo') {
-          if (String(H.ui.selectedLogo) === id) H.ui.selectedLogo = null
-          H.update((st) => { st.logoGalleryManual = true; st.logos = st.logos.filter((l) => String(l.id) !== id).map((logo, index) => ({ ...logo, id: index })) })
+        } else if (action === 'delete-selected-logo') {
+          const selectedLogo = H.state.logos.find((logo) => String(logo.id) === String(H.ui.selectedLogo))
+          if (!selectedLogo) return H.toast('Selecciona primero un escudo de la galería.', 'error')
+          const selectedId = String(selectedLogo.id)
+          H.ui.selectedLogo = null
+          H.update((st) => { st.logoGalleryManual = true; st.logos = st.logos.filter((l) => String(l.id) !== selectedId).map((logo, index) => ({ ...logo, id: index })) })
+        } else if (action === 'change-logo-category') {
+          const logo = H.state.logos.find((item) => String(item.id) === String(H.ui.selectedLogo))
+          if (!logo) return H.toast('Selecciona primero un escudo de la galería.', 'error')
+          const category = await openLogoCategoryDialog(logo)
+          if (category) H.update((state) => {
+            const target = state.logos.find((item) => String(item.id) === String(logo.id))
+            if (target) target.category = category
+          })
         } else if (action === 'clear-logos') clearLogos()
         else if (action === 'export-json-logos') downloadLogosJson()
         else if (action === 'delete-team') deleteTeam(id)
@@ -400,7 +417,7 @@
     render(el, s) {
       const selected = s.logos.find((l) => String(l.id) === String(H.ui.selectedLogo))
       const teams = s.current.teams
-      const categoryName = { custom: 'Custom', selections: 'Selecciones', premier: 'Premier League', laliga: 'LaLiga', other: 'Otras ligas' }
+      const categoryName = LOGO_CATEGORIES
       const allowed = { clubs: ['custom', 'premier', 'laliga', 'other'], selections: ['selections'], premier: ['premier'], laliga: ['laliga'] }[s.current.seasonMode || 'clubs'] || []
       const filteredLogos = s.logos.filter((logo) => allowed.includes(logo.category || 'custom'))
       const roster = `
@@ -433,7 +450,7 @@
           <header class="card-head">
             <div>
               <h2 class="card-title">Registrar club</h2>
-              <p class="card-sub">Temporada ${s.current.number} · ${teams.length}/${MAX_TEAMS} equipos</p>
+              <p class="card-sub card-sub--meta">Temporada ${s.current.number} · ${teams.length}/${MAX_TEAMS} equipos</p>
             </div>
           </header>
           <form class="register" data-form="team" novalidate>
@@ -462,12 +479,13 @@
           <header class="card-head">
             <div>
               <h2 class="card-title">Galería de escudos</h2>
-              <p class="card-sub">${s.logos.length} guardados</p>
+              <p class="card-sub card-sub--meta">${s.logos.length} guardados</p>
             </div>
             ${
               s.logos.length || teams.length
                 ? `<div class="row-actions row-actions--tight">
                     <button class="btn btn--ghost btn--sm" data-action="export-json-logos">Descargar JSON</button>
+                    ${selected ? '<button class="btn btn--ghost btn--sm" data-action="change-logo-category">Cambiar categoría</button><button class="btn btn--danger btn--sm" data-action="delete-selected-logo">Quitar escudo</button>' : ''}
                     ${s.logos.length ? '<button class="btn btn--ghost btn--sm" data-action="clear-logos">Vaciar</button>' : ''}
                   </div>`
                 : ''
@@ -485,8 +503,6 @@
               ? `<div class="logo-category-groups">${['custom', 'selections', 'premier', 'laliga', 'other'].map((category) => { const logos = s.logos.filter((logo) => (logo.category || 'custom') === category); return logos.length ? `<section class="logo-category"><h3>${categoryName[category]}</h3><div class="logo-grid">${logos.map((l) => `
                 <div class="logo-tile-wrap">
                   <button class="logo-tile${String(l.id) === String(H.ui.selectedLogo) ? ' is-selected' : ''}" data-action="select-logo" data-id="${esc(l.id)}" aria-pressed="${String(l.id) === String(H.ui.selectedLogo)}" aria-label="Seleccionar escudo"><img src="${esc(l.data)}" alt="" loading="lazy"></button>
-                  <select class="input logo-category-select" data-logo-category="${esc(l.id)}" aria-label="Categoría de escudo">${Object.entries(categoryName).map(([value, label]) => `<option value="${value}" ${(l.category || 'custom') === value ? 'selected' : ''}>${label}</option>`).join('')}</select>
-                  <button class="logo-remove" data-action="delete-logo" data-id="${esc(l.id)}" aria-label="Quitar escudo de la galería">&times;</button>
                 </div>`).join('')}</div></section>` : '' }).join('')}</div>`
               : '<p class="empty">Aún no hay escudos. Importa PNG, JPG, SVG o WEBP, un JSON de escudos o arrastra un ZIP antiguo.</p>'
           }

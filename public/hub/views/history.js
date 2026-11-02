@@ -162,7 +162,7 @@
           <header class="card-head">
             <div>
               <h2 class="card-title">Historial de clubes</h2>
-              <p class="card-sub">${seasons.length} temporada(s)</p>
+              <p class="card-sub card-sub--meta">${seasons.length} temporada(s)</p>
             </div>
             <div class="row-actions">${H.exportButton('#history-export', 'historial')}</div>
           </header>
@@ -186,26 +186,10 @@
               </select>
             </label>
           </div>
-          <div class="table-wrap">
+          <div class="table-wrap history-table-wrap" role="region" aria-label="Tabla historial de clubes" tabindex="0">
             <table class="data-table data-table--history">
-              <thead><tr><th scope="col" class="num">Pos</th><th scope="col" class="club">Club</th>${head}</tr></thead>
-              <tbody>
-                ${records
-                  .map(
-                    (r, i) => `
-                  <tr data-name="${esc(r.key)}">
-                    <td class="num pos${i < 3 ? ` pos-top pos-${i + 1}` : ''}"><span class="pos-badge">${i + 1}</span></td>
-                    <th scope="row" class="club">
-                      <span class="history-club">
-                        <span class="history-name">${esc(r.name)}</span>
-                        <span class="logo-strip">${r.logos.map((l) => `<span class="crest crest--xs"><img src="${esc(l)}" alt="" loading="lazy"></span>`).join('')}</span>
-                      </span>
-                    </th>
-                    ${COLS.map((c) => `<td class="num ${H.STAT_STYLE[c.key].cls}${c.key === sortKey ? ' is-sorted' : ''}${r.t[c.key] ? '' : ' is-zero'}">${r.t[c.key]}</td>`).join('')}
-                  </tr>`,
-                  )
-                  .join('')}
-              </tbody>
+              <thead><tr><th scope="col" class="num pos-col">Pos</th><th scope="col" class="club">Club</th>${head}</tr></thead>
+              <tbody>${records.map((r, i) => `<tr data-name="${esc(r.key)}"><td class="num pos pos-col${i < 3 ? ` pos-top pos-${i + 1}` : ''}">${i + 1}</td><th scope="row" class="club"><span class="history-club"><span class="history-name" title="${esc(r.name)}">${esc(r.name)}</span><span class="logo-strip">${r.logos.map((l) => `<span class="crest crest--xs"><img src="${esc(l)}" alt="" loading="lazy"></span>`).join('')}</span></span></th>${COLS.map((c) => `<td class="num ${H.STAT_STYLE[c.key].cls}${c.key === sortKey ? ' is-sorted' : ''}${r.t[c.key] ? '' : ' is-zero'}">${r.t[c.key]}</td>`).join('')}</tr>`).join('')}</tbody>
             </table>
           </div>
           <p class="hint" data-export-hide>Haz clic en el encabezado de una columna para ordenar por esa categoría.</p>

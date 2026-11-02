@@ -19,6 +19,17 @@
   let musicDelayElapsed = false
   let musicPausedByUser = false
   let audio = null
+  let musicAudioContext = null
+  let musicAnalyser = null
+  let musicAnalyserSource = null
+  let musicCaptureStream = null
+  let musicCaptureSrc = ''
+  let musicCaptureRequest = 0
+  let musicAnalyserPending = false
+  let musicMeterFrame = 0
+  let musicMeterData = null
+  let musicPlaybackError = false
+  const musicBarLevels = [0, 0, 0, 0]
   let musicAdvanceTimer = 0
   let musicStartTimer = 0
   let musicStartAt = 0
@@ -74,32 +85,187 @@
   }
 
   function updateMusicControls() {
+    const track = musicLibrary[currentTrack]
+    const playing = (!!audio && !audio.paused) || waitingForNext
+    const cover = document.querySelector('[data-music-cover]')
+    if (cover) {
+      const coverUrl = track?.cover ? musicAssetUrl(track.cover) : ''
+      if (cover.dataset.src !== coverUrl) {
+        cover.dataset.src = coverUrl
+        cover.innerHTML = coverUrl
+          ? `<img src="${H.esc(coverUrl)}" alt="">`
+          : '<span class="music-current-placeholder" aria-hidden="true">♫</span>'
+      }
+    }
+    const title = document.querySelector('[data-music-title]')
+    if (title) title.textContent = track?.title || 'No hay canciones disponibles'
+    const status = document.querySelector('[data-music-state]')
+    if (status) status.textContent = waitingForNext
+      ? 'Preparando la siguiente canción'
+      : playing
+        ? 'Reproduciendo ahora'
+        : musicPlaybackError
+          ? 'El navegador no pudo reproducir esta canción'
+          : audio?.src
+          ? 'En pausa'
+          : track
+            ? 'Lista para reproducir'
+            : 'Añade canciones a la biblioteca'
+    const player = document.querySelector('.music-current')
+    player?.classList.toggle('is-playing', playing && !waitingForNext)
+    player?.classList.toggle('has-audio-meter', !!musicAnalyser)
+
     const button = document.querySelector('[data-action="music-toggle"]')
     if (!button) return
-    const active = (!!audio && !audio.paused) || waitingForNext
     const available = musicLibrary.length > 0
-    button.innerHTML = `${active ? MUSIC_ICONS.pause : MUSIC_ICONS.play}<span>${active ? 'Pausar' : 'Reproducir'}</span>`
-    button.setAttribute('aria-label', active ? 'Pausar música' : 'Reproducir música')
+    button.innerHTML = `${playing ? MUSIC_ICONS.pause : MUSIC_ICONS.play}<span>${playing ? 'Pausar' : 'Reproducir'}</span>`
+    button.setAttribute('aria-label', playing ? 'Pausar música' : 'Reproducir música')
     button.disabled = !available
     document.querySelectorAll('.music-transport [data-action="music-next"], .music-transport [data-action="music-previous"]').forEach((control) => { control.disabled = !available })
   }
 
-  function ensureAudio() {
-    if (audio) return
-    audio = new Audio()
-    audio.volume = P.get().musicVolume ?? 0.15
-    audio.addEventListener('ended', () => {
-      finishedCurrentTrack = true
-      waitingForNext = true
+  async function attachMusicCapture() {
+    if (!audio || !musicAnalyser || !musicAudioContext || location.protocol !== 'file:') return
+    const requestedSrc = audio.src
+    if (musicCaptureSrc === requestedSrc && musicCaptureStream?.getAudioTracks().some((track) => track.readyState === 'live')) return
+    const request = ++musicCaptureRequest
+    const capture = audio.captureStream || audio.mozCaptureStream
+    if (!capture) return
+    if (audio.paused || audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      await new Promise((resolve) => {
+        let timer = 0
+        const done = () => {
+          clearTimeout(timer)
+          audio.removeEventListener('playing', done)
+          audio.removeEventListener('error', done)
+          resolve()
+        }
+        audio.addEventListener('playing', done, { once: true })
+        audio.addEventListener('error', done, { once: true })
+        timer = window.setTimeout(done, 7000)
+      })
+    }
+    if (request !== musicCaptureRequest || audio.paused || audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || audio.src !== requestedSrc) return
+    try {
+      const stream = capture.call(audio)
+      if (!stream.getAudioTracks().some((track) => track.readyState === 'live')) return
+      const source = musicAudioContext.createMediaStreamSource(stream)
+      source.connect(musicAnalyser)
+      const previousSource = musicAnalyserSource
+      const previousStream = musicCaptureStream
+      musicAnalyserSource = source
+      musicCaptureStream = stream
+      musicCaptureSrc = requestedSrc
+      previousSource?.disconnect()
+      previousStream?.getTracks().forEach((track) => track.stop())
+      startMusicMeter()
+    } catch {}
+  }
+
+  async function enableMusicAnalyser() {
+    if (musicAnalyser) {
+      if (musicAudioContext?.state === 'suspended') musicAudioContext.resume().catch(() => {})
+      if (location.protocol === 'file:' && musicCaptureSrc !== audio?.src) void attachMusicCapture()
+      return
+    }
+    if (!audio || musicAnalyserPending) return
+    // Only route audio through Web Audio in a real user gesture so autoplay
+    // policies cannot silence the track before the user interacts.
+    if (!navigator.userActivation?.isActive) return
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext
+    if (!AudioContextClass) return
+    let context
+    musicAnalyserPending = true
+    try {
+      context = new AudioContextClass()
+      musicAudioContext = context
+      await context.resume()
+      if (context.state !== 'running' || !audio) {
+        await context.close().catch(() => {})
+        if (musicAudioContext === context) musicAudioContext = null
+        return
+      }
+      const analyser = context.createAnalyser()
+      analyser.fftSize = 128
+      analyser.smoothingTimeConstant = .72
+      if (location.protocol === 'file:') {
+        const silentOutput = context.createGain()
+        silentOutput.gain.value = 0
+        analyser.connect(silentOutput)
+        silentOutput.connect(context.destination)
+      } else {
+        const source = context.createMediaElementSource(audio)
+        source.connect(analyser)
+        analyser.connect(context.destination)
+        musicAnalyserSource = source
+      }
+      musicAudioContext = context
+      musicAnalyser = analyser
+      musicMeterData = new Uint8Array(analyser.frequencyBinCount)
       updateMusicControls()
-      clearTimeout(musicAdvanceTimer)
-      musicAdvanceTimer = window.setTimeout(() => {
-        waitingForNext = false
-        playTrack(currentTrack + 1)
-      }, 2000)
-    })
-    audio.addEventListener('play', updateMusicControls)
-    audio.addEventListener('pause', updateMusicControls)
+      if (location.protocol === 'file:') await attachMusicCapture()
+      startMusicMeter()
+    } catch {
+      context?.close().catch(() => {})
+      if (musicAudioContext === context) musicAudioContext = null
+    } finally {
+      musicAnalyserPending = false
+    }
+  }
+
+  function stopMusicMeter() {
+    if (musicMeterFrame) cancelAnimationFrame(musicMeterFrame)
+    musicMeterFrame = 0
+    document.querySelectorAll('.music-equalizer i').forEach((bar) => { bar.style.height = '' })
+  }
+
+  function startMusicMeter() {
+    if (!musicAnalyser || !musicMeterData || !audio || audio.paused || document.hidden || musicMeterFrame) return
+    const bars = [...document.querySelectorAll('.music-equalizer i')]
+    if (!bars.length) return
+    const draw = () => {
+      musicMeterFrame = 0
+      if (!musicAnalyser || !audio || audio.paused || document.hidden) return stopMusicMeter()
+      musicAnalyser.getByteFrequencyData(musicMeterData)
+      bars.forEach((bar, index) => {
+        const start = Math.floor(index * musicMeterData.length / bars.length)
+        const end = Math.max(start + 1, Math.floor((index + 1) * musicMeterData.length / bars.length))
+        let total = 0
+        for (let bin = start; bin < end; bin++) total += musicMeterData[bin]
+        const level = total / (end - start) / 255
+        musicBarLevels[index] = musicBarLevels[index] * .58 + level * .42
+        bar.style.height = `${Math.round(16 + musicBarLevels[index] * 84)}%`
+      })
+      musicMeterFrame = requestAnimationFrame(draw)
+    }
+    musicMeterFrame = requestAnimationFrame(draw)
+  }
+
+  function ensureAudio() {
+    if (!audio) {
+      audio = new Audio()
+      audio.volume = P.get().musicVolume ?? 0.15
+      audio.addEventListener('ended', () => {
+        stopMusicMeter()
+        finishedCurrentTrack = true
+        waitingForNext = true
+        updateMusicControls()
+        clearTimeout(musicAdvanceTimer)
+        musicAdvanceTimer = window.setTimeout(() => {
+          waitingForNext = false
+          playTrack(currentTrack + 1)
+        }, 2000)
+      })
+      audio.addEventListener('play', () => {
+        if (musicAudioContext?.state === 'suspended') musicAudioContext.resume().catch(() => {})
+        updateMusicControls()
+        startMusicMeter()
+      })
+      audio.addEventListener('pause', () => {
+        stopMusicMeter()
+        updateMusicControls()
+      })
+    }
   }
 
   function playTrack(index) {
@@ -111,14 +277,21 @@
     currentTrack = (index + musicLibrary.length) % musicLibrary.length
     musicPausedByUser = false
     const track = musicLibrary[currentTrack]
+    musicPlaybackError = false
     audio.src = track.src
-    audio.currentTime = 0
+    try { audio.currentTime = 0 } catch {}
+    updateMusicControls()
+    // Start capture after the track is assigned, while the play gesture is
+    // still active. Capturing an empty Audio element produces a silent stream.
+    void enableMusicAnalyser()
     audio.play().then(() => {
       musicStarted = true
+      musicPlaybackError = false
       musicNotice(track)
       updateMusicControls()
     }).catch(() => {
       musicStarted = false
+      musicPlaybackError = true
       updateMusicControls()
     })
   }
@@ -396,7 +569,7 @@
   /* ---------- View ---------- */
   const card = ({ title, sub, body, actions = '', wide = false, extraClass = '' }) => `
     <article class="card set-card${wide ? ' card--wide' : ''}${extraClass ? ` ${extraClass}` : ''}">
-      <header class="card-head"><h2 class="card-title">${title}</h2></header>
+      <header class="card-head"><div><h2 class="card-title">${title}</h2>${sub ? `<p class="card-sub">${sub}</p>` : ''}</div></header>
       <div class="set-body">${body}</div>
       ${actions ? `<div class="set-actions">${actions}</div>` : ''}
     </article>`
@@ -455,6 +628,7 @@
     const el = document.getElementById('settings-body')
     if (!el) return
     const p = P.get()
+    const track = musicLibrary[currentTrack]
     const themes = Object.entries(P.THEMES)
       .map(
         ([id, t]) => `
@@ -473,13 +647,14 @@
           sub: 'El escudo que aparece en la barra lateral y abre Menú',
           body: `<div class="brand-settings"><img class="brand-settings-preview" src="${H.esc(leagueLogo)}" alt="Logo actual de la liga"><p class="hint">Puedes elegir un escudo de los ya cargados en tu galería.</p></div>`,
           actions: '<button class="btn btn--ghost" data-action="pick-brand">Cambiar logo</button>',
+          extraClass: 'set-logo',
         })}
 
         ${card({
           title: 'Música y sonidos',
           sub: `${musicLibrary.length} canción(es) disponibles en la app`,
-          wide: true,
-          body: `<div class="audio-controls"><label class="field range-field"><span class="field-label">Volumen de la música <output>${Math.round((p.musicVolume ?? .15) * 100)}%</output></span><input type="range" name="music-volume" min="0" max="1" step="0.05" value="${p.musicVolume ?? .15}"></label><label class="field range-field"><span class="field-label">Volumen de los SFX <output>${Math.round((p.sfxVolume ?? 1) * 100)}%</output></span><input type="range" name="sfx-volume" min="0" max="1" step="0.05" value="${p.sfxVolume ?? 1}"></label></div><label class="check music-autoplay-setting"><input type="checkbox" name="music-autoplay" ${p.musicAutoplay !== false ? 'checked' : ''}> Reproducir música al iniciar la app</label><div class="music-transport" role="group" aria-label="Controles de música"><button class="btn btn--ghost" type="button" data-action="music-previous" aria-label="Canción anterior">${MUSIC_ICONS.previous}<span>Anterior</span></button><button class="btn btn--primary music-toggle" type="button" data-action="music-toggle" aria-label="Pausar música">${MUSIC_ICONS.pause}<span>Pausar</span></button><button class="btn btn--ghost" type="button" data-action="music-next" aria-label="Siguiente canción">${MUSIC_ICONS.next}<span>Siguiente</span></button></div>`,
+          body: `<div class="music-current" aria-live="polite"><div class="music-current-cover" data-music-cover>${track?.cover ? `<img src="${H.esc(musicAssetUrl(track.cover))}" alt="">` : '<span class="music-current-placeholder" aria-hidden="true">♫</span>'}</div><div class="music-current-info"><span class="music-current-kicker">Ahora en reproducción</span><strong data-music-title>${H.esc(track?.title || (musicLibrary.length ? 'Preparando biblioteca' : 'No hay canciones disponibles'))}</strong><small data-music-state>${musicLibrary.length ? 'Lista para reproducir' : 'Añade canciones a la biblioteca'}</small></div><span class="music-equalizer" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div><div class="audio-controls"><label class="field range-field"><span class="field-label">Volumen de la música <output>${Math.round((p.musicVolume ?? .15) * 100)}%</output></span><input type="range" name="music-volume" min="0" max="1" step="0.05" value="${p.musicVolume ?? .15}"></label><label class="field range-field"><span class="field-label">Volumen de los SFX <output>${Math.round((p.sfxVolume ?? 1) * 100)}%</output></span><input type="range" name="sfx-volume" min="0" max="1" step="0.05" value="${p.sfxVolume ?? 1}"></label></div><label class="check music-autoplay-setting"><input type="checkbox" name="music-autoplay" ${p.musicAutoplay !== false ? 'checked' : ''}> Reproducir música al iniciar la app</label><div class="music-transport" role="group" aria-label="Controles de música"><button class="btn btn--ghost" type="button" data-action="music-previous" aria-label="Canción anterior">${MUSIC_ICONS.previous}<span>Anterior</span></button><button class="btn btn--primary music-toggle" type="button" data-action="music-toggle" aria-label="Pausar música">${MUSIC_ICONS.pause}<span>Pausar</span></button><button class="btn btn--ghost" type="button" data-action="music-next" aria-label="Siguiente canción">${MUSIC_ICONS.next}<span>Siguiente</span></button></div>`,
+          extraClass: 'set-music',
         })}
 
         ${card({
@@ -490,12 +665,14 @@
               <button class="seg-btn" data-action="scale" data-scale="0" aria-pressed="${p.scale === 0}">0 · Predeterminada<small>Adaptada al celular</small></button>
             </div>
             <p class="hint">Con <strong>-1</strong> la app usa el diseño de computadora y lo reduce para que entre entero en la pantalla del celular. En pantallas grandes no cambia nada.</p>`,
+          extraClass: 'set-scale',
         })}
 
         ${card({
           title: 'Tema',
           sub: 'Color de acento y brillo del fondo',
           body: `<div class="theme-grid" role="group" aria-label="Tema de la app">${themes}</div>`,
+          extraClass: 'set-theme',
         })}
 
         ${card({
@@ -530,7 +707,7 @@
           sub: 'League Hub',
           wide: true,
           extraClass: 'set-about',
-          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-3.0</strong><span class="about-build">Beta Build</span></div>',
+          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-3.1</strong><span class="about-build">Beta Build</span></div>',
         })}
       </div>`
     updateMusicControls()
@@ -539,6 +716,13 @@
   function bind() {
     const el = document.getElementById('settings-body')
     if (!el) return
+    const attachMeterOnInteraction = (event) => {
+      if (!audio || audio.paused || musicAnalyser || musicAnalyserPending) return
+      if (event.target?.closest?.('.music-transport')) return
+      void enableMusicAnalyser()
+    }
+    document.addEventListener('pointerdown', attachMeterOnInteraction, true)
+    document.addEventListener('keydown', attachMeterOnInteraction, true)
     document.addEventListener('league:brandlogochange', () => render())
     el.addEventListener('click', async (e) => {
       const btn = e.target.closest('[data-action]')
@@ -547,6 +731,7 @@
       if (action === 'pick-brand') H.pickBrand?.()
       else if (action === 'music-toggle') {
         if (!musicLibrary.length) return H.toast('No hay canciones cargadas en la app')
+        ensureAudio()
         if (!audio || !audio.src) playTrack(currentTrack < 0 ? 0 : currentTrack)
         else if (waitingForNext) {
           clearTimeout(musicAdvanceTimer)
@@ -559,7 +744,10 @@
           musicStarted = false
           musicPausedByUser = true
         } else if (finishedCurrentTrack) playTrack(currentTrack + 1)
-        else audio.play().then(() => { musicStarted = true; musicPausedByUser = false; updateMusicControls() }).catch(() => {})
+        else {
+          void enableMusicAnalyser()
+          audio.play().then(() => { musicStarted = true; musicPausedByUser = false; updateMusicControls() }).catch(() => {})
+        }
         updateMusicControls()
       } else if (action === 'music-next' || action === 'music-previous') {
         if (!musicLibrary.length) return H.toast('No hay canciones cargadas en la app')

@@ -80,9 +80,9 @@
   const TICKET_ICON = '<svg class="stat-icon" viewBox="2 5 20 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6L6 6C5.068 6 4.602 6 4.234 6.152 3.744 6.355 3.355 6.745 3.152 7.235 3 7.602 3 8.068 3 9 4.657 9 6 10.343 6 12s-1.343 3-3 3c0 .932 0 1.398.152 1.765.203.49.592.88 1.082 1.083C4.602 18 5.068 18 6 18h8m0-12h4c.932 0 1.398 0 1.765.152.49.203.88.593 1.083 1.083C21 7.602 21 8.068 21 9c-1.657 0-3 1.343-3 3s1.343 3 3 3c0 .932 0 1.398-.152 1.765-.203.49-.593.88-1.083 1.083C19.398 18 18.932 18 18 18h-4m0-12v12"/></svg>'
 
   function standingsTable(rows) {
-    return `<div class="table-wrap season-standing-table-wrap"><table class="data-table season-standing-table">
-      <thead><tr><th class="num">Pos</th><th class="club">Club</th><th class="num">PJ</th><th class="num">PG</th><th class="num">PE</th><th class="num">PP</th><th class="num">GF</th><th class="num">GC</th><th class="num">DG</th><th class="num pts">Puntos</th></tr></thead>
-      <tbody>${rows.map((row, i) => `<tr><td class="num pos">${i + 1}</td><th scope="row" class="club"><span class="club-cell">${crest(row.team.logo, 'xs', row.team.name)}<span>${esc(row.team.name)}</span></span></th><td class="num">${row.pj}</td><td class="num">${row.pg}</td><td class="num">${row.pe}</td><td class="num">${row.pp}</td><td class="num">${row.gf}</td><td class="num">${row.gc}</td><td class="num">${row.dg > 0 ? `+${row.dg}` : row.dg}</td><td class="num pts">${row.pts}</td></tr>`).join('')}</tbody>
+    return `<div class="table-wrap season-standing-table-wrap" role="region" aria-label="Tabla de posiciones" tabindex="0"><table class="data-table season-standing-table">
+      <thead><tr><th scope="col" class="num pos-col">Pos</th><th scope="col" class="club">Club</th><th scope="col" class="num">PJ</th><th scope="col" class="num">PG</th><th scope="col" class="num">PE</th><th scope="col" class="num">PP</th><th scope="col" class="num">GF</th><th scope="col" class="num">GC</th><th scope="col" class="num">DG</th><th scope="col" class="num pts">Puntos</th></tr></thead>
+      <tbody>${rows.map((row, i) => `<tr><td class="num pos pos-col">${i + 1}</td><th scope="row" class="club"><span class="club-cell">${crest(row.team.logo, 'xs', row.team.name)}<span>${esc(row.team.name)}</span></span></th><td class="num">${row.pj}</td><td class="num">${row.pg}</td><td class="num">${row.pe}</td><td class="num">${row.pp}</td><td class="num">${row.gf}</td><td class="num">${row.gc}</td><td class="num">${row.dg > 0 ? `+${row.dg}` : row.dg}</td><td class="num pts">${row.pts}</td></tr>`).join('')}</tbody>
     </table></div>`
   }
 
@@ -628,7 +628,7 @@
           <header class="card-head">
             <div>
               <h2 class="card-title">Temporada actual</h2>
-              <p class="card-sub"><span class="badge ${statusCls}">${status}</span>${cur.readOnly ? ' <span class="badge badge--warn">Solo lectura</span>' : ''}</p>
+              <p class="card-sub card-sub--meta"><span class="badge ${statusCls}">${status}</span>${cur.readOnly ? ' <span class="badge badge--warn">Solo lectura</span>' : ''}</p>
             </div>
           </header>
           <div class="current-season">
@@ -696,7 +696,7 @@
       const list = `
         <article class="card card--wide">
           <header class="card-head">
-            <div><h2 class="card-title">Temporadas guardadas</h2><p class="card-sub">${s.seasons.length} en total</p></div>
+            <div><h2 class="card-title">Temporadas guardadas</h2><p class="card-sub card-sub--meta">${s.seasons.length} en total</p></div>
             ${s.seasons.length ? '<button class="btn btn--danger btn--sm" data-action="delete-all">Eliminar todas</button>' : ''}
           </header>
           ${

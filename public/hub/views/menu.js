@@ -295,7 +295,7 @@
       let touchGesture = null
       const findHorizontalScroller = (target) => {
         let node = target instanceof Element ? target : target?.parentElement
-        const directScroller = node?.closest('.season-mini-bracket, .bracket--map, .season-standing-table-wrap, .table-wrap')
+        const directScroller = node?.closest('.season-mini-bracket, .bracket--map, .season-standing-table-wrap, .split-table-stats, .table-wrap')
         if (directScroller && carousel.contains(directScroller)) return directScroller
         while (node && node !== carousel) {
           const overflowX = getComputedStyle(node).overflowX
