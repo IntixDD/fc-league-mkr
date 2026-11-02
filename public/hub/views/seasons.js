@@ -596,8 +596,13 @@
           H.update((st) => (st.current.number = n))
         } else if (t.matches('[data-import]')) {
           const file = t.files[0]
-          t.value = ''
-          if (file) importFile(file)
+          if (!file) {
+            t.value = ''
+            return
+          }
+          importFile(file)
+            .catch((error) => H.toast(`No se pudo importar ${file.name || 'el archivo'}: ${error?.message || 'error de lectura'}`, 'error'))
+            .finally(() => { t.value = '' })
         }
       })
     },

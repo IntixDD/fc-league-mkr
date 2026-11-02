@@ -310,8 +310,13 @@
         }
         if (!input) return
         const files = [...input.files]
-        input.value = ''
-        if (files.length) handleFiles(files, input.dataset.logoInput === 'select', input.dataset.logoInput === 'json')
+        if (!files.length) {
+          input.value = ''
+          return
+        }
+        handleFiles(files, input.dataset.logoInput === 'select', input.dataset.logoInput === 'json')
+          .catch((error) => H.toast(`No se pudo importar el archivo: ${error?.message || 'error de lectura'}`, 'error'))
+          .finally(() => { input.value = '' })
       })
       el.addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-action]')
