@@ -286,7 +286,7 @@
 
   const fileButton = (label, mode, cls = 'btn btn--ghost', accept = 'image/*') =>
     `<label class="${cls} file-btn">
-      <input type="file" accept="${accept}${mode === 'json' ? ',text/json,text/plain,application/octet-stream' : ''}" multiple class="sr-only" data-logo-input="${mode}">
+      <input type="file" accept="${accept}${mode === 'json' ? ',text/json,text/plain,application/octet-stream' : ''}" multiple class="file-picker-input" aria-label="${esc(label)}" data-logo-input="${mode}">
       ${label}
     </label>`
 
