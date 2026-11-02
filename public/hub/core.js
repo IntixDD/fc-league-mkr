@@ -52,9 +52,11 @@ window.Hub = (() => {
   const loadState = () => idb('readonly', (s) => s.get(KEY))
   const saveState = () => idb('readwrite', (s) => s.put(state, KEY))
 
-  // IndexedDB is the primary store (handles large logo galleries); localStorage is a
-  // synchronous mirror so the latest edit survives a reload even if the async write is cut off.
+  // IndexedDB is the primary store (handles large logo galleries). localStorage remains
+  // a fallback for browsers where IndexedDB is unavailable, without serializing images
+  // synchronously during every normal save.
   const LS_STATE = 'league-hub:state'
+  const LS_MIRROR_CHECKED = 'league-hub:mirror-checked'
   const LS_UI = 'league-hub:ui'
   const UI_KEYS = ['fxMode', 'poSize', 'perfTeam', 'historySort', 'historySortVersion', 'historyDir', 'historyQuery', 'newKeepTeams', 'tableEdit', 'repechageEnabled', 'lockSeasonExport', 'tournamentTwoLegged']
   let dirty = false
@@ -107,9 +109,10 @@ window.Hub = (() => {
     if (!state || !dirty) return
     dirty = false
     state.updatedAt = Date.now()
-    const local = writeLocal()
     saveState().catch((err) => {
+      const local = writeLocal()
       if (!local) toast(`No se pudo guardar: ${err.message}`, 'error')
+      else toast('Guardado localmente; el almacenamiento principal no está disponible.', 'error')
     })
   }
 
@@ -1437,7 +1440,7 @@ window.Hub = (() => {
     }
     pendingSkip = skip
     renderQueued = true
-    setTimeout(renderAll, 0)
+    requestAnimationFrame(renderAll)
   }
 
   function update(mutator, { skip = null } = {}) {
@@ -1567,21 +1570,33 @@ window.Hub = (() => {
     } catch {
       dbOk = false
     }
-    const fromLocal = readLocal()
-    const newest = (fromLocal?.updatedAt || 0) > (fromDb?.updatedAt || 0) ? fromLocal : fromDb || fromLocal
-    const oldLogoLibrary = JSON.stringify(newest?.logos || [])
+    // Read the legacy mirror once after the storage change. Parsing a large base64
+    // logo library on every launch was a noticeable source of startup delay.
+    let mirrorChecked = false
+    try { mirrorChecked = localStorage.getItem(LS_MIRROR_CHECKED) === '1' } catch {}
+    const fromLocal = mirrorChecked && dbOk && fromDb ? null : readLocal()
+    const localIsNewer = (fromLocal?.updatedAt || 0) > (fromDb?.updatedAt || 0)
+    const newest = localIsNewer ? fromLocal : fromDb || fromLocal
+    const oldLogoLibrary = Array.isArray(newest?.logos) ? newest.logos : []
     state = sanitizeState(newest)
     teamRecordsCache = null
-    const migratedLogoLibrary = JSON.stringify(state.logos) !== oldLogoLibrary
+    const migratedLogoLibrary = oldLogoLibrary.length !== state.logos.length
+      || state.logos.some((logo, index) => {
+        const old = oldLogoLibrary[index]
+        return old?.id !== index || old?.data !== logo.data || (old?.category || 'custom') !== logo.category
+      })
     if (newest?.updatedAt) state.updatedAt = newest.updatedAt
     if (!dbOk && !writeLocal()) toast('Almacenamiento no disponible: los datos no se guardarán', 'error')
+    if (dbOk && fromDb && !localIsNewer) {
+      try { localStorage.setItem(LS_MIRROR_CHECKED, '1') } catch {}
+    }
     navigator.storage?.persist?.().catch(() => {})
     Object.entries(views).forEach(([id, v]) => {
       const el = document.getElementById(`${id}-body`)
       if (el && v.bind) v.bind(el)
     })
     renderAll()
-    if (migratedLogoLibrary) persist()
+    if (migratedLogoLibrary || localIsNewer) persist()
     void syncPublishedSeasons()
   }
 
