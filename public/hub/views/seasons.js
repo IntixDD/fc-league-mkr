@@ -493,9 +493,9 @@
   async function importFile(file) {
     let data
     try {
-      data = JSON.parse(await file.text())
+      data = JSON.parse(await H.readFileText(file))
     } catch {
-      return H.toast('El archivo no es un JSON válido', 'error')
+      return H.toast(`${file.name || 'Archivo'}: no se pudo leer como JSON`, 'error')
     }
     importData(data)
   }
@@ -634,7 +634,7 @@
           <header class="card-head"><h2 class="card-title">Importar / Exportar</h2></header>
           <div class="row-actions">
             <label class="btn btn--primary file-btn">
-              <input type="file" accept="application/json,.json" class="sr-only" data-import>
+              <input type="file" accept=".json,application/json,text/json,text/plain,application/octet-stream" class="sr-only" data-import>
               Importar .json
             </label>
             <button class="btn btn--ghost" data-action="toggle-published-library">${publishedLibraryVisible ? 'Ocultar archivos' : 'Cargar desde GitHub'}</button>

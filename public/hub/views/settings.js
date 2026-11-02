@@ -6,6 +6,12 @@
   const MAX_RAW_BYTES = 6 * 1024 * 1024
   const MAX_SIDE = 2560
   const MAX_BACKGROUNDS = 12
+  const MUSIC_ICONS = {
+    previous: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M19 5 9 12l10 7z"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM15 5h4v14h-4z"/></svg>',
+    play: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.8v14.4a.8.8 0 0 0 1.2.7l11-7.2a.8.8 0 0 0 0-1.4l-11-7.2a.8.8 0 0 0-1.2.7z"/></svg>',
+    next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14M5 5l10 7-10 7z"/></svg>',
+  }
   let library = []
   let musicLibrary = []
   let currentTrack = 0
@@ -21,6 +27,9 @@
   let resumeMusicOnVisible = false
   let resumeNextTrackOnVisible = false
   const sfxPlayers = new Map()
+  const sfxBuffers = new Map()
+  const SFX_FILES = ['tap.wav', 'nav.wav']
+  let sfxContext = null
   const urls = new Map()
   let installEvent = null
 
@@ -69,7 +78,7 @@
     if (!button) return
     const active = (!!audio && !audio.paused) || waitingForNext
     const available = musicLibrary.length > 0
-    button.textContent = active ? '⏸ Pausar' : '▶ Reproducir'
+    button.innerHTML = `${active ? MUSIC_ICONS.pause : MUSIC_ICONS.play}<span>${active ? 'Pausar' : 'Reproducir'}</span>`
     button.setAttribute('aria-label', active ? 'Pausar música' : 'Reproducir música')
     button.disabled = !available
     document.querySelectorAll('.music-transport [data-action="music-next"], .music-transport [data-action="music-previous"]').forEach((control) => { control.disabled = !available })
@@ -179,22 +188,82 @@
     playMusic()
   }, { capture: true, passive: true })
 
+  function ensureSfxContext() {
+    if (sfxContext) return sfxContext
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext
+    if (!AudioContextClass) return null
+    try {
+      sfxContext = new AudioContextClass()
+      Promise.all(SFX_FILES.map(async (file) => {
+        try {
+          const response = await fetch(new URL(`media/sfx/${file}`, document.baseURI), { cache: 'force-cache' })
+          if (!response.ok) return
+          const buffer = await response.arrayBuffer()
+          sfxBuffers.set(file, await sfxContext.decodeAudioData(buffer))
+        } catch {}
+      }))
+    } catch {
+      sfxContext = null
+    }
+    return sfxContext
+  }
+
+  function playSfxBuffer(file, volume) {
+    if (!sfxContext || sfxContext.state !== 'running') return false
+    const buffer = sfxBuffers.get(file)
+    if (!buffer) return false
+    try {
+      const source = sfxContext.createBufferSource()
+      const gain = sfxContext.createGain()
+      source.buffer = buffer
+      gain.gain.value = volume
+      source.connect(gain)
+      gain.connect(sfxContext.destination)
+      source.start(0)
+      return true
+    } catch {
+      return false
+    }
+  }
+
   function playSfx(file = 'tap.wav') {
     const volume = P.get().sfxVolume ?? 1
     if (!volume) return
+    const context = ensureSfxContext()
+    if (context && sfxBuffers.has(file)) {
+      if (context.state === 'running' && playSfxBuffer(file, volume)) return
+      if (context.state === 'suspended') {
+        context.resume().then(() => { if (!playSfxBuffer(file, volume)) playSfxFallback(file, volume) }).catch(() => playSfxFallback(file, volume))
+        return
+      }
+    }
+    playSfxFallback(file, volume)
+  }
+
+  function playSfxFallback(file, volume) {
     let sound = sfxPlayers.get(file)
     if (!sound) {
       sound = new Audio(`media/sfx/${file}`)
-      sound.preload = 'none'
+      sound.preload = 'auto'
+      sound.load()
       sfxPlayers.set(file, sound)
     }
     sound.volume = volume
     try { sound.currentTime = 0 } catch {}
     sound.play().catch(() => {})
   }
+  SFX_FILES.forEach((file) => {
+    const sound = new Audio(`media/sfx/${file}`)
+    sound.preload = 'auto'
+    sound.load()
+    sfxPlayers.set(file, sound)
+  })
+  ensureSfxContext()
   document.addEventListener('pointerdown', (event) => {
-    if (event.target.closest('.nav-button')) playSfx('nav.wav')
-    else if (event.target.closest('.btn, [data-action], [data-open-menu], .logo')) playSfx()
+    const target = event.target.closest('.nav-button, button, a[href], [role="button"], .file-btn, [data-action], [data-open-menu], .logo')
+    if (!target) return
+    if (target.closest('.nav-button')) playSfx('nav.wav')
+    else playSfx()
   }, { capture: true, passive: true })
 
   const urlFor = (item) => {
@@ -404,7 +473,7 @@
           title: 'Música y sonidos',
           sub: `${musicLibrary.length} canción(es) disponibles en la app`,
           wide: true,
-          body: `<div class="audio-controls"><label class="field range-field"><span class="field-label">Volumen de la música <output>${Math.round((p.musicVolume ?? .15) * 100)}%</output></span><input type="range" name="music-volume" min="0" max="1" step="0.05" value="${p.musicVolume ?? .15}"></label><label class="field range-field"><span class="field-label">Volumen de los SFX <output>${Math.round((p.sfxVolume ?? 1) * 100)}%</output></span><input type="range" name="sfx-volume" min="0" max="1" step="0.05" value="${p.sfxVolume ?? 1}"></label></div><label class="check music-autoplay-setting"><input type="checkbox" name="music-autoplay" ${p.musicAutoplay !== false ? 'checked' : ''}> Reproducir música al iniciar la app</label><div class="music-transport" role="group" aria-label="Controles de música"><button class="btn btn--ghost" type="button" data-action="music-previous" aria-label="Canción anterior">⏮ Anterior</button><button class="btn btn--primary music-toggle" type="button" data-action="music-toggle" aria-label="Pausar música">⏸ Pausar</button><button class="btn btn--ghost" type="button" data-action="music-next" aria-label="Siguiente canción">Siguiente ⏭</button></div>`,
+          body: `<div class="audio-controls"><label class="field range-field"><span class="field-label">Volumen de la música <output>${Math.round((p.musicVolume ?? .15) * 100)}%</output></span><input type="range" name="music-volume" min="0" max="1" step="0.05" value="${p.musicVolume ?? .15}"></label><label class="field range-field"><span class="field-label">Volumen de los SFX <output>${Math.round((p.sfxVolume ?? 1) * 100)}%</output></span><input type="range" name="sfx-volume" min="0" max="1" step="0.05" value="${p.sfxVolume ?? 1}"></label></div><label class="check music-autoplay-setting"><input type="checkbox" name="music-autoplay" ${p.musicAutoplay !== false ? 'checked' : ''}> Reproducir música al iniciar la app</label><div class="music-transport" role="group" aria-label="Controles de música"><button class="btn btn--ghost" type="button" data-action="music-previous" aria-label="Canción anterior">${MUSIC_ICONS.previous}<span>Anterior</span></button><button class="btn btn--primary music-toggle" type="button" data-action="music-toggle" aria-label="Pausar música">${MUSIC_ICONS.pause}<span>Pausar</span></button><button class="btn btn--ghost" type="button" data-action="music-next" aria-label="Siguiente canción">${MUSIC_ICONS.next}<span>Siguiente</span></button></div>`,
         })}
 
         ${card({

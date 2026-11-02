@@ -401,6 +401,32 @@ window.Hub = (() => {
     })
   }
 
+  function readFileText(file) {
+    return new Promise((resolve, reject) => {
+      const fallbackToText = () => {
+        if (typeof file?.text !== 'function') {
+          reject(new Error('No se pudo leer el archivo seleccionado'))
+          return
+        }
+        try {
+          file.text().then((text) => resolve(String(text).replace(/^\uFEFF/, '')), reject)
+        } catch (error) {
+          reject(error)
+        }
+      }
+      if (typeof FileReader === 'undefined') {
+        fallbackToText()
+        return
+      }
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result || '').replace(/^\uFEFF/, ''))
+      reader.onerror = fallbackToText
+      try {
+        reader.readAsText(file)
+      } catch { fallbackToText() }
+    })
+  }
+
   async function importLogos(files) {
     const added = []
     for (const file of files) {
@@ -1542,6 +1568,7 @@ window.Hub = (() => {
     sanitizeSeason,
     importLogos,
     importLogoData,
+    readFileText,
     unzipImages,
     isZipFile,
     exportButton,

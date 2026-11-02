@@ -118,18 +118,18 @@
     H.toast(`${logos.length} escudo(s) descargados en JSON`)
   }
 
-  async function handleFiles(files, selectLast) {
+  async function handleFiles(files, selectLast, expectJson = false) {
     const list = [...files]
     const zips = list.filter(H.isZipFile)
-    const jsonFiles = list.filter((f) => /\.json$/i.test(f.name) || f.type === 'application/json')
+    const jsonFiles = list.filter((f) => /\.json$/i.test(f.name) || /^(application|text)\/json$/i.test(f.type) || (expectJson && !H.isZipFile(f) && !f.type.startsWith('image/')))
     const images = list.filter((f) => f.type.startsWith('image/') || /\.svg$/i.test(f.name || ''))
     const ids = []
     for (const file of jsonFiles) {
       let parsed
       try {
-        parsed = JSON.parse(await file.text())
+        parsed = JSON.parse(await H.readFileText(file))
       } catch {
-        H.toast(`${file.name}: el archivo no es un JSON válido`, 'error')
+        H.toast(`${file.name || 'Archivo'}: no se pudo leer como JSON`, 'error')
         continue
       }
       const entries = Array.isArray(parsed) ? parsed : parsed?.logos
@@ -267,7 +267,7 @@
 
   const fileButton = (label, mode, cls = 'btn btn--ghost', accept = 'image/*') =>
     `<label class="${cls} file-btn">
-      <input type="file" accept="${accept}" multiple class="sr-only" data-logo-input="${mode}">
+      <input type="file" accept="${accept}${mode === 'json' ? ',text/json,text/plain,application/octet-stream' : ''}" multiple class="sr-only" data-logo-input="${mode}">
       ${label}
     </label>`
 
@@ -292,7 +292,7 @@
         if (!input) return
         const files = [...input.files]
         input.value = ''
-        if (files.length) handleFiles(files, input.dataset.logoInput === 'select')
+        if (files.length) handleFiles(files, input.dataset.logoInput === 'select', input.dataset.logoInput === 'json')
       })
       el.addEventListener('click', async (e) => {
         const btn = e.target.closest('[data-action]')

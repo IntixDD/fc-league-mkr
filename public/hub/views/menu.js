@@ -291,18 +291,34 @@
       draw(key)
       const carousel = el.querySelector(`[data-carousel="${key}"]`)
       let startX = null
+      let startY = null
       carousel.addEventListener('pointerdown', (event) => {
         pauseAuto(key)
-        if (event.pointerType === 'mouse' || event.target.closest('.season-mini-bracket')) return
+        if (event.button != null && event.button !== 0) return
+        if (event.target.closest('.season-mini-bracket')) return
         startX = event.clientX
+        startY = event.clientY
+        try { carousel.setPointerCapture(event.pointerId) } catch {}
       }, { passive: true })
+      carousel.addEventListener('pointermove', (event) => {
+        if (startX == null || startY == null) return
+        const dx = event.clientX - startX
+        const dy = event.clientY - startY
+        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+          carousel.dataset.dragging = 'true'
+          event.preventDefault()
+        }
+      })
       carousel.addEventListener('pointerup', (event) => {
         const delta = startX == null ? 0 : event.clientX - startX
         startX = null
+        startY = null
+        delete carousel.dataset.dragging
         if (Math.abs(delta) > 48) move(key, delta < 0 ? 1 : -1)
         resumeAuto(key)
       }, { passive: true })
-      carousel.addEventListener('pointercancel', () => { startX = null; resumeAuto(key) }, { passive: true })
+      carousel.addEventListener('lostpointercapture', () => { startX = null; startY = null; delete carousel.dataset.dragging; resumeAuto(key) }, { passive: true })
+      carousel.addEventListener('pointercancel', () => { startX = null; startY = null; delete carousel.dataset.dragging; resumeAuto(key) }, { passive: true })
       carousel.addEventListener('scroll', () => { pauseAuto(key); resumeAuto(key) }, { passive: true, capture: true })
       carousel.addEventListener('wheel', () => { pauseAuto(key); resumeAuto(key) }, { passive: true })
       carousel.addEventListener('focusin', () => pauseAuto(key))

@@ -32,6 +32,7 @@
         const rows = Math.ceil(viewportHeight / rowHeight) + 1
         const columns = Math.ceil(viewportWidth / side) + 2
         const triangles = []
+        const triangleFragment = document.createDocumentFragment()
         for (let row = 0; row < rows; row += 1) {
           const topOffset = row % 2 === 0 ? 0 : halfSide
           const y = row * rowHeight
@@ -49,17 +50,20 @@
               const centerX = vertices.reduce((sum, point) => sum + point[0], 0) / 3
               const centerY = vertices.reduce((sum, point) => sum + point[1], 0) / 3
               triangles.push({ triangle, centerX, centerY, part })
-              mesh.appendChild(triangle)
             })
           }
         }
 
-        triangles
+        const orderedTriangles = triangles
           .sort((a, b) => ((viewportWidth - a.centerX) + (viewportHeight - a.centerY)) - ((viewportWidth - b.centerX) + (viewportHeight - b.centerY))
             || b.centerY - a.centerY
             || b.centerX - a.centerX
             || a.part - b.part)
-          .forEach(({ triangle }, order) => triangle.style.setProperty('--triangle-delay', `${order * 1.9 / triangles.length}s`))
+        orderedTriangles.forEach(({ triangle }, order) => {
+          triangle.style.setProperty('--triangle-delay', `${order * 1.9 / triangles.length}s`)
+          triangleFragment.appendChild(triangle)
+        })
+        mesh.appendChild(triangleFragment)
     }
     let closing = false
     const finishIntro = () => {

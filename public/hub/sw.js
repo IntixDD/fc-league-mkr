@@ -1,4 +1,4 @@
-const CACHE = 'league-hub-v142'
+const CACHE = 'league-hub-v145'
 
 const BASE = new URL('./', self.location.href)
 
@@ -6,23 +6,23 @@ const SHELL = [
   './',
   'index.html',
   'styles.css?v=18',
-  'components.css?v=93',
+  'components.css?v=94',
   'prefs.js?v=18',
-  'core.js?v=42',
-  'views/teams.js?v=17',
+  'core.js?v=43',
+  'views/teams.js?v=18',
   'views/table.js?v=23',
   'views/fixtures.js?v=17',
   'views/tournament.js?v=31',
   'icon-tournament.svg?v=5',
-  'views/seasons.js?v=36',
+  'views/seasons.js?v=37',
   'season-library/catalog.json',
   'season-library/seasons.json',
   'views/history.js?v=19',
   'views/performance.js?v=28',
   'views/badges.js?v=25',
-  'views/settings.js?v=25',
-  'views/menu.js?v=18',
-  'app.js?v=33',
+  'views/settings.js?v=27',
+  'views/menu.js?v=19',
+  'app.js?v=34',
   'media/music/tracks.js?v=3',
   'media/sfx/tap.wav',
   'media/sfx/nav.wav',

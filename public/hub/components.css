@@ -3696,6 +3696,30 @@ select.input option {
 .menu-hero-logo { width:88%; height:88%; }
 .menu-hero-logo { image-rendering:auto; filter:blur(.42px) drop-shadow(0 8px 24px #000a); }
 .menu-side-stack>.menu-command { padding:0; border:0; border-radius:0; background:transparent; }
+
+/* Keep the two Menu panels touch/mouse swipeable while containing their contents. */
+.menu-carousel { touch-action:pan-y pinch-zoom; }
+.menu-carousel[data-dragging="true"] { cursor:grabbing; user-select:none; }
+.menu-slide { box-sizing:border-box; width:100%; max-width:100%; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; }
+.menu-slide ol,.menu-slide li { box-sizing:border-box; min-width:0; max-width:100%; }
+.menu-side-stack { grid-template-rows:390px auto; }
+.menu-side-stack>.menu-feature-card--records { height:390px; }
+.menu-feature-card--records { min-width:0; overflow:hidden; }
+.menu-feature-card--records .card-head { min-width:0; }
+.menu-feature-card--records .menu-carousel { min-width:0; max-width:100%; }
+.menu-feature-card--records .menu-slide li { width:100%; }
+.music-transport .btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; }
+.music-transport .btn svg { display:block; width:16px; height:16px; flex:none; fill:currentColor; }
+.music-transport .btn span { min-width:0; }
+.table-subtables { grid-template-columns:minmax(0,1fr); }
+@media(max-width:900px) {
+  .menu-side-stack { grid-template-rows:360px auto; }
+  .menu-side-stack>.menu-feature-card--records { height:360px; }
+}
+@media(max-width:767px) {
+  .menu-side-stack { grid-template-rows:clamp(350px,50vh,440px) auto; }
+  .menu-side-stack>.menu-feature-card--records { height:clamp(350px,50vh,440px); }
+}
 .menu-title-sr { display:block; }
 .teams-page-grid { grid-template-columns:minmax(0,1.35fr) minmax(320px,.85fr); }
 .teams-register-card { min-height:100%; }
