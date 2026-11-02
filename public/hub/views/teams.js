@@ -133,12 +133,31 @@
         continue
       }
       const entries = Array.isArray(parsed) ? parsed : parsed?.logos
+      const seasonList = Array.isArray(parsed?.seasons)
+        ? parsed.seasons
+        : Array.isArray(parsed)
+          ? parsed.filter((item) => Array.isArray(item?.teams))
+          : Array.isArray(parsed?.teams)
+            ? [parsed]
+            : parsed?.season && Array.isArray(parsed.season.teams)
+              ? [parsed.season]
+              : []
+      const seasonLogoEntries = seasonList.flatMap((season) => (season.teams || [])
+        .filter((team) => typeof team?.logo === 'string' && team.logo.startsWith('data:image/'))
+        .map((team) => ({ data: team.logo, category: 'custom' })))
+      const logoEntries = Array.isArray(entries) && entries.length ? entries : seasonLogoEntries
       if (!Array.isArray(entries)) {
-        H.toast(`${file.name}: no contiene una galería de escudos`, 'error')
+        if (!logoEntries.length) {
+          H.toast(`${file.name || 'Archivo'}: no contiene escudos ni temporadas con escudos`, 'error')
+          continue
+        }
+      } else if (!logoEntries.length) {
+        H.toast(`${file.name || 'Archivo'}: no contiene escudos compatibles`, 'error')
         continue
       }
-      const imported = H.importLogoData(entries)
-      if (!imported.length) H.toast(`${file.name}: no contiene escudos compatibles`, 'error')
+      let imported = H.importLogoData(logoEntries)
+      if (!imported.length && seasonLogoEntries.length && logoEntries !== seasonLogoEntries) imported = H.importLogoData(seasonLogoEntries)
+      if (!imported.length) H.toast(`${file.name || 'Archivo'}: no contiene escudos compatibles`, 'error')
       ids.push(...imported)
     }
     for (const zip of zips) {

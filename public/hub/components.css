@@ -3720,6 +3720,25 @@ select.input option {
   .menu-side-stack { grid-template-rows:clamp(350px,50vh,440px) auto; }
   .menu-side-stack>.menu-feature-card--records { height:clamp(350px,50vh,440px); }
 }
+
+/* Final touch-scroll and sizing rules for phone and tablet layouts. */
+.table-subtables { grid-template-columns:minmax(0,1fr); }
+.bracket--map { touch-action:pan-x pan-y pinch-zoom; -webkit-overflow-scrolling:touch; }
+.menu-carousel { overscroll-behavior-y:auto; }
+.menu-slide { overscroll-behavior-x:contain; overscroll-behavior-y:auto; }
+.menu-layout>.menu-feature-card--season { height:clamp(620px,72vh,760px); min-height:0; max-height:none; }
+.menu-side-stack { grid-template-rows:440px auto; }
+.menu-side-stack>.menu-feature-card--records { height:440px; }
+.menu-feature-card--records .menu-carousel,.menu-feature-card--records .menu-slide { min-height:0; }
+@media(max-width:900px) {
+  .menu-side-stack { grid-template-rows:420px auto; }
+  .menu-side-stack>.menu-feature-card--records { height:420px; }
+}
+@media(max-width:767px) {
+  .menu-layout>.menu-feature-card--season { height:clamp(480px,62vh,600px); }
+  .menu-side-stack { grid-template-rows:clamp(400px,52vh,460px) auto; }
+  .menu-side-stack>.menu-feature-card--records { height:clamp(400px,52vh,460px); }
+}
 .menu-title-sr { display:block; }
 .teams-page-grid { grid-template-columns:minmax(0,1.35fr) minmax(320px,.85fr); }
 .teams-register-card { min-height:100%; }
@@ -3727,6 +3746,19 @@ select.input option {
 .team-roster-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:11px; }
 .team-roster-head h3 { margin:0; font:700 12px var(--font-display); letter-spacing:.04em; text-transform:uppercase; }
 .team-roster-head span { display:block; margin-top:4px; color:var(--muted); font-size:10px; }
+
+/* The archive bracket handles its own horizontal gestures in the WebView. */
+.menu-slide .season-mini-bracket { justify-content:flex-start; scroll-snap-type:none; touch-action:pan-x pan-y pinch-zoom; cursor:grab; }
+.menu-slide .season-mini-bracket[data-dragging="true"] { cursor:grabbing; }
+.menu-slide .season-mini-bracket[data-dragging="true"] * { user-select:none; }
+
+/* Keep swipes on the Menu cards from trapping page scroll or blocking the mini bracket. */
+.menu-carousel { touch-action:auto; overscroll-behavior:auto; }
+.menu-slide { overscroll-behavior-y:auto; }
+.menu-layout>.menu-feature-card--season { box-sizing:border-box; align-self:start; height:clamp(620px,72vh,760px); min-height:0; max-height:none; }
+@media(max-width:767px) {
+  .menu-layout>.menu-feature-card--season { height:clamp(480px,62vh,600px); }
+}
 
 /* Historical club crests move through the Menu hero without repainting the whole backdrop. */
 .menu-emblem-orbit { position:relative; isolation:isolate; overflow:visible; }
@@ -3815,3 +3847,57 @@ select.input option {
   .group-assignment-list .team-series-row { grid-template-columns:minmax(0,1fr) minmax(110px,150px); }
 }
 .menu-side-stack>.menu-command { padding:0; border:0; border-radius:0; background:transparent; }
+
+/* Last cascade layer: touch gestures and fixed archive card sizing. */
+.menu-carousel { touch-action:auto !important; overscroll-behavior-y:auto; }
+.menu-slide { overscroll-behavior-y:auto !important; }
+.menu-layout>.menu-feature-card--season { box-sizing:border-box; align-self:start; height:clamp(620px,72vh,760px) !important; min-height:0; max-height:none; }
+@media(max-width:767px) {
+  .menu-layout>.menu-feature-card--season { height:clamp(480px,62vh,600px) !important; }
+}
+
+/* Final layout overrides: series/groups always stack, and the archive map
+   keeps a constrained viewport with every bracket round horizontally reachable. */
+.table-subtables {
+  display:grid !important;
+  grid-template-columns:minmax(0,1fr) !important;
+  align-items:start;
+  min-width:0;
+}
+.table-subtables > .card--wide {
+  grid-column:1 / -1 !important;
+  width:100%;
+  min-width:0;
+}
+.menu-layout .menu-slide,
+.menu-layout .menu-season-content {
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
+}
+.menu-layout .menu-slide .season-mini-bracket {
+  display:flex;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
+  flex-wrap:nowrap;
+  justify-content:flex-start;
+  overflow-x:scroll !important;
+  overflow-y:hidden;
+  scrollbar-width:auto;
+  scroll-snap-type:none;
+  touch-action:pan-x pan-y pinch-zoom;
+}
+.menu-layout .menu-slide .season-mini-col { flex:0 0 148px; }
+.menu-layout .menu-slide .season-mini-col--final { flex-basis:166px; }
+.menu-layout .menu-slide .season-mini-bracket::-webkit-scrollbar { height:8px; }
+.menu-layout .menu-slide .season-mini-bracket::-webkit-scrollbar-thumb { background:var(--accent); border-radius:999px; }
+
+/* Keep the archive final above the third-place match on every screen size. */
+.menu-layout .menu-final-pair {
+  grid-template-columns:minmax(0,1fr) !important;
+  grid-auto-flow:row;
+}
+.menu-layout .menu-final-pair > .menu-match-card:first-child { grid-row:1; }
+.menu-layout .menu-final-pair > .menu-match-card:nth-child(2) { grid-row:2; }

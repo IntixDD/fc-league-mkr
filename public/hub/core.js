@@ -403,27 +403,43 @@ window.Hub = (() => {
 
   function readFileText(file) {
     return new Promise((resolve, reject) => {
+      const clean = (text) => String(text || '').replace(/^\uFEFF/, '')
+      const fallbackToBuffer = () => {
+        if (typeof file?.arrayBuffer === 'function' && typeof TextDecoder !== 'undefined') {
+          try {
+            Promise.resolve(file.arrayBuffer()).then((buffer) => {
+              try { resolve(clean(new TextDecoder('utf-8').decode(buffer))) } catch { fallbackToText() }
+            }, fallbackToText)
+          } catch { fallbackToText() }
+          return
+        }
+        fallbackToText()
+      }
       const fallbackToText = () => {
         if (typeof file?.text !== 'function') {
           reject(new Error('No se pudo leer el archivo seleccionado'))
           return
         }
         try {
-          file.text().then((text) => resolve(String(text).replace(/^\uFEFF/, '')), reject)
+          file.text().then((text) => resolve(clean(text)), reject)
         } catch (error) {
           reject(error)
         }
       }
       if (typeof FileReader === 'undefined') {
-        fallbackToText()
+        fallbackToBuffer()
         return
       }
       const reader = new FileReader()
-      reader.onload = () => resolve(String(reader.result || '').replace(/^\uFEFF/, ''))
-      reader.onerror = fallbackToText
+      reader.onload = () => {
+        const text = clean(reader.result)
+        if (!text && Number(file?.size) > 0) fallbackToBuffer()
+        else resolve(text)
+      }
+      reader.onerror = fallbackToBuffer
       try {
         reader.readAsText(file)
-      } catch { fallbackToText() }
+      } catch { fallbackToBuffer() }
     })
   }
 

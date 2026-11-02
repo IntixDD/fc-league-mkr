@@ -497,6 +497,17 @@
     } catch {
       return H.toast(`${file.name || 'Archivo'}: no se pudo leer como JSON`, 'error')
     }
+    const logoEntries = Array.isArray(data?.logos) ? data.logos : []
+    const seasons = Array.isArray(data?.seasons) ? data.seasons : Array.isArray(data) ? data : Array.isArray(data?.teams) ? [data] : []
+    if (logoEntries.length) {
+      const importedLogos = H.importLogoData(logoEntries)
+      if (!seasons.length) {
+        if (importedLogos.length) H.toast(`${importedLogos.length} escudo(s) cargados en la galería`)
+        else H.toast('El JSON no contiene escudos compatibles', 'error')
+        return
+      }
+    }
+    if (!seasons.length) return H.toast('El JSON no contiene temporadas ni una galería de escudos', 'error')
     importData(data)
   }
 

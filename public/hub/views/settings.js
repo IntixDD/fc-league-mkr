@@ -259,12 +259,18 @@
     sfxPlayers.set(file, sound)
   })
   ensureSfxContext()
-  document.addEventListener('pointerdown', (event) => {
+  let lastSfxControl = null
+  let lastSfxAt = 0
+  document.addEventListener('click', (event) => {
     const target = event.target.closest('.nav-button, button, a[href], [role="button"], .file-btn, [data-action], [data-open-menu], .logo')
     if (!target) return
+    const now = performance.now()
+    if (target === lastSfxControl && now - lastSfxAt < 120) return
+    lastSfxControl = target
+    lastSfxAt = now
     if (target.closest('.nav-button')) playSfx('nav.wav')
     else playSfx()
-  }, { capture: true, passive: true })
+  })
 
   const urlFor = (item) => {
     if (!urls.has(item.id)) urls.set(item.id, URL.createObjectURL(item.blob))

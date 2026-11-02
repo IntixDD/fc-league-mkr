@@ -292,13 +292,47 @@
       const carousel = el.querySelector(`[data-carousel="${key}"]`)
       let startX = null
       let startY = null
+      let touchGesture = null
+      const findHorizontalScroller = (target) => {
+        let node = target instanceof Element ? target : target?.parentElement
+        const directScroller = node?.closest('.season-mini-bracket, .bracket--map, .season-standing-table-wrap, .table-wrap')
+        if (directScroller && carousel.contains(directScroller)) return directScroller
+        while (node && node !== carousel) {
+          const overflowX = getComputedStyle(node).overflowX
+          if (node.scrollWidth > node.clientWidth + 2 && (overflowX === 'auto' || overflowX === 'scroll')) return node
+          node = node.parentElement
+        }
+        return null
+      }
+      carousel.querySelectorAll('.season-mini-bracket').forEach((map) => {
+        let pointerDrag = null
+        map.addEventListener('pointerdown', (event) => {
+          if (event.pointerType !== 'mouse' || event.button !== 0) return
+          pointerDrag = { pointerId: event.pointerId, x: event.clientX, scrollLeft: map.scrollLeft }
+          map.dataset.dragging = 'true'
+          map.setPointerCapture?.(event.pointerId)
+        })
+        map.addEventListener('pointermove', (event) => {
+          if (!pointerDrag || event.pointerId !== pointerDrag.pointerId) return
+          map.scrollLeft = pointerDrag.scrollLeft - (event.clientX - pointerDrag.x)
+          if (event.cancelable) event.preventDefault()
+        })
+        const finishPointerDrag = (event) => {
+          if (!pointerDrag || event.pointerId !== pointerDrag.pointerId) return
+          pointerDrag = null
+          delete map.dataset.dragging
+        }
+        map.addEventListener('pointerup', finishPointerDrag)
+        map.addEventListener('pointercancel', finishPointerDrag)
+        map.addEventListener('lostpointercapture', finishPointerDrag)
+      })
       carousel.addEventListener('pointerdown', (event) => {
+        if (event.pointerType !== 'mouse') return
         pauseAuto(key)
         if (event.button != null && event.button !== 0) return
-        if (event.target.closest('.season-mini-bracket')) return
+        if (findHorizontalScroller(event.target)) return
         startX = event.clientX
         startY = event.clientY
-        try { carousel.setPointerCapture(event.pointerId) } catch {}
       }, { passive: true })
       carousel.addEventListener('pointermove', (event) => {
         if (startX == null || startY == null) return
@@ -310,6 +344,7 @@
         }
       })
       carousel.addEventListener('pointerup', (event) => {
+        if (event.pointerType !== 'mouse') return
         const delta = startX == null ? 0 : event.clientX - startX
         startX = null
         startY = null
@@ -317,8 +352,63 @@
         if (Math.abs(delta) > 48) move(key, delta < 0 ? 1 : -1)
         resumeAuto(key)
       }, { passive: true })
-      carousel.addEventListener('lostpointercapture', () => { startX = null; startY = null; delete carousel.dataset.dragging; resumeAuto(key) }, { passive: true })
-      carousel.addEventListener('pointercancel', () => { startX = null; startY = null; delete carousel.dataset.dragging; resumeAuto(key) }, { passive: true })
+      carousel.addEventListener('pointercancel', (event) => {
+        if (event.pointerType !== 'mouse') return
+        startX = null
+        startY = null
+        delete carousel.dataset.dragging
+        resumeAuto(key)
+      }, { passive: true })
+      carousel.addEventListener('touchstart', (event) => {
+        if (event.touches.length !== 1) { touchGesture = null; return }
+        const touch = event.touches[0]
+        pauseAuto(key)
+        const horizontalScroller = findHorizontalScroller(event.target)
+        touchGesture = { x: touch.clientX, y: touch.clientY, lastY: touch.clientY, target: event.target, horizontalScroller, scrollLeft: horizontalScroller?.scrollLeft || 0 }
+      }, { passive: true })
+      carousel.addEventListener('touchmove', (event) => {
+        if (!touchGesture || event.touches.length !== 1) return
+        const touch = event.touches[0]
+        const dx = touch.clientX - touchGesture.x
+        const dy = touch.clientY - touchGesture.y
+        // A nested map owns its horizontal gesture. Let the WebView perform
+        // native scrolling instead of cancelling the touch and emulating it.
+        if (touchGesture.horizontalScroller?.matches('.season-mini-bracket, .bracket--map')) {
+          touchGesture.lastY = touch.clientY
+          return
+        }
+        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+          if (touchGesture.horizontalScroller) {
+            touchGesture.innerHorizontal = true
+            event.preventDefault()
+            touchGesture.horizontalScroller.scrollLeft = touchGesture.scrollLeft - dx
+          } else {
+            touchGesture.horizontal = true
+            event.preventDefault()
+          }
+        } else if (Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
+          const slide = carousel.querySelector('.menu-slide.is-active')
+          const canScrollSlide = slide && (dy < 0
+            ? slide.scrollTop + slide.clientHeight < slide.scrollHeight - 1
+            : slide.scrollTop > 0)
+          if (!canScrollSlide) {
+            event.preventDefault()
+            const content = document.querySelector('.content')
+            if (content) content.scrollTop -= touch.clientY - touchGesture.lastY
+          }
+        }
+        touchGesture.lastY = touch.clientY
+      }, { passive: false })
+      carousel.addEventListener('touchend', (event) => {
+        const gesture = touchGesture
+        touchGesture = null
+        if (gesture && !gesture.horizontalScroller && gesture.horizontal && event.changedTouches.length) {
+          const delta = event.changedTouches[0].clientX - gesture.x
+          if (Math.abs(delta) > 48) move(key, delta < 0 ? 1 : -1)
+        }
+        resumeAuto(key)
+      }, { passive: true })
+      carousel.addEventListener('touchcancel', () => { touchGesture = null; resumeAuto(key) }, { passive: true })
       carousel.addEventListener('scroll', () => { pauseAuto(key); resumeAuto(key) }, { passive: true, capture: true })
       carousel.addEventListener('wheel', () => { pauseAuto(key); resumeAuto(key) }, { passive: true })
       carousel.addEventListener('focusin', () => pauseAuto(key))
