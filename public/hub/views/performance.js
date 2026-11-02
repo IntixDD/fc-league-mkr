@@ -135,12 +135,12 @@
       const hero = `
         <article class="card card--wide perf-hero">
           <div class="perf-bg" aria-hidden="true">
-            ${backgroundLogos.map((l, i) => `<img class="perf-bg-logo${i === bgIndex ? ' is-active' : ''}" ${i === bgIndex ? `src="${esc(l)}"` : `data-src="${esc(l)}"`} alt="" decoding="async">`).join('')}
+            ${backgroundLogos.map((l, i) => `<img class="perf-bg-logo${i === bgIndex ? ' is-active' : ''}" ${i === bgIndex ? `src="${esc(l)}"` : `data-src="${esc(l)}"`} alt="" loading="lazy" decoding="async">`).join('')}
           </div>
           <div class="perf-hero-inner">
             <p class="perf-eyebrow">${rec.seasons.length} temporada(s) · ${rec.logos.length} escudo(s)</p>
             <h2 class="perf-name">${esc(rec.name)}</h2>
-            <div class="logo-strip logo-strip--lg">${rec.logos.map((l) => `<span class="crest crest--md"><img src="${esc(l)}" alt=""></span>`).join('')}</div>
+            <div class="logo-strip logo-strip--lg">${rec.logos.map((l) => `<span class="crest crest--md"><img src="${esc(l)}" alt="" loading="lazy" decoding="async"></span>`).join('')}</div>
           </div>
         </article>`
 
@@ -220,6 +220,7 @@
         { label: 'Goleador de torneo', flag: 'cupScorer', tone: 'accent', icon: 'ball', emptyLabel: 'Sin logros' },
         { label: 'Goleador de liga', flag: 'leagueScorer', tone: 'accent', icon: 'ball', emptyLabel: 'Sin logros' },
         { label: 'Goleador de Serie', flag: 'seriesScorer', tone: 'green', icon: 'ball', emptyLabel: 'Sin logros' },
+        { label: 'Campeón de grupo', flag: 'groupChampion', tone: 'purple', icon: 'crown', emptyLabel: 'Sin logros' },
         { label: 'Temporada perfecta', flag: 'perfectSeason', tone: 'gold', icon: 'star', emptyLabel: 'Sin logros' },
         { label: 'Invicto en Liga', flag: 'invincibleLeague', tone: 'accent', icon: 'win', emptyLabel: 'Sin logros' },
         { label: 'Invicto en Serie', flag: 'invincibleSeries', tone: 'green', icon: 'win', emptyLabel: 'Sin logros' },

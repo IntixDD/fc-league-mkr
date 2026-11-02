@@ -1,6 +1,6 @@
 (() => {
-  const DEFAULT_SECTION = 'teams'
-  const buttons = Array.from(document.querySelectorAll('.nav-button'))
+  const DEFAULT_SECTION = 'menu'
+  const buttons = Array.from(document.querySelectorAll('.nav-button:not(.mobile-menu-nav-button)'))
   const sections = Array.from(document.querySelectorAll('.section'))
   const indicator = document.querySelector('.nav-indicator')
   const list = document.querySelector('.nav-list')
@@ -78,6 +78,7 @@
 
   sections.forEach((section) => {
     const title = section.querySelector('.section-title')
+    if (!title) return
     const text = title.textContent.trim()
     title.setAttribute('aria-label', text)
     title.textContent = ''
@@ -106,13 +107,14 @@
 
   function activate(id, { animate = true } = {}) {
     if (id === 'playoffs') id = 'tournament'
-    if (!ids.includes(id)) id = DEFAULT_SECTION
+    if (id !== 'menu' && !ids.includes(id)) id = DEFAULT_SECTION
     if (id === current) return
     current = id
 
-    const button = buttons[ids.indexOf(id)]
+    const button = ids.includes(id) ? buttons[ids.indexOf(id)] : null
     buttons.forEach((b) => b.toggleAttribute('aria-current', b === button))
-    button.setAttribute('aria-current', 'page')
+    if (button) button.setAttribute('aria-current', 'page')
+    document.querySelector('[data-menu-nav]')?.toggleAttribute('aria-current', id === 'menu')
 
     sections.forEach((section) => {
       const active = section.id === id
@@ -128,14 +130,16 @@
     document.dispatchEvent(new CustomEvent('app:sectionchange', { detail: { id } }))
     window.Hub?.render?.()
 
-    moveIndicator(button)
-    button.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: animate ? 'smooth' : 'auto' })
-    if (animate) {
+    if (button) {
+      moveIndicator(button)
+      button.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: animate ? 'smooth' : 'auto' })
+    } else indicator.style.opacity = '0'
+    if (animate && button) {
       replay(indicator, 'is-moving')
       replay(button, 'is-popping')
     }
 
-    document.title = `${button.getAttribute('aria-label')} · League Hub`
+    document.title = `${button?.getAttribute('aria-label') || 'Menú'} · League Hub`
   }
 
   function spawnRipple(button, event) {
@@ -226,8 +230,16 @@
   window.addEventListener('resize', () => hideTip(), { passive: true })
   window.visualViewport?.addEventListener('resize', () => hideTip(), { passive: true })
 
-  const brand = document.querySelector('[data-brand-picker]')
-  if (brand) brand.addEventListener('click', () => window.Hub?.pickBrand?.())
+  document.querySelectorAll('[data-open-menu]').forEach((brand) => brand.addEventListener('click', () => {
+    if (location.hash !== '#menu') history.pushState(null, '', '#menu')
+    activate('menu')
+  }))
+  document.querySelector('[data-menu-nav]')?.addEventListener('click', (event) => {
+    event.preventDefault()
+    spawnRipple(event.currentTarget, event)
+    if (location.hash !== '#menu') history.pushState(null, '', '#menu')
+    activate('menu')
+  })
 
   window.addEventListener('popstate', () => activate(location.hash.slice(1)))
   window.addEventListener('hashchange', () => activate(location.hash.slice(1)))
@@ -237,7 +249,10 @@
     if (button) moveIndicator(button)
   }).observe(list)
 
-  activate(location.hash.slice(1), { animate: false })
+  if (location.hash !== '#menu') {
+    try { history.replaceState(null, '', '#menu') } catch {}
+  }
+  activate('menu', { animate: false })
   requestAnimationFrame(() => indicator.classList.add('is-ready'))
 
   if (window.Hub) window.Hub.init()

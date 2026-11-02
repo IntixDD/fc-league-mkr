@@ -13,8 +13,11 @@
     { key: 'cupGoals', label: 'GF Camp.', title: 'Goles a favor en campeonatos (Tournament)' },
     { key: 'goals', label: 'Goles', title: 'Goles totales' },
     { key: 'points', label: 'Puntos', title: 'Puntos totales (solo liga)' },
+    { key: 'titles', label: 'Títulos', title: 'Títulos totales', icon: 'trophy' },
+    { key: 'achievements', label: 'Logros', title: 'Logros totales', icon: 'star' },
+    { key: 'badges', label: 'Insignias', title: 'Insignias obtenidas', icon: 'points25' },
   ]
-  const TIEBREAK = ['cups', 'leagues', 'series', 'runnerUp', 'third', 'fourth', 'points', 'goals']
+  const TIEBREAK = ['titles', 'achievements', 'badges', 'cups', 'leagues', 'series', 'runnerUp', 'third', 'fourth', 'points', 'goals']
   let compareTeams = ['', '']
 
   function selectedTeams(records) {
@@ -130,7 +133,7 @@
     },
 
     render(el) {
-      const records = H.teamRecords().map((r) => ({ ...r, t: H.teamTotals(r) }))
+      const records = H.teamRecords().map((r) => ({ ...r, t: { ...H.teamTotals(r), badges: H.badgeCount?.(r) || 0 } }))
       const seasons = H.statSeasons()
       if (!records.length) {
         el.innerHTML = `<article class="card"><p class="empty">El historial se construye con las temporadas guardadas en <a href="#seasons">Seasons</a> y la temporada en curso.</p></article>`
@@ -150,7 +153,8 @@
         const active = c.key === sortKey
         const aria = active ? (dir === 1 ? 'ascending' : 'descending') : 'none'
         const st = H.STAT_STYLE[c.key]
-        return `<th scope="col" class="num ${st.cls}" aria-sort="${aria}"><button class="sort-btn${active ? ' is-active' : ''}" data-sort="${c.key}" title="${c.title}">${H.ICONS[st.icon]}<span>${c.label}</span><span class="sort-arrow" aria-hidden="true">${active ? (dir === 1 ? '↑' : '↓') : ''}</span></button></th>`
+        const icon = c.icon === 'points25' ? H.badgeIcon?.({ icon: 'points25' }) || H.ICONS[st.icon] : H.ICONS[st.icon]
+        return `<th scope="col" class="num ${st.cls}" aria-sort="${aria}"><button class="sort-btn${active ? ' is-active' : ''}" data-sort="${c.key}" title="${c.title}">${icon}<span>${c.label}</span><span class="sort-arrow" aria-hidden="true">${active ? (dir === 1 ? '↑' : '↓') : ''}</span></button></th>`
       }).join('')
 
       el.innerHTML = `

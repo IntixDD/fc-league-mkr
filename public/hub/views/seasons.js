@@ -49,6 +49,7 @@
         ['Goleador de torneo', 'cupScorer', 'ball', 'accent'],
         ['Goleador de liga', 'leagueScorer', 'ball', 'accent'],
         ['Goleador de Serie', 'seriesScorer', 'ball', 'green'],
+        ['Campeón de grupo', 'groupChampion', 'crown', 'purple'],
         ['Temporada perfecta', 'perfectSeason', 'star', 'gold'],
         ['Invicto en Liga', 'invincibleLeague', 'win', 'accent'],
         ['Invicto en Serie', 'invincibleSeries', 'win', 'green'],
@@ -86,18 +87,21 @@
   }
 
   function standingsSummary(season, lazy = false) {
-    const grouped = season.tableConfig?.type === 'two-series'
+    const grouped = ['two-series', 'groups'].includes(season.tableConfig?.type)
     const groups = lazy
       ? []
+      : season.tableConfig?.type === 'groups'
+      ? season.tableConfig.groups.map((ids, index) => [`Grupo ${String.fromCharCode(65 + index)}`, H.computeTable(season, ids)])
       : grouped
       ? [
           ['Serie 1', H.computeTable(season, season.tableConfig.series1)],
           ['Serie 2', H.computeTable(season, season.tableConfig.series2)],
         ]
       : [['Tabla regular', H.computeTable(season)]]
-    const count = grouped ? '2 series' : `${season.teams.length} equipos`
+    const count = season.tableConfig?.type === 'groups' ? `${season.tableConfig.count} grupos` : grouped ? '2 series' : `${season.teams.length} equipos`
     const content = lazy ? '' : `<div class="season-standing-groups">${groups.map(([label, rows]) => `<section class="season-award-group"><h4>${label}<span>${rows.length} equipos</span></h4>${standingsTable(rows)}</section>`).join('')}</div>`
-    return `<details class="season-awards season-standings" data-season-detail="standings" data-season-id="${esc(season.id || '')}"><summary><span class="season-awards-heading">${TABLE_ICON}<span>${grouped ? 'Series' : 'Tabla'}</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
+    const standingsLabel = season.tableConfig?.type === 'groups' ? 'Grupos' : grouped ? 'Series' : 'Tabla'
+    return `<details class="season-awards season-standings" data-season-detail="standings" data-season-id="${esc(season.id || '')}"><summary><span class="season-awards-heading">${TABLE_ICON}<span>${standingsLabel}</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
   }
 
   function fixtureSummary(season, lazy = false) {
@@ -109,6 +113,7 @@
     const seriesFor = new Map()
     ;(fixtures?.series1 || []).forEach((id) => seriesFor.set(id, 'Serie 1'))
     ;(fixtures?.series2 || []).forEach((id) => seriesFor.set(id, 'Serie 2'))
+    ;(fixtures?.groups || []).forEach((group, index) => group.forEach((id) => seriesFor.set(id, `Grupo ${String.fromCharCode(65 + index)}`)))
     const roundCount = fixtures?.roundsPerLeg || (fixtures?.mode === 'double' ? rounds.length / 2 : 0)
     const content = lazy ? '' : rounds.length
       ? `<div class="season-fixture-rounds">${rounds.map((round, index) => {
@@ -133,6 +138,23 @@
       : '<p class="season-awards-empty">No se creó un fixture para esta temporada.</p>'
     const count = rounds.length ? lazy ? `${rounds.length} jornadas` : `${played}/${matches.length} partidos` : 'No creado'
     return `<details class="season-awards season-fixture-details" data-season-detail="fixture" data-season-id="${esc(season.id || '')}"><summary><span class="season-awards-heading">${TABLE_ICON}<span>Fixture</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
+  }
+
+  function menuFixtureSummary(season) {
+    const fixtures = season.fixtures
+    const rounds = fixtures?.rounds || []
+    if (!rounds.length) return '<p class="empty">No hay Fixtures guardados.</p>'
+    const teams = new Map(season.teams.map((team) => [team.id, team]))
+    const roundCount = fixtures.roundsPerLeg || (fixtures.mode === 'double' ? rounds.length / 2 : 0)
+    return `<div class="menu-fixture-rounds">${rounds.map((round, index) => {
+      const leg = fixtures.mode === 'double' ? ` · ${index < roundCount ? 'Ida' : 'Vuelta'}` : ''
+      const matches = round.map((match) => {
+        const home = teams.get(match.home)
+        const away = teams.get(match.away)
+        return `<article class="menu-fixture-match"><span class="menu-fixture-team menu-fixture-home">${home ? crest(home.logo, 'xs', home.name) : '<span class="crest crest--xs crest--tbd"></span>'}<span>${esc(home?.name || '—')}</span></span><strong class="menu-fixture-score">${match.hg ?? '—'} <i>:</i> ${match.ag ?? '—'}</strong><span class="menu-fixture-team menu-fixture-away">${away ? crest(away.logo, 'xs', away.name) : '<span class="crest crest--xs crest--tbd"></span>'}<span>${esc(away?.name || '—')}</span></span></article>`
+      }).join('')
+      return `<section class="menu-fixture-round"><h4>Jornada ${index + 1}${leg}</h4><div class="menu-fixture-games">${matches}</div></section>`
+    }).join('')}</div>`
   }
 
   function tournamentSummary(season, lazy = false) {
@@ -250,7 +272,7 @@
 
   function watchMiniBrackets(el) {
     miniBracketObserver?.disconnect()
-    const maps = [...el.querySelectorAll('.season-tournament-details[open] .season-mini-bracket')]
+    const maps = [...el.querySelectorAll('.season-mini-bracket')]
     if (!maps.length || typeof ResizeObserver === 'undefined') return
     miniBracketObserver = new ResizeObserver((entries) => {
       entries.forEach(({ target }) => {
@@ -271,6 +293,7 @@
     if (!cur.teams.length) return H.toast('Registra equipos antes de guardar', 'error')
     if (s.seasons.some((x) => x.number === cur.number && x.id !== cur.id))
       return H.toast(`Ya existe una Temporada ${cur.number} guardada. Cambia el número.`, 'error')
+    seasonStatsCache.delete(cur)
     H.update((st) => {
       const c = st.current
       if (!c.id) c.id = H.uid()
@@ -476,6 +499,21 @@
     }
     importData(data)
   }
+
+  H.seasonMenuParts = (season) => {
+    const unwrap = (markup) => {
+      const wrapper = '<div class="season-awards-content">'
+      const start = markup.indexOf(wrapper)
+      const end = markup.lastIndexOf('</div></details>')
+      return start >= 0 && end > start ? `<div class="menu-season-content">${markup.slice(start + wrapper.length, end)}</div>` : ''
+    }
+    return {
+      table: unwrap(standingsSummary(season)),
+      fixtures: menuFixtureSummary(season),
+      tournament: unwrap(tournamentSummary(season)),
+    }
+  }
+  H.watchMiniBrackets = watchMiniBrackets
 
   H.view('seasons', {
     bind(el) {

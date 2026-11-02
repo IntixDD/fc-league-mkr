@@ -158,6 +158,7 @@ window.Hub = (() => {
       playoffs: null,
       fields: null,
       tableConfig: null,
+      seasonMode: 'clubs',
       manual: null,
       awards: { leagueScorer: null, cupScorer: null },
       savedAt: null,
@@ -205,6 +206,7 @@ window.Hub = (() => {
         roundsPerLeg: Math.max(0, Number(raw.fixtures.roundsPerLeg) || 0),
         series1: Array.isArray(raw.fixtures.series1) ? raw.fixtures.series1.filter((id) => ids.has(id)) : null,
         series2: Array.isArray(raw.fixtures.series2) ? raw.fixtures.series2.filter((id) => ids.has(id)) : null,
+        groups: Array.isArray(raw.fixtures.groups) ? raw.fixtures.groups.map((group) => group.filter((id) => ids.has(id))) : null,
         rounds: raw.fixtures.rounds
           .map((r) =>
             (Array.isArray(r) ? r : [])
@@ -220,6 +222,9 @@ window.Hub = (() => {
       const one = [...new Set((Array.isArray(raw.tableConfig.series1) ? raw.tableConfig.series1 : []).filter((id) => ids.has(id))) ]
       const two = [...new Set((Array.isArray(raw.tableConfig.series2) ? raw.tableConfig.series2 : []).filter((id) => ids.has(id) && !one.includes(id))) ]
       tableConfig = { type: 'two-series', series1: one, series2: two }
+    } else if (raw.tableConfig?.type === 'groups' && [4, 8].includes(Number(raw.tableConfig.count)) && Array.isArray(raw.tableConfig.groups)) {
+      const groups = raw.tableConfig.groups.map((group) => [...new Set((Array.isArray(group) ? group : []).filter((id) => ids.has(id)))])
+      if (groups.length === Number(raw.tableConfig.count)) tableConfig = { type: 'groups', count: groups.length, groups }
     }
 
     let playoffs = null
@@ -322,6 +327,7 @@ window.Hub = (() => {
       playoffs,
       fields,
       tableConfig,
+      seasonMode: ['clubs', 'selections', 'premier', 'laliga'].includes(raw.seasonMode) ? raw.seasonMode : 'clubs',
       manual: sanitizeManual(raw.manual, ids),
       awards: {
         leagueScorer: ids.has(awards.leagueScorer) ? awards.leagueScorer : null,
@@ -337,18 +343,22 @@ window.Hub = (() => {
     if (!raw || typeof raw !== 'object') return defaultState()
     const logoData = []
     const seenLogos = new Set()
+    const logoCategories = new Map()
     const addLogo = (data) => {
       if (typeof data !== 'string' || !data.startsWith('data:image/') || seenLogos.has(data)) return
       seenLogos.add(data)
       logoData.push(data)
     }
     // Older saved states used random string IDs and could contain repeated gallery entries.
-    ;(Array.isArray(raw.logos) ? raw.logos : []).forEach((logo) => addLogo(logo?.data))
+    ;(Array.isArray(raw.logos) ? raw.logos : []).forEach((logo) => {
+      addLogo(logo?.data)
+      if (logo?.data && ['custom', 'selections', 'premier', 'laliga', 'other'].includes(logo.category)) logoCategories.set(logo.data, logo.category)
+    })
     const current = sanitizeSeason(raw.current) || emptySeason(1)
     const seasons = Array.isArray(raw.seasons) ? raw.seasons.map(sanitizeSeason).filter((s) => s && s.id) : []
     ;[current, ...seasons].forEach((season) => season.teams.forEach((team) => addLogo(team.logo)))
     return {
-      logos: logoData.map((data, id) => ({ id, data })),
+      logos: logoData.map((data, id) => ({ id, data, category: logoCategories.get(data) || 'custom' })),
       brandLogo: typeof raw.brandLogo === 'string' && raw.brandLogo.startsWith('data:image/') ? raw.brandLogo : null,
       current,
       seasons,
@@ -356,6 +366,18 @@ window.Hub = (() => {
   }
 
   function readImage(file, max = 256) {
+    const isSvg = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name || '')
+    if (isSvg) {
+      return file.arrayBuffer().then((buffer) => {
+        const bytes = new Uint8Array(buffer)
+        let binary = ''
+        const chunkSize = 0x8000
+        for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + chunkSize, bytes.length)))
+        }
+        return `data:image/svg+xml;base64,${btoa(binary)}`
+      })
+    }
     return new Promise((resolve, reject) => {
       if (!file.type.startsWith('image/')) return reject(new Error('El archivo no es una imagen'))
       const url = URL.createObjectURL(file)
@@ -390,7 +412,7 @@ window.Hub = (() => {
           continue
         }
         const id = state.logos.length
-        state.logos.push({ id, data })
+        state.logos.push({ id, data, category: 'custom' })
         added.push(id)
       } catch (err) {
         toast(`${file.name}: ${err.message}`, 'error')
@@ -412,7 +434,8 @@ window.Hub = (() => {
         continue
       }
       const id = state.logos.length
-      state.logos.push({ id, data })
+      const category = ['custom', 'selections', 'premier', 'laliga', 'other'].includes(entry?.category) ? entry.category : 'custom'
+      state.logos.push({ id, data, category })
       added.push(id)
     }
     if (added.length) {
@@ -594,6 +617,9 @@ window.Hub = (() => {
     cupGoals: { icon: 'ball', cls: 'tone tone-blue' },
     goals: { icon: 'ball', cls: 'tone tone-cyan' },
     points: { icon: 'star', cls: 'tone tone-accent' },
+    titles: { icon: 'trophy', cls: 'tone tone-gold' },
+    achievements: { icon: 'star', cls: 'tone tone-accent' },
+    badges: { icon: 'medal1', cls: 'tone tone-cyan' },
   }
 
   /* ---------- League logic ---------- */
@@ -890,6 +916,7 @@ window.Hub = (() => {
         repechageSevenGoals: false,
         leagueChampion: false,
         seriesChampion: false,
+        groupChampion: false,
         wonTitleOnGoalDifference: false,
         wonTitleWithNonPositiveGoalDifference: false,
         cupChampion: false,
@@ -937,8 +964,11 @@ window.Hub = (() => {
     const leagueDone = manual ? manual.finished : league.length > 0 && league.every(played)
     const table = computeTable(season)
     table.forEach((row, i) => (byId.get(row.team.id).position = i + 1))
-    const twoSeries = season.tableConfig?.type === 'two-series'
-    const seriesGroups = twoSeries ? [season.tableConfig.series1, season.tableConfig.series2] : []
+    const groupStage = season.tableConfig?.type === 'groups'
+    const twoSeries = season.tableConfig?.type === 'two-series' || groupStage
+    const seriesGroups = season.tableConfig?.type === 'two-series'
+      ? [season.tableConfig.series1, season.tableConfig.series2]
+      : groupStage ? season.tableConfig.groups : []
     const assignedSeriesTeams = new Set(seriesGroups.flat())
     const validSeries = twoSeries && seriesGroups.every((series) => series.length >= 2) && assignedSeriesTeams.size === season.teams.length && season.teams.every((team) => assignedSeriesTeams.has(team.id))
     if (leagueDone && twoSeries && validSeries) {
@@ -947,11 +977,15 @@ window.Hub = (() => {
         rows.forEach((row, i) => (byId.get(row.team.id).leaguePosition = i + 1))
         const winner = rows[0]
         if (winner && (winner.pj || winner.pts)) {
-          byId.get(winner.team.id).seriesChampion = true
-          if (rows[1] && winner.pts === rows[1].pts && winner.dg > rows[1].dg) {
-            byId.get(winner.team.id).wonTitleOnGoalDifference = true
+          if (groupStage) {
+            byId.get(winner.team.id).groupChampion = true
+          } else {
+            byId.get(winner.team.id).seriesChampion = true
+            if (rows[1] && winner.pts === rows[1].pts && winner.dg > rows[1].dg) {
+              byId.get(winner.team.id).wonTitleOnGoalDifference = true
+            }
+            if (winner.dg <= 0) byId.get(winner.team.id).wonTitleWithNonPositiveGoalDifference = true
           }
-          if (winner.dg <= 0) byId.get(winner.team.id).wonTitleWithNonPositiveGoalDifference = true
         }
         const maxGoals = Math.max(0, ...rows.map((row) => row.gf))
         if (maxGoals > 0) rows.filter((row) => row.gf === maxGoals).forEach((row) => (byId.get(row.team.id).seriesScorer = true))
@@ -1327,11 +1361,11 @@ window.Hub = (() => {
   }
 
   function renderBrand() {
-    const brand = document.querySelector('.logo')
-    if (!brand) return
     const custom = state.brandLogo
-    brand.classList.toggle('is-custom', !!custom)
-    brand.style.backgroundImage = custom ? `url("${custom.replace(/"/g, '%22')}")` : ''
+    document.querySelectorAll('.logo, .nav-menu-icon').forEach((brand) => {
+      brand.classList.toggle('is-custom', !!custom)
+      brand.style.backgroundImage = custom ? `url("${custom.replace(/"/g, '%22')}")` : ''
+    })
   }
 
   function scheduleRender(skip = null) {
@@ -1428,6 +1462,13 @@ window.Hub = (() => {
     }
   }
 
+  const PERFORMANCE_TITLE_FLAGS = ['cupChampion', 'leagueChampion', 'seriesChampion', 'runnerUp', 'third', 'fourth', 'seasonScorer', 'seasonCleanSheetAward']
+
+  function titleCount(rec) {
+    return (rec?.seasons || []).reduce((total, season) =>
+      total + PERFORMANCE_TITLE_FLAGS.reduce((count, flag) => count + Number(!!season[flag]), 0), 0)
+  }
+
   function teamTotals(rec) {
     const t = { cups: 0, leagues: 0, series: 0, runnerUp: 0, third: 0, fourth: 0, leagueScorer: 0, cupScorer: 0, league: zero(), cup: zero() }
     rec.seasons.forEach((s) => {
@@ -1448,6 +1489,8 @@ window.Hub = (() => {
     t.cupGoals = t.cup.gf
     t.goals = t.league.gf + t.cup.gf
     t.points = t.league.pts
+    t.titles = titleCount(rec)
+    t.achievements = rec.seasons.reduce((n, season) => n + ['cupScorer', 'leagueScorer', 'seriesScorer', 'perfectSeason', 'invincibleLeague', 'invincibleSeries', 'legendarySeason', 'groupChampion'].reduce((sum, flag) => sum + Number(!!season[flag]), 0), 0)
     return t
   }
 
@@ -1518,6 +1561,8 @@ window.Hub = (() => {
     statSeasons,
     teamRecords,
     teamTotals,
+    titleCount,
+    achievementCount: (record) => teamTotals(record).achievements,
     stageCounts,
     savedCopy,
     isDirty,

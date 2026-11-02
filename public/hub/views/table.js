@@ -70,8 +70,10 @@
         } else if (btn.dataset.action === 'reset-manual') resetManual()
         else if (btn.dataset.action === 'create-table') {
           const format = el.querySelector('[name="table-format"]')?.value
-          const currentType = H.state.current.tableConfig?.type === 'two-series' ? 'two-series' : 'regular'
-          if (format === currentType) return
+          const currentType = H.state.current.tableConfig?.type || 'regular'
+          const targetType = format === 'groups' ? 'groups' : format
+          if (targetType === currentType && (targetType !== 'groups' || Number(el.querySelector('[name="group-count"]')?.value) === H.state.current.tableConfig?.count)) return
+          if (!H.validateSeasonCrests?.()) return
           if (!(await allowCompetitionReset())) return
           if (format === 'two-series') {
             const prior = H.state.current.tableConfig
@@ -80,14 +82,24 @@
               s.current.fixtures = null
               s.current.playoffs = null
             })
+          } else if (format === 'groups') {
+            const count = Number(el.querySelector('[name="group-count"]')?.value) || 4
+            const ids = shuffle(H.state.current.teams.map((t) => t.id))
+            if (ids.length < count * 2) return H.toast(`Registra al menos ${count * 2} equipos para crear ${count} grupos.`, 'error')
+            const groups = Array.from({ length: count }, () => [])
+            ids.forEach((id, index) => groups[index % count].push(id))
+            H.ui.poSize = count * 2
+            H.update((s) => { s.current.tableConfig = { type: 'groups', count, groups }; s.current.fixtures = null; s.current.playoffs = null })
           } else H.update((s) => { s.current.tableConfig = null; s.current.fixtures = null; s.current.playoffs = null })
         } else if (btn.dataset.action === 'random-series') {
+          if (!H.validateSeasonCrests?.()) return
           const ids = shuffle(H.state.current.teams.map((t) => t.id))
           if (ids.length < 4) return H.toast('Registra al menos 4 equipos para crear dos series.', 'error')
           const split = Math.ceil(ids.length / 2)
           if (!(await allowCompetitionReset())) return
           H.update((s) => { s.current.tableConfig = { type: 'two-series', series1: ids.slice(0, split), series2: ids.slice(split) }; s.current.fixtures = null; s.current.playoffs = null })
         } else if (btn.dataset.action === 'save-series') {
+          if (!H.validateSeasonCrests?.()) return
           const first = [...el.querySelectorAll('[data-team-series="1"]')].filter((x) => x.checked).map((x) => x.value)
           const second = [...el.querySelectorAll('[data-team-series="2"]')].filter((x) => x.checked).map((x) => x.value)
           if (first.length < 2 || second.length < 2 || first.length + second.length !== H.state.current.teams.length) return H.toast('Asigna todos los equipos a una sola serie (mínimo 2 por serie).', 'error')
@@ -95,6 +107,17 @@
           const changed = prior?.type !== 'two-series' || first.some((id) => !prior.series1.includes(id)) || second.some((id) => !prior.series2.includes(id))
           if (changed && !(await allowCompetitionReset())) return
           H.update((s) => { s.current.tableConfig = { type: 'two-series', series1: first, series2: second }; if (changed) { s.current.fixtures = null; s.current.playoffs = null } })
+        } else if (btn.dataset.action === 'save-groups') {
+          const config = H.state.current.tableConfig
+          if (config?.type !== 'groups') return
+          if (!H.validateSeasonCrests?.()) return
+          const groups = Array.from({ length: config.count }, () => [])
+          el.querySelectorAll('[data-team-group]').forEach((select) => groups[Number(select.value)]?.push(select.dataset.team))
+          if (groups.some((group) => group.length < 2) || new Set(groups.flat()).size !== H.state.current.teams.length) return H.toast('Asigna todos los equipos y deja al menos 2 en cada grupo.', 'error')
+          const changed = groups.some((group, index) => group.length !== config.groups[index].length || group.some((id) => !config.groups[index].includes(id)))
+          if (changed && !(await allowCompetitionReset())) return
+          H.update((s) => { s.current.tableConfig = { type: 'groups', count: groups.length, groups }; if (changed) { s.current.fixtures = null; s.current.playoffs = null } })
+          H.toast(changed ? 'Asignación de grupos guardada' : 'Los grupos no cambiaron')
         }
       })
       el.addEventListener('input', (e) => {
@@ -112,12 +135,32 @@
         }
         if (e.target.name === 'table-format') {
           const twoSeries = H.state.current.tableConfig?.type === 'two-series'
+          const groups = H.state.current.tableConfig?.type === 'groups'
           const selected = e.target.value
+          const groupCountField = el.querySelector('[name="group-count"]')?.closest('.field')
+          groupCountField?.classList.toggle('groups-count-field', selected !== 'groups')
           const create = el.querySelector('[data-action="create-table"]')
           if (create) {
-            const alreadyActive = (selected === 'two-series') === twoSeries
+            const alreadyActive = selected === (groups ? 'groups' : twoSeries ? 'two-series' : 'regular')
             create.disabled = alreadyActive
-            create.textContent = alreadyActive ? (twoSeries ? 'Tabla de 2 series activa' : 'Tabla regular activa') : `Crear ${selected === 'two-series' ? 'tabla de 2 series' : 'tabla regular'}`
+            create.textContent = alreadyActive ? (groups ? `${H.state.current.tableConfig.count} grupos activos` : twoSeries ? 'Tabla de 2 series activa' : 'Tabla regular activa') : `Crear ${selected === 'groups' ? 'fase de grupos' : selected === 'two-series' ? 'tabla de 2 series' : 'tabla regular'}`
+          }
+          return
+        }
+        if (e.target.name === 'season-mode') {
+          H.update((s) => { s.current.seasonMode = e.target.value })
+          return
+        }
+        if (e.target.name === 'group-count') {
+          const select = el.querySelector('[name="table-format"]')
+          if (select?.value === 'groups') {
+            const create = el.querySelector('[data-action="create-table"]')
+            if (create) {
+              const config = H.state.current.tableConfig
+              const same = config?.type === 'groups' && config.count === Number(e.target.value)
+              create.disabled = !!same
+              create.textContent = same ? `${e.target.value} grupos activos` : `Crear fase de ${e.target.value} grupos`
+            }
           }
           return
         }
@@ -142,14 +185,17 @@
     render(el, s) {
       const season = s.current
       if (!season.teams.length) {
-        el.innerHTML = `<article class="card"><p class="empty">Registra equipos en <a href="#teams">Teams</a> para ver la tabla.</p></article>`
+        const modes = [['clubs', 'Modo clubes'], ['selections', 'Modo selecciones'], ['premier', 'Modo Premier'], ['laliga', 'Modo LaLiga']]
+        el.innerHTML = `<article class="card"><header class="card-head"><h2 class="card-title">Modo de temporada</h2></header><label class="field"><span class="field-label">Escudos permitidos al registrar</span><select class="input" name="season-mode">${modes.map(([value, label]) => `<option value="${value}" ${(season.seasonMode || 'clubs') === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><p class="hint">${season.seasonMode === 'selections' ? 'Solo podrás usar escudos de Selecciones.' : season.seasonMode === 'premier' ? 'Solo podrás usar escudos de Premier League.' : season.seasonMode === 'laliga' ? 'Solo podrás usar escudos de LaLiga.' : 'Los escudos de selecciones quedan deshabilitados.'}</p><p class="empty">Registra equipos en <a href="#teams">Teams</a> para crear la tabla.</p></article>`
         return
       }
       const manual = H.isManualTable(season)
       const editing = manual && H.ui.tableEdit
       const rows = H.computeTable(season)
-      const twoSeries = season.tableConfig?.type === 'two-series'
-      const seriesReady = twoSeries && season.tableConfig.series1.length >= 2 && season.tableConfig.series2.length >= 2 && season.tableConfig.series1.length + season.tableConfig.series2.length === season.teams.length
+      const groupStage = season.tableConfig?.type === 'groups'
+      const twoSeries = season.tableConfig?.type === 'two-series' || groupStage
+      const competitionGroups = groupStage ? season.tableConfig.groups : twoSeries ? [season.tableConfig.series1, season.tableConfig.series2] : []
+      const seriesReady = twoSeries && competitionGroups.length >= 2 && competitionGroups.every((group) => group.length >= 2) && new Set(competitionGroups.flat()).size === season.teams.length
       const { total, played } = H.stageCounts(season)
       const n = season.teams.length
       const zone = season.playoffs
@@ -158,27 +204,33 @@
           ? H.ui.poSize
           : [16, 8, 4].find((size) => size <= n) || 0
       const stage = STAGE[zone]
-      const availableForTournament = twoSeries ? 2 * Math.min(season.tableConfig.series1.length, season.tableConfig.series2.length) : n
+      const availableForTournament = groupStage ? Math.floor(n / season.tableConfig.count) * season.tableConfig.count : twoSeries ? 2 * Math.min(season.tableConfig.series1.length, season.tableConfig.series2.length) : n
       const configuredTournamentSize = season.playoffs?.size || (twoSeries
         ? !H.ui.repechageEnabled ? [16, 8, 4].find((size) => size <= availableForTournament) || 0 : H.ui.poSize
         : zone || H.ui.poSize)
       const repechageMatches = configuredTournamentSize ? (configuredTournamentSize === 4 ? 2 : configuredTournamentSize / 4) : 0
       const directPerSeries = twoSeries ? configuredTournamentSize / 2 - repechageMatches / 2 : 0
       const directCount = configuredTournamentSize - repechageMatches
-      const repechageEligible = twoSeries
+      const repechageEligible = groupStage ? false : twoSeries
         ? season.tableConfig.series1.length >= directPerSeries + repechageMatches && season.tableConfig.series2.length >= directPerSeries + repechageMatches
         : n >= configuredTournamentSize + repechageMatches
-      const repechageEnabled = season.playoffs
+      const repechageEnabled = !groupStage && (season.playoffs
         ? !!season.playoffs.repechage?.enabled
-        : !!H.ui.repechageEnabled && repechageEligible
-      const rowZone = twoSeries
+        : !!H.ui.repechageEnabled && repechageEligible)
+      const rowZone = groupStage
+        ? 2
+        : twoSeries
         ? repechageEnabled ? directPerSeries + repechageMatches : Math.floor(configuredTournamentSize / 2)
         : repechageEnabled ? configuredTournamentSize + repechageMatches : zone
-      const directZone = repechageEnabled ? (twoSeries ? directPerSeries : directCount) : rowZone
+      const directZone = groupStage ? rowZone : repechageEnabled ? (twoSeries ? directPerSeries : directCount) : rowZone
+      const classifiedCount = groupStage
+        ? competitionGroups.reduce((sum, group) => sum + Math.min(2, group.length), 0)
+        : rowZone * (twoSeries ? 2 : 1)
       const signed = (v) => (v > 0 ? `+${v}` : String(v))
       const rowClass = (i) => (i === 0 ? 'is-winner' : i < directZone ? 'is-zone' : i < rowZone ? repechageEnabled ? 'is-repechage' : 'is-zone' : rowZone ? 'is-out' : '')
-      const rowLabel = (i) =>
-        i === 0 ? (twoSeries ? 'Líder de la serie' : 'Líder de la liga') : repechageEnabled && i < rowZone
+      const rowLabel = (i) => groupStage
+        ? i === 0 ? 'Campeón de grupo' : i < rowZone ? 'Clasifica a Tournament' : 'Eliminado'
+        : i === 0 ? (twoSeries ? 'Líder de la serie' : 'Líder de la liga') : repechageEnabled && i < rowZone
           ? twoSeries
             ? i < directPerSeries ? 'Clasifica directo a Tournament' : 'Juega repechaje'
             : i < directCount ? 'Clasifica directo a Tournament' : 'Juega repechaje'
@@ -219,11 +271,13 @@
         : repechageEligible
           ? 'Los equipos en repechaje jugarán por los últimos lugares del cuadro.'
           : `Se necesitan ${repechageMinimum} para usar repechajes.`
+      const modes = [['clubs', 'Modo clubes'], ['selections', 'Modo selecciones'], ['premier', 'Modo Premier'], ['laliga', 'Modo LaLiga']]
       const tableSetup = `<article class="card card--wide table-setup-card" data-export-hide>
         <header class="card-head"><h2 class="card-title">Crear tabla</h2></header>
-        <div class="row-actions"><label class="field-label" for="table-format">Formato</label><select class="input table-format" id="table-format" name="table-format"><option value="regular" ${!twoSeries ? 'selected' : ''}>Tabla regular</option><option value="two-series" ${twoSeries ? 'selected' : ''}>2 Series</option></select><button class="btn btn--primary" data-action="create-table" ${twoSeries ? '' : 'disabled'}>${twoSeries ? 'Tabla de 2 series activa' : 'Tabla regular activa'}</button></div>
+        <div class="row-actions table-options"><label class="field"><span class="field-label">Modo de temporada</span><select class="input" name="season-mode">${modes.map(([value, label]) => `<option value="${value}" ${(season.seasonMode || 'clubs') === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="field"><span class="field-label">Formato</span><select class="input table-format" id="table-format" name="table-format"><option value="regular" ${!twoSeries ? 'selected' : ''}>Tabla regular</option><option value="two-series" ${season.tableConfig?.type === 'two-series' ? 'selected' : ''}>2 Series</option><option value="groups" ${groupStage ? 'selected' : ''}>Fase de grupos</option></select></label><label class="field${groupStage ? '' : ' groups-count-field'}"><span class="field-label">Cantidad de grupos</span><select class="input" name="group-count"><option value="4" ${(season.tableConfig?.count || 4) === 4 ? 'selected' : ''}>4 grupos</option><option value="8" ${season.tableConfig?.count === 8 ? 'selected' : ''}>8 grupos</option></select></label><button class="btn btn--primary" data-action="create-table" ${(!groupStage && !twoSeries) ? 'disabled' : ''}>${groupStage ? `${season.tableConfig.count} grupos activos` : twoSeries ? 'Tabla de 2 series activa' : 'Tabla regular activa'}</button></div>
         <div class="table-repechage-setting"><label class="series-choice"><input type="checkbox" name="table-repechage" ${repechageEnabled ? 'checked' : ''} ${!repechageEligible || season.playoffs ? 'disabled' : ''}> <span>Usar repechajes en Tournament</span></label><p class="hint">${repechageHelp}</p></div>
-        ${twoSeries ? `<p class="hint">Asigna cada equipo a una serie. Los partidos de liga se jugarán solo entre equipos de la misma serie.</p><div class="team-series-list">${season.teams.map((t) => `<div class="team-series-row"><span class="club-cell">${crest(t.logo, 'xs', t.name)}<span>${esc(t.name)}</span></span><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="1" ${season.tableConfig.series1.includes(t.id) ? 'checked' : ''}> Serie 1</label><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="2" ${season.tableConfig.series2.includes(t.id) ? 'checked' : ''}> Serie 2</label></div>`).join('')}</div><div class="row-actions"><button class="btn btn--ghost" data-action="random-series">Randomizar equipos</button><button class="btn btn--primary" data-action="save-series">Guardar series</button></div><p class="hint">Las series pueden tener tamaños distintos.${seriesReady ? '' : ' Asigna al menos 2 equipos a cada serie y guarda antes de generar el calendario.'}</p>` : ''}
+        ${twoSeries && !groupStage ? `<p class="hint">Asigna cada equipo a una serie. Los partidos de liga se jugarán solo entre equipos de la misma serie.</p><div class="team-series-list">${season.teams.map((t) => `<div class="team-series-row"><span class="club-cell">${crest(t.logo, 'xs', t.name)}<span>${esc(t.name)}</span></span><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="1" ${season.tableConfig.series1.includes(t.id) ? 'checked' : ''}> Serie 1</label><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="2" ${season.tableConfig.series2.includes(t.id) ? 'checked' : ''}> Serie 2</label></div>`).join('')}</div><div class="row-actions"><button class="btn btn--ghost" data-action="random-series">Randomizar equipos</button><button class="btn btn--primary" data-action="save-series">Guardar series</button></div><p class="hint">Las series pueden tener tamaños distintos.${seriesReady ? '' : ' Asigna al menos 2 equipos a cada serie y guarda antes de generar el calendario.'}</p>` : ''}
+        ${groupStage ? `<p class="hint">Asigna cada equipo a un grupo. Los dos primeros de cada grupo clasifican a Tournament.</p><div class="team-series-list group-assignment-list">${season.teams.map((team) => { const selectedGroup = competitionGroups.findIndex((group) => group.includes(team.id)); return `<div class="team-series-row"><span class="club-cell">${crest(team.logo, 'xs', team.name)}<span>${esc(team.name)}</span></span><label class="field field--inline"><span class="field-label">Grupo</span><select class="input" data-team-group data-team="${esc(team.id)}">${competitionGroups.map((_, index) => `<option value="${index}" ${index === selectedGroup ? 'selected' : ''}>Grupo ${String.fromCharCode(65 + index)}</option>`).join('')}</select></label></div>` }).join('')}</div><div class="row-actions"><button class="btn btn--primary" data-action="save-groups">Guardar grupos</button></div>` : ''}
       </article>`
 
       const tools = manual
@@ -235,11 +289,11 @@
           </div>`
         : ''
 
-      const seriesTables = twoSeries
-        ? `<section class="card card--wide"><header class="card-head"><div><h3 class="card-title">Serie 1</h3><p class="card-sub">${season.tableConfig.series1.length} equipos</p></div></header>${tableMarkup(H.computeTable(season, season.tableConfig.series1))}</section><section class="card card--wide"><header class="card-head"><div><h3 class="card-title">Serie 2</h3><p class="card-sub">${season.tableConfig.series2.length} equipos</p></div></header>${tableMarkup(H.computeTable(season, season.tableConfig.series2))}</section>`
+      const seriesTables = groupStage
+        ? competitionGroups.map((group, index) => `<section class="card card--wide"><header class="card-head"><div><h3 class="card-title">Grupo ${String.fromCharCode(65 + index)}</h3><p class="card-sub">${group.length} equipos · clasifican los dos primeros</p></div></header>${tableMarkup(H.computeTable(season, group))}</section>`).join('')
+        : twoSeries ? `<section class="card card--wide"><header class="card-head"><div><h3 class="card-title">Serie 1</h3><p class="card-sub">${season.tableConfig.series1.length} equipos</p></div></header>${tableMarkup(H.computeTable(season, season.tableConfig.series1))}</section><section class="card card--wide"><header class="card-head"><div><h3 class="card-title">Serie 2</h3><p class="card-sub">${season.tableConfig.series2.length} equipos</p></div></header>${tableMarkup(H.computeTable(season, season.tableConfig.series2))}</section>`
         : tableMarkup(rows)
-      el.innerHTML = `${tableSetup}
-        <article class="card card--wide" id="table-export">
+      el.innerHTML = `<article class="card card--wide" id="table-export">
           <header class="card-head">
             <div>
               <h2 class="card-title">Clasificación</h2>
@@ -265,19 +319,19 @@
             <li class="legend"><span class="legend-dot legend-dot--win"></span>Ganador</li>
             ${
               zone
-                ? `<li class="legend"><span class="legend-dot legend-dot--po"></span>${repechageEnabled ? twoSeries ? `Tournament · ${directPerSeries} directos + ${repechageMatches} repechaje por serie` : `Tournament · ${directCount} directos + ${repechageMatches * 2} en repechaje` : twoSeries ? `Tournament · primeros ${rowZone} de cada serie` : `Tournament · ${stage} (${zone > 1 ? `2.º–${zone}.º` : ''})`}</li>
+                ? `<li class="legend"><span class="legend-dot legend-dot--po"></span>${groupStage ? 'Tournament · primeros 2 de cada grupo' : repechageEnabled ? twoSeries ? `Tournament · ${directPerSeries} directos + ${repechageMatches} repechaje por serie` : `Tournament · ${directCount} directos + ${repechageMatches * 2} en repechaje` : twoSeries ? `Tournament · primeros ${rowZone} de cada serie` : `Tournament · ${stage} (${zone > 1 ? `2.º–${zone}.º` : ''})`}</li>
                    ${repechageEnabled ? '<li class="legend"><span class="legend-dot legend-dot--repechage"></span>Repechaje</li>' : ''}
-                   ${n > rowZone * (twoSeries ? 2 : 1) ? `<li class="legend"><span class="legend-dot legend-dot--out"></span>Eliminados (${n - rowZone * (twoSeries ? 2 : 1)})</li>` : ''}`
+                   ${n > classifiedCount ? `<li class="legend"><span class="legend-dot legend-dot--out"></span>Eliminados (${n - classifiedCount})</li>` : ''}`
                 : ''
             }
           </ul>
-          ${seriesTables}
+          ${twoSeries || groupStage ? `<div class="table-subtables${groupStage ? ' is-groups' : ' is-series'}">${seriesTables}</div>` : seriesTables}
           <p class="hint">${
             manual
               ? 'Desempate: puntos, diferencia de goles, goles a favor y orden alfabético. La tabla se reordena al salir de cada casilla.'
               : 'Desempate: puntos, diferencia de goles, goles a favor y orden alfabético. Se calcula con los resultados de Fixtures.'
           }</p>
-        </article>`
+        </article>${tableSetup}`
     },
   })
 })()

@@ -102,8 +102,10 @@
   async function generate() {
     const season = H.state.current
     const size = H.ui.poSize
+    const groupStage = season.tableConfig?.type === 'groups'
     const grouped = season.tableConfig?.type === 'two-series'
-    const useRepechage = !!repechageDraft
+    const useRepechage = !groupStage && !!repechageDraft
+    if (groupStage && size !== season.tableConfig.count * 2) return H.toast(`La fase de ${season.tableConfig.count} grupos clasifica a ${season.tableConfig.count * 2} equipos (los dos primeros de cada grupo).`, 'error')
     if (grouped) {
       const first = H.computeTable(season, season.tableConfig.series1)
       const second = H.computeTable(season, season.tableConfig.series2)
@@ -125,6 +127,24 @@
       const setup = repechageSetup(season, size, grouped)
       seeds = setup.seeds
       repechage = setup.repechage
+    } else if (groupStage) {
+      const tables = season.tableConfig.groups.map((ids) => H.computeTable(season, ids))
+      if (tables.some((table) => table.length < 2)) return H.toast('Cada grupo necesita al menos 2 equipos.', 'error')
+      const seedPositions = Array(size).fill(null)
+      const openingOrder = [1]
+      while (openingOrder.length < size) {
+        const sum = openingOrder.length * 2 + 1
+        openingOrder.splice(0, openingOrder.length, ...openingOrder.flatMap((seed) => [seed, sum - seed]))
+      }
+      const winners = tables.map((table) => table[0].team.id)
+      const runners = tables.map((table) => table[1].team.id)
+      const groupPairs = Array.from({ length: tables.length / 2 }, (_, index) => [index * 2, index * 2 + 1])
+      groupPairs.forEach(([first, second], pairIndex) => {
+        const slots = openingOrder.slice(pairIndex * 4, pairIndex * 4 + 4)
+        const teams = [winners[first], runners[second], winners[second], runners[first]]
+        slots.forEach((seed, index) => { seedPositions[seed - 1] = teams[index] })
+      })
+      seeds = seedPositions
     } else if (grouped) {
       const first = H.computeTable(season, season.tableConfig.series1)
       const second = H.computeTable(season, season.tableConfig.series2)
@@ -284,8 +304,9 @@
           if (st.current.playoffs === po) st.current.playoffs.bracketOrder = draw
         }, { skip: 'tournament' })
       }
+      const groupStage = season.tableConfig?.type === 'groups'
       const grouped = season.tableConfig?.type === 'two-series'
-      const available = grouped ? 2 * Math.min(season.tableConfig.series1.length, season.tableConfig.series2.length) : n
+      const available = groupStage ? season.tableConfig.count * 2 : grouped ? 2 * Math.min(season.tableConfig.series1.length, season.tableConfig.series2.length) : n
       if (repechageDraftSeason !== season.id || repechageDraft == null || (!po && repechageDraft !== !!H.ui.repechageEnabled)) {
         repechageDraftSeason = season.id
         repechageDraft = po ? !!po.repechage?.enabled : !!H.ui.repechageEnabled
@@ -296,8 +317,8 @@
         twoLeggedDraft = po ? !!po.twoLegged : !!H.ui.tournamentTwoLegged
         H.ui.tournamentTwoLegged = twoLeggedDraft
       }
-      const repechageEnabled = repechageDraft
-      const canRepechage = (size) => !!repechageSetup(season, size, grouped)
+      const repechageEnabled = groupStage ? false : repechageDraft
+      const canRepechage = (size) => !groupStage && !!repechageSetup(season, size, grouped)
       if (po) H.ui.poSize = po.size
       const teams = new Map(season.teams.map((t) => [t.id, t]))
       const { total, played } = H.stageCounts(season)
@@ -312,7 +333,7 @@
           <div class="seg seg--wrap" role="group" aria-label="Ronda inicial">
             ${SIZES.map(
               (o) =>
-                `<button class="seg-btn" data-action="size" data-size="${o.size}" aria-pressed="${H.ui.poSize === o.size}" ${repechageEnabled ? !canRepechage(o.size) ? 'disabled' : '' : available < o.size && !canRepechage(o.size) ? 'disabled' : ''}>${o.label}<small>${o.size} equipos</small></button>`,
+                `<button class="seg-btn" data-action="size" data-size="${o.size}" aria-pressed="${H.ui.poSize === o.size}" ${groupStage && o.size !== available ? 'disabled' : repechageEnabled ? !canRepechage(o.size) ? 'disabled' : '' : available < o.size && !canRepechage(o.size) ? 'disabled' : ''}>${o.label}<small>${o.size} equipos</small></button>`,
             ).join('')}
           </div>
           <div class="tournament-options">
@@ -324,7 +345,7 @@
             <button class="btn btn--primary" data-action="generate" ${repechageEnabled ? !canRepechage(H.ui.poSize) ? 'disabled' : '' : available < H.ui.poSize ? 'disabled' : ''}>${po ? 'Recrear cuadro' : 'Crear cuadro'}</button>
             ${po ? '<button class="btn btn--danger" data-action="remove">Eliminar</button>' : ''}
           </div>
-          ${available < 4 ? `<p class="hint">${grouped ? 'Necesitas al menos 2 equipos clasificados en cada serie para formar un cruce.' : 'Necesitas al menos 4 equipos registrados.'}</p>` : ''}
+          ${groupStage ? `<p class="hint">Clasifican los dos primeros de cada grupo: Tournament se crea con ${available} equipos.</p>` : available < 4 ? `<p class="hint">${grouped ? 'Necesitas al menos 2 equipos clasificados en cada serie para formar un cruce.' : 'Necesitas al menos 4 equipos registrados.'}</p>` : ''}
         </article>`
 
       if (!po) {

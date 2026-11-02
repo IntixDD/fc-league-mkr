@@ -10,9 +10,9 @@
     rojo: { label: 'Rojo', accent: '255 128 128', hover: '#ffb3b3', line: '#ee6a6a', ind: '140 22 32', g1: '255 30 50', g2: '190 0 24', g3: '100 0 12', gg: '255 140 0' },
     naranja: { label: 'Naranja', accent: '255 184 96', hover: '#ffd3a0', line: '#ef9f45', ind: '140 74 10', g1: '255 130 0', g2: '200 80 0', g3: '100 40 0', gg: '255 40 90' },
     oro: { label: 'Oro', accent: '255 214 110', hover: '#ffe6a8', line: '#e2b84a', ind: '128 92 10', g1: '255 190 20', g2: '190 130 0', g3: '96 62 0', gg: '255 90 40' },
-    gris: { label: 'Grafito', accent: '220 222 232', hover: '#f0f1f6', line: '#a8abb8', ind: '70 72 86', g1: '150 150 175', g2: '100 100 125', g3: '50 50 64', gg: '110 120 140' },
+    gris: { label: 'Plata', accent: '220 222 232', hover: '#f0f1f6', line: '#a8abb8', ind: '70 72 86', g1: '150 150 175', g2: '100 100 125', g3: '50 50 64', gg: '110 120 140' },
   }
-  const DEFAULTS = { scale: 0, theme: 'magenta', bgDim: 0.45, bgGrid: true, hasBg: false, activeBg: null }
+  const DEFAULTS = { scale: -1, theme: 'magenta', bgDim: 0.45, bgGrid: true, hasBg: false, activeBg: null, musicVolume: 0.15, sfxVolume: 1, musicAutoplay: true }
 
   const standalone =
     window.matchMedia('(display-mode: fullscreen)').matches ||
@@ -56,6 +56,7 @@
     const appWidth = forceLandscape ? window.innerHeight : window.innerWidth
     const desktop = prefs.scale === -1 && appWidth < DESKTOP_WIDTH
     root.classList.toggle('ui-desktop', desktop)
+    root.classList.toggle('ui-scale-minus-one', prefs.scale === -1)
     root.classList.toggle('force-landscape', forceLandscape)
     syncLandscapeLock(prefs.scale === -1)
     if (desktop) {

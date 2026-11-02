@@ -15,9 +15,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="League Hub" />
-    <script src="prefs.js?v=14"></script>
-    <link rel="stylesheet" href="styles.css?v=16" />
-    <link rel="stylesheet" href="components.css?v=70" />
+    <script src="prefs.js?v=18"></script>
+    <link rel="stylesheet" href="styles.css?v=18" />
+    <link rel="stylesheet" href="components.css?v=93" />
   </head>
   <body>
     <div class="background" aria-hidden="true">
@@ -54,13 +54,13 @@
     <div class="shell">
       <aside class="sidebar">
         <div class="brand">
-          <button type="button" class="logo" data-brand-picker aria-label="Cambiar logo de la liga" title="Cambiar logo de la liga"></button>
+            <button type="button" class="logo" data-open-menu aria-label="Abrir menú" title="Menú"></button>
           <span class="divider" aria-hidden="true"></span>
         </div>
-
         <nav class="nav" aria-label="Principal">
           <ul class="nav-list">
             <li class="nav-indicator" aria-hidden="true"></li>
+            <li class="nav-menu-entry"><a class="nav-button mobile-menu-nav-button" href="#menu" data-menu-nav aria-label="Menú" title="Menú"><span class="nav-menu-icon" aria-hidden="true"></span><span class="tooltip" aria-hidden="true">Menú</span></a></li>
             <li>
               <a class="nav-button" href="#teams" data-section="teams" aria-label="Teams">
                 <span class="nav-icon" style="--icon: url('icon-teams.svg?v=4')"></span>
@@ -114,6 +114,10 @@
       </aside>
 
       <main class="content">
+        <section id="menu" class="section" aria-labelledby="menu-title" hidden>
+          <h1 id="menu-title" class="section-title menu-title-sr">Menú</h1>
+          <div id="menu-body" class="section-body"></div>
+        </section>
         <section id="teams" class="section" aria-labelledby="teams-title">
           <h1 id="teams-title" class="section-title">Teams</h1>
           <div id="teams-body" class="section-body"></div>
@@ -172,17 +176,19 @@
       </form>
     </dialog>
 
-    <script src="core.js?v=34" defer></script>
-    <script src="views/teams.js?v=12" defer></script>
-    <script src="views/table.js?v=18" defer></script>
-    <script src="views/fixtures.js?v=15" defer></script>
-    <script src="views/tournament.js?v=30" defer></script>
-    <script src="views/seasons.js?v=31" defer></script>
-    <script src="views/history.js?v=16" defer></script>
-    <script src="views/performance.js?v=26" defer></script>
-    <script src="views/badges.js?v=23" defer></script>
-    <script src="views/settings.js?v=14" defer></script>
-    <script src="app.js?v=29" defer></script>
+    <script src="core.js?v=42" defer></script>
+    <script src="views/teams.js?v=17" defer></script>
+    <script src="views/table.js?v=23" defer></script>
+    <script src="views/fixtures.js?v=17" defer></script>
+    <script src="views/tournament.js?v=31" defer></script>
+    <script src="views/seasons.js?v=36" defer></script>
+    <script src="views/history.js?v=19" defer></script>
+    <script src="views/performance.js?v=28" defer></script>
+    <script src="views/badges.js?v=25" defer></script>
+    <script src="media/music/tracks.js?v=3" defer></script>
+    <script src="views/settings.js?v=25" defer></script>
+    <script src="views/menu.js?v=18" defer></script>
+    <script src="app.js?v=33" defer></script>
   </body>
 </html>
 

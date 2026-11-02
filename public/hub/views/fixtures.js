@@ -12,9 +12,11 @@
     const season = H.state.current
     const mode = H.ui.fxMode || season.fixtures?.mode || 'single'
     if (season.teams.length < 2) return H.toast('Necesitas al menos 2 equipos', 'error')
-    const config = season.tableConfig?.type === 'two-series' ? season.tableConfig : null
-    if (config && (config.series1.length < 2 || config.series2.length < 2 || config.series1.length + config.series2.length !== season.teams.length)) {
-      return H.toast('Asigna todos los equipos a una serie (mínimo 2 equipos por serie).', 'error')
+    if (!H.validateSeasonCrests?.()) return
+    const config = ['two-series', 'groups'].includes(season.tableConfig?.type) ? season.tableConfig : null
+    const groups = config?.type === 'groups' ? config.groups : config ? [config.series1, config.series2] : []
+    if (config && (groups.some((group) => group.length < 2) || new Set(groups.flat()).size !== season.teams.length)) {
+      return H.toast('Asigna todos los equipos a grupos o series (mínimo 2 equipos por grupo).', 'error')
     }
     const hasResults = H.leagueMatches(season).some(H.played)
     if (season.fixtures) {
@@ -27,8 +29,8 @@
     }
     H.update((s) => {
       if (config) {
-        const generated = H.generateSeriesRounds([config.series1, config.series2], mode === 'double')
-        s.current.fixtures = { mode, roundsPerLeg: generated.roundsPerLeg, series1: [...config.series1], series2: [...config.series2], rounds: generated.rounds }
+        const generated = H.generateSeriesRounds(groups, mode === 'double')
+        s.current.fixtures = { mode, roundsPerLeg: generated.roundsPerLeg, series1: config.series1 ? [...config.series1] : null, series2: config.series2 ? [...config.series2] : null, groups: config.type === 'groups' ? groups.map((group) => [...group]) : null, rounds: generated.rounds }
       } else s.current.fixtures = { mode, roundsPerLeg: 0, rounds: H.generateRounds(s.current.teams.map((t) => t.id), mode === 'double') }
     })
     H.toast('Calendario generado')
@@ -125,9 +127,11 @@
       const teams = new Map(season.teams.map((t) => [t.id, t]))
       const mode = H.ui.fxMode || season.fixtures?.mode || 'single'
       const n = season.teams.length
-      const twoSeries = season.tableConfig?.type === 'two-series'
-      const counts = twoSeries ? [season.tableConfig.series1.length, season.tableConfig.series2.length] : [n]
-      const seriesReady = !twoSeries || (counts.every((count) => count >= 2) && counts[0] + counts[1] === n)
+      const groupMode = season.tableConfig?.type === 'groups'
+      const twoSeries = season.tableConfig?.type === 'two-series' || groupMode
+      const counts = groupMode ? season.tableConfig.groups.map((group) => group.length) : twoSeries ? [season.tableConfig.series1.length, season.tableConfig.series2.length] : [n]
+      const assignedGroups = groupMode ? season.tableConfig.groups : twoSeries ? [season.tableConfig.series1, season.tableConfig.series2] : []
+      const seriesReady = !twoSeries || (counts.every((count) => count >= 2) && new Set(assignedGroups.flat()).size === n)
       const roundsFor = (m) => (twoSeries ? Math.max(0, ...counts.map((count) => count < 2 ? 0 : count % 2 ? count : count - 1)) : n < 2 ? 0 : n % 2 ? n : n - 1) * (m === 'double' ? 2 : 1)
       const matchesFor = (m) => (twoSeries ? counts.reduce((sum, count) => sum + (count * (count - 1)) / 2, 0) : (n * (n - 1)) / 2) * (m === 'double' ? 2 : 1)
 
@@ -136,19 +140,19 @@
           <header class="card-head">
             <div>
               <h2 class="card-title">Calendario</h2>
-              <p class="card-sub">Temporada ${season.number} · ${n} equipos${twoSeries ? ' · 2 series' : ''}</p>
+              <p class="card-sub">Temporada ${season.number} · ${n} equipos${groupMode ? ` · ${season.tableConfig.count} grupos` : twoSeries ? ' · 2 series' : ''}</p>
             </div>
           </header>
           <div class="seg" role="group" aria-label="Formato">
             <button class="seg-btn" data-action="mode" data-mode="single" aria-pressed="${mode === 'single'}">Solo ida</button>
             <button class="seg-btn" data-action="mode" data-mode="double" aria-pressed="${mode === 'double'}">Ida y vuelta</button>
           </div>
-          <p class="hint">${n < 2 ? 'Registra al menos 2 equipos.' : `${roundsFor(mode)} jornadas · ${matchesFor(mode)} partidos${twoSeries ? ' · solo juegan equipos de la misma serie' : n % 2 ? ' · un equipo descansa por jornada' : ''}`}</p>
+          <p class="hint">${n < 2 ? 'Registra al menos 2 equipos.' : `${roundsFor(mode)} jornadas · ${matchesFor(mode)} partidos${groupMode ? ' · solo juegan equipos del mismo grupo' : twoSeries ? ' · solo juegan equipos de la misma serie' : n % 2 ? ' · un equipo descansa por jornada' : ''}`}</p>
           <div class="row-actions">
             <button class="btn btn--primary" data-action="generate" ${n < 2 || !seriesReady ? 'disabled' : ''}>${season.fixtures ? 'Regenerar calendario' : 'Generar calendario'}</button>
             ${season.fixtures ? '<button class="btn btn--danger" data-action="remove">Eliminar</button>' : ''}
           </div>
-          ${!seriesReady ? '<p class="notice">Completa y guarda la asignación de todos los equipos a las dos series en Table antes de generar el calendario.</p>' : ''}
+          ${!seriesReady ? `<p class="notice">Completa y guarda la asignación de todos los equipos a ${groupMode ? 'los grupos' : 'las dos series'} en Table antes de generar el calendario.</p>` : ''}
           ${teamsChanged(season) ? '<p class="notice">Los equipos cambiaron desde que se generó el calendario. Regenera para incluirlos a todos.</p>' : ''}
         </article>`
 

@@ -4,7 +4,7 @@
 
 
 
-**Beta 1.0:**
+**\[Big update] Beta 1.0:**
 
 \+ Apartados: Teams, Table, Fixtures, Playoffs, Seasons, History.
 
@@ -78,7 +78,7 @@
 
 
 
-**Beta 2.0:**
+**\[Big update] Beta 2.0:**
 
 * Table: Añadido el recuadro Crear tabla - Formato Tabla regular/Series - El usuario puede seleccionar los equipos para ambas series.
 * Table/Clasificación: Ahora el recuadro Clasificación muestra la tabla o series correctamente.
@@ -161,17 +161,22 @@
 
 
 
-//Beta 3: (Planes)
+**\[Big update] Beta 3.0:** 
 
-
-
-\- Modos de Temporada: Modo Mundial de selecciones, Modo clubes, Modo Premier League, Modo LaLiga.
-
-\- Insignia "Portería Suiza" \[Icono de +] (Ganar portería imbatible en el Modo Mundial de selecciones)
-
-\- Crear changelog.md
-
-\- Table/Crear tabla: Añadir una nueva opción de creación de tabla: Fase de grupos (4) (6) (8).
-
-* Registrar Tarjetas
+* Nuevo apartado: Menú (Se ingresa desde el icono de liga).
+* Settings: Añadido el recuadro Logo de la liga.
+* Menú: Añadidos los recuadros: Principal, Panel de temporada, Última temporada, Hall of fame, Acceso rápido.
+* Teams: Eliminado el recuadro Equipos registrados.
+* Teams/Registrar club: Ahora los equipos registrados aparecen en éste recuadro.
+* Teams/Galería de escudos: Ahora el usuario puede categorizar los escudos por: Custom, Selecciones, Premier League, La Liga, Otras ligas.
+* Table/Crear tabla: Añadidos los modos de temporada: Modo clubes, modo selecciones, modo premier, modo la liga. Nuevo formato añadido "Fase de grupos".
+* Tournament: Eliminado el recuadro Repechajes.
+* Tournament/Cuadro: Ahora los repechajes se muestran conectados a las llaves que alimentan.
+* History/Historial de clubes: Añadidas las columnas y filtros: Títulos, Logros, Insignias.
+* Añadido reproductor de música automática, con ello, añadidas notificaciones push que muestran la música reproduciéndose.
+* Añadidos SFX para los botones.
+* Settings: Añadido el recuadro Música y Sonido.
+* Arreglos visuales en todos los apartados para ambas escalas.
+* Teams/Galería de escudos: Ahora se respetan los formatos cargados (En lugar de convertirlos)
+* Seasons/Temporadas guardadas/Botón desplegable Títulos y Logros: Ahora se muestran a los ganadores de los títulos y logros correctamente.
 

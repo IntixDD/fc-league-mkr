@@ -7,6 +7,20 @@
   const MAX_SIDE = 2560
   const MAX_BACKGROUNDS = 12
   let library = []
+  let musicLibrary = []
+  let currentTrack = 0
+  let musicStarted = false
+  let musicDelayElapsed = false
+  let musicPausedByUser = false
+  let audio = null
+  let musicAdvanceTimer = 0
+  let musicStartTimer = 0
+  let musicStartAt = 0
+  let waitingForNext = false
+  let finishedCurrentTrack = false
+  let resumeMusicOnVisible = false
+  let resumeNextTrackOnVisible = false
+  const sfxPlayers = new Map()
   const urls = new Map()
   let installEvent = null
 
@@ -28,6 +42,160 @@
   const idbPut = (key, value) => idb('readwrite', (s) => s.put(value, key))
   const idbDel = (key) => idb('readwrite', (s) => s.delete(key))
   const saveLibrary = () => idbPut(LIBRARY_KEY, library)
+
+  function musicNotice(track) {
+    let notice = document.getElementById('music-notice')
+    if (!notice) {
+      notice = document.createElement('aside')
+      notice.id = 'music-notice'
+      notice.className = 'music-notice'
+      notice.setAttribute('role', 'status')
+      document.body.appendChild(notice)
+    }
+    const coverUrl = track.cover ? musicAssetUrl(track.cover) : ''
+    notice.innerHTML = `${coverUrl ? `<img src="${H.esc(coverUrl)}" alt="">` : '<span class="music-cover-placeholder">♫</span>'}<span><strong>${H.esc(track.title)}</strong><small>Reproduciendo</small></span>`
+    notice.classList.add('is-visible')
+    clearTimeout(notice._timer)
+    notice._timer = setTimeout(() => notice.classList.remove('is-visible'), 4400)
+  }
+
+  function musicAssetUrl(filename) {
+    const safePath = String(filename || '').split('/').filter((part) => part && part !== '.' && part !== '..').map(encodeURIComponent).join('/')
+    return new URL(`media/music/${safePath}`, document.baseURI).href
+  }
+
+  function updateMusicControls() {
+    const button = document.querySelector('[data-action="music-toggle"]')
+    if (!button) return
+    const active = (!!audio && !audio.paused) || waitingForNext
+    const available = musicLibrary.length > 0
+    button.textContent = active ? '⏸ Pausar' : '▶ Reproducir'
+    button.setAttribute('aria-label', active ? 'Pausar música' : 'Reproducir música')
+    button.disabled = !available
+    document.querySelectorAll('.music-transport [data-action="music-next"], .music-transport [data-action="music-previous"]').forEach((control) => { control.disabled = !available })
+  }
+
+  function ensureAudio() {
+    if (audio) return
+    audio = new Audio()
+    audio.volume = P.get().musicVolume ?? 0.15
+    audio.addEventListener('ended', () => {
+      finishedCurrentTrack = true
+      waitingForNext = true
+      updateMusicControls()
+      clearTimeout(musicAdvanceTimer)
+      musicAdvanceTimer = window.setTimeout(() => {
+        waitingForNext = false
+        playTrack(currentTrack + 1)
+      }, 2000)
+    })
+    audio.addEventListener('play', updateMusicControls)
+    audio.addEventListener('pause', updateMusicControls)
+  }
+
+  function playTrack(index) {
+    if (!musicLibrary.length) return
+    ensureAudio()
+    clearTimeout(musicAdvanceTimer)
+    waitingForNext = false
+    finishedCurrentTrack = false
+    currentTrack = (index + musicLibrary.length) % musicLibrary.length
+    musicPausedByUser = false
+    const track = musicLibrary[currentTrack]
+    audio.src = track.src
+    audio.currentTime = 0
+    audio.play().then(() => {
+      musicStarted = true
+      musicNotice(track)
+      updateMusicControls()
+    }).catch(() => {
+      musicStarted = false
+      updateMusicControls()
+    })
+  }
+
+  function playMusic() {
+    if (!musicLibrary.length || musicStarted) return
+    playTrack(currentTrack)
+  }
+
+  function scheduleInitialMusic() {
+    if (musicStartTimer || musicDelayElapsed || musicStarted || document.hidden || !musicLibrary.length || P.get().musicAutoplay === false) return
+    if (!musicStartAt) musicStartAt = Date.now() + 4000
+    musicStartTimer = window.setTimeout(() => {
+      musicStartTimer = 0
+      musicDelayElapsed = true
+      playMusic()
+    }, Math.max(0, musicStartAt - Date.now()))
+  }
+
+  async function loadMusic() {
+    const entries = window.HUB_MUSIC_TRACKS
+    musicLibrary = Array.isArray(entries) ? entries.map((entry) => {
+        const item = typeof entry === 'string' ? { file: entry } : entry
+        if (!item?.file || !/\.mp3$/i.test(item.file)) return null
+        return {
+          title: item.title || item.file.split('/').pop().replace(/\.mp3$/i, ''),
+          src: musicAssetUrl(item.file),
+          cover: item.cover || '',
+        }
+      }).filter(Boolean) : []
+    if (musicLibrary.length && P.get().musicAutoplay !== false) {
+      currentTrack = 0
+      scheduleInitialMusic()
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      clearTimeout(musicStartTimer)
+      musicStartTimer = 0
+      if (waitingForNext) {
+        clearTimeout(musicAdvanceTimer)
+        musicAdvanceTimer = 0
+        resumeNextTrackOnVisible = true
+      } else if (audio && !audio.paused) {
+        resumeMusicOnVisible = true
+        audio.pause()
+      }
+      return
+    }
+    if (resumeNextTrackOnVisible) {
+      resumeNextTrackOnVisible = false
+      musicAdvanceTimer = window.setTimeout(() => {
+        musicAdvanceTimer = 0
+        waitingForNext = false
+        playTrack(currentTrack + 1)
+      }, 2000)
+    } else if (resumeMusicOnVisible && audio && !musicPausedByUser) {
+      resumeMusicOnVisible = false
+      audio.play().then(() => { musicStarted = true; updateMusicControls() }).catch(() => {})
+    }
+    scheduleInitialMusic()
+  })
+
+  document.addEventListener('pointerdown', (event) => {
+    if (!musicDelayElapsed || musicStarted || musicPausedByUser || !musicLibrary.length || event.target.closest('.music-transport')) return
+    playMusic()
+  }, { capture: true, passive: true })
+
+  function playSfx(file = 'tap.wav') {
+    const volume = P.get().sfxVolume ?? 1
+    if (!volume) return
+    let sound = sfxPlayers.get(file)
+    if (!sound) {
+      sound = new Audio(`media/sfx/${file}`)
+      sound.preload = 'none'
+      sfxPlayers.set(file, sound)
+    }
+    sound.volume = volume
+    try { sound.currentTime = 0 } catch {}
+    sound.play().catch(() => {})
+  }
+  document.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('.nav-button')) playSfx('nav.wav')
+    else if (event.target.closest('.btn, [data-action], [data-open-menu], .logo')) playSfx()
+  }, { capture: true, passive: true })
 
   const urlFor = (item) => {
     if (!urls.has(item.id)) urls.set(item.id, URL.createObjectURL(item.blob))
@@ -221,9 +389,24 @@
         </button>`,
       )
       .join('')
+    const leagueLogo = H.state?.brandLogo || 'logo.svg'
 
     el.innerHTML = `
       <div class="panel-grid set-grid">
+        ${card({
+          title: 'Logo de la liga',
+          sub: 'El escudo que aparece en la barra lateral y abre Menú',
+          body: `<div class="brand-settings"><img class="brand-settings-preview" src="${H.esc(leagueLogo)}" alt="Logo actual de la liga"><p class="hint">Puedes elegir un escudo de los ya cargados en tu galería.</p></div>`,
+          actions: '<button class="btn btn--ghost" data-action="pick-brand">Cambiar logo</button>',
+        })}
+
+        ${card({
+          title: 'Música y sonidos',
+          sub: `${musicLibrary.length} canción(es) disponibles en la app`,
+          wide: true,
+          body: `<div class="audio-controls"><label class="field range-field"><span class="field-label">Volumen de la música <output>${Math.round((p.musicVolume ?? .15) * 100)}%</output></span><input type="range" name="music-volume" min="0" max="1" step="0.05" value="${p.musicVolume ?? .15}"></label><label class="field range-field"><span class="field-label">Volumen de los SFX <output>${Math.round((p.sfxVolume ?? 1) * 100)}%</output></span><input type="range" name="sfx-volume" min="0" max="1" step="0.05" value="${p.sfxVolume ?? 1}"></label></div><label class="check music-autoplay-setting"><input type="checkbox" name="music-autoplay" ${p.musicAutoplay !== false ? 'checked' : ''}> Reproducir música al iniciar la app</label><div class="music-transport" role="group" aria-label="Controles de música"><button class="btn btn--ghost" type="button" data-action="music-previous" aria-label="Canción anterior">⏮ Anterior</button><button class="btn btn--primary music-toggle" type="button" data-action="music-toggle" aria-label="Pausar música">⏸ Pausar</button><button class="btn btn--ghost" type="button" data-action="music-next" aria-label="Siguiente canción">Siguiente ⏭</button></div>`,
+        })}
+
         ${card({
           title: 'Escala de la interfaz',
           sub: 'Cómo se ajusta la app a tu pantalla',
@@ -272,19 +455,44 @@
           sub: 'League Hub',
           wide: true,
           extraClass: 'set-about',
-          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-2.7</strong><span class="about-build">Beta Build</span></div>',
+          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-3.0</strong><span class="about-build">Beta Build</span></div>',
         })}
       </div>`
+    updateMusicControls()
   }
 
   function bind() {
     const el = document.getElementById('settings-body')
     if (!el) return
+    document.addEventListener('league:brandlogochange', () => render())
     el.addEventListener('click', async (e) => {
       const btn = e.target.closest('[data-action]')
       if (!btn) return
       const { action } = btn.dataset
-      if (action === 'scale') {
+      if (action === 'pick-brand') H.pickBrand?.()
+      else if (action === 'music-toggle') {
+        if (!musicLibrary.length) return H.toast('No hay canciones cargadas en la app')
+        if (!audio || !audio.src) playTrack(currentTrack < 0 ? 0 : currentTrack)
+        else if (waitingForNext) {
+          clearTimeout(musicAdvanceTimer)
+          waitingForNext = false
+          finishedCurrentTrack = true
+          musicStarted = false
+          musicPausedByUser = true
+        } else if (!audio.paused) {
+          audio.pause()
+          musicStarted = false
+          musicPausedByUser = true
+        } else if (finishedCurrentTrack) playTrack(currentTrack + 1)
+        else audio.play().then(() => { musicStarted = true; musicPausedByUser = false; updateMusicControls() }).catch(() => {})
+        updateMusicControls()
+      } else if (action === 'music-next' || action === 'music-previous') {
+        if (!musicLibrary.length) return H.toast('No hay canciones cargadas en la app')
+        const direction = action === 'music-next' ? 1 : -1
+        const nextTrack = currentTrack < 0 ? (direction < 0 ? musicLibrary.length - 1 : 0) : currentTrack + direction
+        playTrack(nextTrack)
+      }
+      else if (action === 'scale') {
         P.set({ scale: Number(btn.dataset.scale) })
         render()
       } else if (action === 'theme') {
@@ -295,7 +503,7 @@
       else if (action === 'install') install()
       else if (action === 'reset-all') {
         if (!(await H.confirm('Se restablecerán la escala, el tema y el fondo activo.', { confirmText: 'Restablecer' }))) return
-        P.set({ ...P.DEFAULTS })
+        P.set({ ...P.DEFAULTS, musicVolume: P.get().musicVolume, sfxVolume: P.get().sfxVolume })
         paintBackground()
         render()
         H.toast('Ajustes restablecidos')
@@ -308,9 +516,26 @@
         e.target.value = ''
       } else if (name === 'bg-grid') {
         P.set({ bgGrid: e.target.checked })
+      } else if (name === 'music-autoplay') {
+        P.set({ musicAutoplay: e.target.checked })
+        if (e.target.checked) scheduleInitialMusic()
+        else {
+          clearTimeout(musicStartTimer)
+          musicStartTimer = 0
+          musicStartAt = 0
+        }
       }
     })
     el.addEventListener('input', (e) => {
+      if (e.target.name === 'music-volume' || e.target.name === 'sfx-volume') {
+        const key = e.target.name === 'music-volume' ? 'musicVolume' : 'sfxVolume'
+        const value = Number(e.target.value)
+        P.set({ [key]: value })
+        const out = e.target.closest('.range-field')?.querySelector('output')
+        if (out) out.textContent = `${Math.round(value * 100)}%`
+        if (key === 'musicVolume' && audio) audio.volume = value
+        return
+      }
       if (e.target.name !== 'bg-dim') return
       const v = Number(e.target.value)
       P.set({ bgDim: v })
@@ -322,6 +547,7 @@
   async function init() {
     bind()
     render()
+    void loadMusic()
     await loadLibrary()
     render()
   }
