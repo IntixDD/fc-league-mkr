@@ -281,12 +281,12 @@
     if (!H.state.logos.length) return
     if (!(await H.confirm('Se vaciará la galería. Los equipos conservarán sus escudos actuales.', { confirmText: 'Vaciar' }))) return
     H.ui.selectedLogo = null
-    H.update((st) => (st.logos = []))
+    H.update((st) => { st.logos = []; st.logoGalleryManual = true })
   }
 
   const fileButton = (label, mode, cls = 'btn btn--ghost', accept = 'image/*') =>
     `<label class="${cls} file-btn">
-      <input type="file" accept="${accept}${mode === 'json' ? ',text/json,text/plain,application/octet-stream' : ''}" ${mode === 'json' ? '' : 'multiple'} class="file-picker-input" aria-label="${esc(label)}" data-logo-input="${mode}">
+      <input type="file" accept="${mode === 'json' ? '*/*' : accept}" ${mode === 'json' ? '' : 'multiple'} class="file-picker-input" aria-label="${esc(label)}" data-logo-input="${mode}">
       ${label}
     </label>`
 
@@ -341,7 +341,7 @@
           }
         } else if (action === 'delete-logo') {
           if (String(H.ui.selectedLogo) === id) H.ui.selectedLogo = null
-          H.update((st) => (st.logos = st.logos.filter((l) => String(l.id) !== id).map((logo, index) => ({ ...logo, id: index }))))
+          H.update((st) => { st.logoGalleryManual = true; st.logos = st.logos.filter((l) => String(l.id) !== id).map((logo, index) => ({ ...logo, id: index })) })
         } else if (action === 'clear-logos') clearLogos()
         else if (action === 'export-json-logos') downloadLogosJson()
         else if (action === 'delete-team') deleteTeam(id)

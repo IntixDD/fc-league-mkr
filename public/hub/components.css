@@ -3913,12 +3913,12 @@ select.input option {
 .menu-layout .menu-final-pair > .menu-match-card:first-child { grid-row:1; }
 .menu-layout .menu-final-pair > .menu-match-card:nth-child(2) { grid-row:2; }
 
-/* Slightly extend Hall of Fame on phones while keeping its compact layout. */
+/* Keep Hall of Fame compact while giving its last entry a little more room. */
 @media (max-width:1100px), (max-height:650px) and (orientation:landscape) {
-  .menu-side-stack { grid-template-rows:clamp(430px,56vh,470px) auto !important; }
+  .menu-side-stack { grid-template-rows:clamp(390px,50vh,430px) auto !important; }
   .menu-side-stack > .menu-feature-card--records {
-    height:clamp(430px,56vh,470px) !important;
-    min-height:430px;
+    height:clamp(390px,50vh,430px) !important;
+    min-height:390px;
     max-height:none;
   }
   .menu-feature-card--records .menu-slide { padding-bottom:12px; }

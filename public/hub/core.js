@@ -184,7 +184,7 @@ window.Hub = (() => {
   }
 
   function defaultState() {
-    return { logos: [], brandLogo: null, current: emptySeason(1), seasons: [] }
+    return { logos: [], logoGalleryManual: false, brandLogo: null, current: emptySeason(1), seasons: [] }
   }
 
   function sanitizeSeason(raw) {
@@ -356,9 +356,16 @@ window.Hub = (() => {
     })
     const current = sanitizeSeason(raw.current) || emptySeason(1)
     const seasons = Array.isArray(raw.seasons) ? raw.seasons.map(sanitizeSeason).filter((s) => s && s.id) : []
-    ;[current, ...seasons].forEach((season) => season.teams.forEach((team) => addLogo(team.logo)))
+    // Preserve an intentionally curated/cleared gallery instead of repopulating it
+    // from every saved or published season when the app starts again.
+    const logoGalleryManual = raw.logoGalleryManual === true
+      || (Array.isArray(raw.logos) && raw.logos.length === 0)
+    if (!logoGalleryManual) {
+      ;[current, ...seasons].forEach((season) => season.teams.forEach((team) => addLogo(team.logo)))
+    }
     return {
       logos: logoData.map((data, id) => ({ id, data, category: logoCategories.get(data) || 'custom' })),
+      logoGalleryManual,
       brandLogo: typeof raw.brandLogo === 'string' && raw.brandLogo.startsWith('data:image/') ? raw.brandLogo : null,
       current,
       seasons,
@@ -1472,15 +1479,17 @@ window.Hub = (() => {
 
     const knownLogos = new Set(state.logos.map((logo) => logo.data))
     let logosChanged = false
-    incoming.forEach((season) =>
-      season.teams.forEach((team) => {
-        if (team.logo && !knownLogos.has(team.logo)) {
-          knownLogos.add(team.logo)
-          state.logos.push({ id: state.logos.length, data: team.logo })
-          logosChanged = true
-        }
-      }),
-    )
+    if (!state.logoGalleryManual) {
+      incoming.forEach((season) =>
+        season.teams.forEach((team) => {
+          if (team.logo && !knownLogos.has(team.logo)) {
+            knownLogos.add(team.logo)
+            state.logos.push({ id: state.logos.length, data: team.logo })
+            logosChanged = true
+          }
+        }),
+      )
+    }
     state.seasons = next
     teamRecordsCache = null
     if (logosChanged || previous !== JSON.stringify(state.seasons) || previousCurrent !== JSON.stringify(state.current)) {

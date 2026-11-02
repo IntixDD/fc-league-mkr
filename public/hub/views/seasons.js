@@ -659,7 +659,7 @@
           <header class="card-head"><h2 class="card-title">Importar / Exportar</h2></header>
           <div class="row-actions">
             <label class="btn btn--primary file-btn">
-              <input type="file" accept=".json,application/json,text/json,text/plain,application/octet-stream" class="file-picker-input" aria-label="Importar temporadas JSON" data-import>
+              <input type="file" accept="*/*" class="file-picker-input" aria-label="Importar temporadas JSON" data-import>
               Importar .json
             </label>
             <button class="btn btn--ghost" data-action="toggle-published-library">${publishedLibraryVisible ? 'Ocultar archivos' : 'Cargar desde GitHub'}</button>
