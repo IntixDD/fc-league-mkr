@@ -1,0 +1,10 @@
+{
+  "app": "league-hub",
+  "version": 1,
+  "readOnly": false,
+  "library": {
+    "name": "Temporadas publicadas",
+    "icon": ""
+  },
+  "seasons": []
+}
