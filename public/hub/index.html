@@ -16,8 +16,8 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="League Hub" />
     <script src="prefs.js?v=18"></script>
-    <link rel="stylesheet" href="styles.css?v=19" />
-    <link rel="stylesheet" href="components.css?v=103" />
+    <link rel="stylesheet" href="styles.css?v=20" />
+    <link rel="stylesheet" href="components.css?v=129" />
   </head>
   <body>
     <div class="background" aria-hidden="true">
@@ -63,49 +63,49 @@
             <li class="nav-menu-entry"><a class="nav-button mobile-menu-nav-button" href="#menu" data-menu-nav aria-label="Menú" title="Menú"><span class="nav-menu-icon" aria-hidden="true"></span><span class="tooltip" aria-hidden="true">Menú</span></a></li>
             <li>
               <a class="nav-button" href="#teams" data-section="teams" aria-label="Teams">
-                <span class="nav-icon" style="--icon: url('icon-teams.svg?v=4')"></span>
+                <img class="nav-icon" src="icon-teams.svg?v=4" alt="">
                 <span class="tooltip" aria-hidden="true">Teams</span>
               </a>
             </li>
             <li>
               <a class="nav-button" href="#table" data-section="table" aria-label="Table">
-                <span class="nav-icon" style="--icon: url('icon-table.svg?v=4')"></span>
+                <img class="nav-icon" src="icon-table.svg?v=4" alt="">
                 <span class="tooltip" aria-hidden="true">Table</span>
               </a>
             </li>
             <li>
               <a class="nav-button" href="#fixtures" data-section="fixtures" aria-label="Fixtures">
-                <span class="nav-icon" style="--icon: url('icon-fixtures.svg?v=4')"></span>
+                <img class="nav-icon" src="icon-fixtures.svg?v=4" alt="">
                 <span class="tooltip" aria-hidden="true">Fixtures</span>
               </a>
             </li>
             <li>
               <a class="nav-button" href="#tournament" data-section="tournament" aria-label="Tournament">
-                <span class="nav-icon" style="--icon: url('icon-tournament.svg?v=5')"></span>
+                <img class="nav-icon" src="icon-tournament.svg?v=5" alt="">
                 <span class="tooltip" aria-hidden="true">Tournament</span>
               </a>
             </li>
             <li>
               <a class="nav-button" href="#seasons" data-section="seasons" aria-label="Seasons">
-                <span class="nav-icon" style="--icon: url('icon-seasons.svg?v=4')"></span>
+                <img class="nav-icon" src="icon-seasons.svg?v=4" alt="">
                 <span class="tooltip" aria-hidden="true">Seasons</span>
               </a>
             </li>
             <li>
               <a class="nav-button" href="#history" data-section="history" aria-label="History">
-                <span class="nav-icon" style="--icon: url('icon-history.svg?v=4')"></span>
+                <img class="nav-icon" src="icon-history.svg?v=4" alt="">
                 <span class="tooltip" aria-hidden="true">History</span>
               </a>
             </li>
             <li>
               <a class="nav-button" href="#performance" data-section="performance" aria-label="Performance">
-                <span class="nav-icon" style="--icon: url('icon-performance.svg?v=4')"></span>
+                <img class="nav-icon" src="icon-performance.svg?v=4" alt="">
                 <span class="tooltip" aria-hidden="true">Performance</span>
               </a>
             </li>
             <li>
               <a class="nav-button" href="#settings" data-section="settings" aria-label="Settings">
-                <span class="nav-icon" style="--icon: url('icon-settings.svg?v=4')"></span>
+                <img class="nav-icon" src="icon-settings.svg?v=4" alt="">
                 <span class="tooltip" aria-hidden="true">Settings</span>
               </a>
             </li>
@@ -176,18 +176,29 @@
       </form>
     </dialog>
 
-    <script src="core.js?v=47" defer></script>
-    <script src="views/teams.js?v=24" defer></script>
-    <script src="views/table.js?v=23" defer></script>
-    <script src="views/fixtures.js?v=17" defer></script>
+    <dialog id="logo-category-dialog" class="dialog" aria-labelledby="logo-category-title">
+      <form method="dialog">
+        <h2 id="logo-category-title" class="dialog-title" data-title>Categorizar escudo</h2>
+        <p class="card-sub">Elige en qué grupo aparecerá este escudo.</p>
+        <div class="logo-category-options" data-category-options></div>
+        <div class="dialog-actions">
+          <button class="btn btn--ghost" value="cancel">Cancelar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="core.js?v=50" defer></script>
+    <script src="views/teams.js?v=26" defer></script>
+    <script src="views/table.js?v=27" defer></script>
+    <script src="views/fixtures.js?v=18" defer></script>
     <script src="views/tournament.js?v=31" defer></script>
-    <script src="views/seasons.js?v=43" defer></script>
-    <script src="views/history.js?v=19" defer></script>
+    <script src="views/seasons.js?v=45" defer></script>
+    <script src="views/history.js?v=22" defer></script>
     <script src="views/performance.js?v=28" defer></script>
     <script src="views/badges.js?v=25" defer></script>
     <script src="media/music/tracks.js?v=3" defer></script>
-    <script src="views/settings.js?v=28" defer></script>
-    <script src="views/menu.js?v=24" defer></script>
+    <script src="views/settings.js?v=39" defer></script>
+    <script src="views/menu.js?v=25" defer></script>
     <script src="app.js?v=34" defer></script>
   </body>
 </html>
