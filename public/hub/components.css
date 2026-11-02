@@ -4845,3 +4845,46 @@ select.input option {
 @media (max-width: 767px) {
   .table-options .table-option-toggle { flex-basis: 100%; min-width: 0; }
 }
+
+/* Settings uses a dedicated narrow-screen layout even when desktop scaling is selected. */
+@media (max-width: 767px) {
+  #settings,
+  #settings .section-body,
+  #settings .set-grid,
+  #settings .set-card,
+  #settings .set-body { min-width: 0; max-width: 100%; }
+  #settings .set-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+    width: 100%;
+  }
+  #settings .set-grid > .set-card,
+  #settings .set-grid > .set-card.card--wide {
+    grid-column: 1 / -1;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  #settings .set-card { padding: 14px; }
+  #settings .set-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  #settings .set-actions .btn { width: 100%; min-width: 0; }
+  #settings .brand-settings { flex-wrap: wrap; }
+  #settings .audio-controls,
+  #settings .bg-controls { grid-template-columns: minmax(0, 1fr); }
+  #settings .music-current { grid-template-columns: 56px minmax(0, 1fr); gap: 10px; }
+  #settings .music-current-cover { width: 56px; }
+  #settings .music-current-info { padding-right: 20px; }
+  #settings .music-transport { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  #settings .music-transport .btn { min-width: 0; padding-inline: 5px; gap: 4px; font-size: 11px; }
+  #settings .theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #settings .bg-gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  #settings .bg-tile-wrap,
+  #settings .bg-tile { min-width: 0; }
+  #settings .bg-tile-del { right: 4px; top: 4px; }
+  #settings .about-version { flex-wrap: wrap; gap: 8px; }
+}
+
+@media (max-width: 380px) {
+  #settings .music-transport .btn span { display: none; }
+  #settings .music-transport .btn { min-height: 42px; }
+}
