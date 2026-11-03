@@ -187,3 +187,12 @@
 * Seasons/Importar / Exportar: Arreglado el botón Importar .json en celular (el archivo elegido se perdía al volver del selector).
 * Teams/Galería de escudos: Arreglados los botones Importar JSON, Importar imágenes y Subir escudo en celular (mismo problema).
 * Menú/Hall of fame: Recuadro más corto, ahora se ajusta a su contenido.
+
+
+**Beta 3.2:**
+
+* Settings/Escala -1 en celular: Arreglada la interfaz rota. Las reglas responsive de Settings medían el ancho físico de la pantalla en lugar del lienzo reducido de la Vista PC, por lo que en horizontal las tarjetas se aplastaban y se encimaban.
+* Settings/Escala -1: En vertical usa el diseño de celular (barra inferior); en horizontal usa el mismo diseño reducido que el resto de apartados, sin que la barra de navegación cambie de lugar.
+* Settings/Escala -1: Dentro de Settings ya no se fuerza la orientación horizontal, se puede girar el celular libremente.
+* Settings/Música y sonidos: Los botones Anterior / Reproducir / Siguiente ya no se cortan en pantallas de hasta 400px (solo icono).
+* Al cambiar de apartado, el contenido vuelve al inicio (antes heredaba el scroll del apartado anterior).
