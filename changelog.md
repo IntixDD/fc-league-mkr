@@ -161,7 +161,7 @@
 
 
 
-**\[Big update] Beta 3.0:** 
+**\[Big update] Beta 3.0:**
 
 * Nuevo apartado: Menú (Se ingresa desde el icono de liga).
 * Settings: Añadido el recuadro Logo de la liga.
@@ -184,6 +184,7 @@
 * Menú/Hall of fame: Recuadro más corto, ahora se ajusta a su contenido.
 
 
+
 **Beta 3.2:**
 
 * Settings/Escala -1 en celular: Arreglada la interfaz rota. Las reglas responsive de Settings medían el ancho físico de la pantalla en lugar del lienzo reducido de la Vista PC, por lo que en horizontal las tarjetas se aplastaban y se encimaban.
@@ -191,3 +192,4 @@
 * Settings/Escala -1: Dentro de Settings ya no se fuerza la orientación horizontal, se puede girar el celular libremente.
 * Settings/Música y sonidos: Los botones Anterior / Reproducir / Siguiente ya no se cortan en pantallas de hasta 400px (solo icono).
 * Al cambiar de apartado, el contenido vuelve al inicio (antes heredaba el scroll del apartado anterior).
+
