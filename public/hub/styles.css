@@ -606,3 +606,38 @@ body {
   }
 }
 
+/* Scale -1 switches Settings to a true handset layout without rotating the page. */
+.settings-mobile .shell { flex-direction: column-reverse; }
+.settings-mobile .sidebar {
+  width: 100%;
+  height: calc(84px + env(safe-area-inset-bottom, 0px));
+  padding: 0 0 env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0);
+  flex-direction: row;
+  border-right: 0;
+  border-top: 2px solid var(--accent-line);
+}
+.settings-mobile .brand { display: none; }
+.settings-mobile .nav-menu-entry { display: list-item; }
+.settings-mobile .nav-menu-icon { width: 32px; height: 32px; }
+.settings-mobile .nav {
+  --btn: 56px;
+  width: auto;
+  min-width: 0;
+  height: 100%;
+  margin: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
+}
+.settings-mobile .nav-list { flex-direction: row; width: max-content; min-width: 100%; height: 100%; min-height: 0; padding: 0 12px; }
+.settings-mobile .nav-button,
+.settings-mobile .nav-indicator { width: 52px; height: 52px; }
+.settings-mobile .nav-icon,
+.settings-mobile .nav-icon--history,
+.settings-mobile .nav-icon--wide { width: 32px; height: 32px; }
+.settings-mobile .tooltip,
+.settings-mobile .nav-tooltip { display: none; }
+.settings-mobile .section { padding: 18px 13px; }
+.settings-mobile .section-title { font-size: 34px; }
+

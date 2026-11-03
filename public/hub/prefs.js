@@ -35,6 +35,13 @@
   let prefs = read()
   const root = document.documentElement
   let landscapeLockRequested = false
+  let activeSection = location.hash.slice(1) || 'menu'
+
+  function isSettingsMobileMode() {
+    const mobile = matchMedia('(pointer: coarse)').matches
+    const narrowSide = Math.min(screen.width || innerWidth, screen.height || innerHeight)
+    return prefs.scale === -1 && activeSection === 'settings' && mobile && narrowSide <= 600
+  }
 
   function syncLandscapeLock(desktop) {
     const mobile = matchMedia('(pointer: coarse)').matches
@@ -52,13 +59,15 @@
 
   function applyScale() {
     const mobile = matchMedia('(pointer: coarse)').matches
-    const forceLandscape = prefs.scale === -1 && mobile && matchMedia('(orientation: portrait)').matches
+    const settingsMobile = isSettingsMobileMode()
+    const forceLandscape = prefs.scale === -1 && mobile && !settingsMobile && matchMedia('(orientation: portrait)').matches
     const appWidth = forceLandscape ? window.innerHeight : window.innerWidth
-    const desktop = prefs.scale === -1 && appWidth < DESKTOP_WIDTH
+    const desktop = prefs.scale === -1 && appWidth < DESKTOP_WIDTH && !settingsMobile
     root.classList.toggle('ui-desktop', desktop)
     root.classList.toggle('ui-scale-minus-one', prefs.scale === -1)
     root.classList.toggle('force-landscape', forceLandscape)
-    syncLandscapeLock(prefs.scale === -1)
+    root.classList.toggle('settings-mobile', settingsMobile)
+    syncLandscapeLock(prefs.scale === -1 && !settingsMobile)
     if (desktop) {
       const z = appWidth / DESKTOP_WIDTH
       root.style.zoom = String(z)
@@ -105,8 +114,13 @@
 
   window.addEventListener('resize', applyScale)
   window.addEventListener('orientationchange', applyScale)
-  document.addEventListener('pointerdown', () => {
-    if (prefs.scale === -1) syncLandscapeLock(true)
+  document.addEventListener('app:sectionchange', (event) => {
+    activeSection = event.detail?.id || location.hash.slice(1) || 'menu'
+    applyScale()
+  })
+  document.addEventListener('pointerdown', (event) => {
+    if (prefs.scale !== -1 || event.target?.closest?.('[data-section="settings"]')) return
+    syncLandscapeLock(!isSettingsMobileMode())
   }, { passive: true })
 
   window.HubPrefs = {

@@ -4888,3 +4888,10 @@ select.input option {
   #settings .music-transport .btn span { display: none; }
   #settings .music-transport .btn { min-height: 42px; }
 }
+
+.settings-mobile #settings .set-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.settings-mobile #settings .set-grid > .set-card,
+.settings-mobile #settings .set-grid > .set-card.card--wide { grid-column: 1 / -1; }
+.settings-mobile #settings .audio-controls,
+.settings-mobile #settings .bg-controls { grid-template-columns: minmax(0, 1fr); }
+.settings-mobile #settings .music-transport { grid-template-columns: repeat(3, minmax(0, 1fr)); }
