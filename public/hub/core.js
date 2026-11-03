@@ -49,14 +49,97 @@ window.Hub = (() => {
     })
   }
 
-  const loadState = () => idb('readonly', (s) => s.get(KEY))
-  const saveState = () => idb('readwrite', (s) => s.put(state, KEY))
+  /* Formato de guardado v2: el estado se guarda SIN las imágenes (data: URL).
+     Cada escudo (~100 KB) aparece decenas de veces en el estado (galería + cada equipo de cada
+     temporada); reescribir ~2.7 MB en cada edición congelaba la app. Ahora las imágenes van una sola
+     vez en una tabla aparte ('logos2') que solo se reescribe cuando cambian los escudos, y el estado
+     ligero ('state2', ~100 KB) referencia esa tabla con marcadores. 'state' es el formato antiguo:
+     se sigue leyendo (migración automática) pero ya no se escribe. */
+  const KEY2 = 'state2'
+  const KEY_TABLE = 'logos2'
+  const REF = '\u0001L'
+  const ESCAPED = '\u0001E'
 
-  // IndexedDB is the primary store (handles large logo galleries). localStorage remains
-  // a fallback for browsers where IndexedDB is unavailable, without serializing images
-  // synchronously during every normal save.
+  function idbGetMany(keys) {
+    return openDb().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly')
+      const store = tx.objectStore(STORE)
+      const reqs = keys.map((key) => store.get(key))
+      tx.oncomplete = () => resolve(reqs.map((req) => req.result))
+      tx.onerror = () => reject(tx.error)
+    }))
+  }
+
+  function idbPutMany(entries) {
+    return openDb().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite')
+      const store = tx.objectStore(STORE)
+      entries.forEach(([key, value]) => store.put(value, key))
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+      tx.onabort = () => reject(tx.error || new Error('Transacción cancelada'))
+    }))
+  }
+
+  /* Estado -> { json, table, changed }. `table` son las imágenes únicas. Conserva el orden de la
+     tabla ya guardada y solo añade al final, así `changed` es true únicamente cuando aparece un
+     escudo nuevo (o cuando se compacta la basura de escudos ya borrados). */
+  function packState() {
+    const previous = lastTable || []
+    const table = previous.slice()
+    const index = new Map()
+    table.forEach((data, i) => index.set(data, i))
+    const used = new Set()
+    const json = JSON.stringify(state, (key, value) => {
+      if (typeof value !== 'string' || !value) return value
+      const first = value.charCodeAt(0)
+      if (first === 1) return ESCAPED + value
+      if (first === 100 && value.startsWith('data:image/')) {
+        let i = index.get(value)
+        if (i === undefined) {
+          i = table.length
+          index.set(value, i)
+          table.push(value)
+        }
+        used.add(i)
+        return REF + i
+      }
+      return value
+    })
+    if (previous.length && table.length - used.size > 8) {
+      lastTable = null // demasiados escudos borrados en la tabla: se reconstruye compacta
+      return packState()
+    }
+    return { json, table, changed: !lastTable || table.length !== previous.length }
+  }
+
+  function unpackState(json, table) {
+    const parsed = JSON.parse(json)
+    const walk = (value) => {
+      if (typeof value === 'string') {
+        if (value.charCodeAt(0) !== 1) return value
+        if (value.startsWith(REF)) return table?.[Number(value.slice(2))] ?? null
+        if (value.startsWith(ESCAPED)) return value.slice(2)
+        return value
+      }
+      if (Array.isArray(value)) {
+        for (let i = 0; i < value.length; i++) value[i] = walk(value[i])
+      } else if (value && typeof value === 'object') {
+        for (const k in value) value[k] = walk(value[k])
+      }
+      return value
+    }
+    return walk(parsed)
+  }
+
+  let lastTable = null // tabla de imágenes ya guardada en IndexedDB
+  let tableId = ''
+  let dbBroken = false
+  let flushSeq = 0
+
+  // IndexedDB is the primary store (handles large logo galleries); localStorage is a
+  // synchronous mirror so the latest edit survives a reload even if the async write is cut off.
   const LS_STATE = 'league-hub:state'
-  const LS_MIRROR_CHECKED = 'league-hub:mirror-checked'
   const LS_UI = 'league-hub:ui'
   const UI_KEYS = ['fxMode', 'poSize', 'perfTeam', 'historySort', 'historySortVersion', 'historyDir', 'historyQuery', 'newKeepTeams', 'tableEdit', 'repechageEnabled', 'lockSeasonExport', 'tournamentTwoLegged']
   let dirty = false
@@ -70,12 +153,33 @@ window.Hub = (() => {
     }
   }
 
+  // Espejo completo (formato antiguo): solo se usa si IndexedDB no está disponible o mientras
+  // se guarda una tabla de imágenes nueva (para no perder nada si se corta la escritura asíncrona).
   function writeLocal() {
     try {
       localStorage.setItem(LS_STATE, JSON.stringify(state))
       return true
     } catch {
       return false
+    }
+  }
+
+  // Espejo ligero (formato v2): ~100 KB, síncrono, sobrevive a un cierre brusco.
+  const LS_STATE2 = 'league-hub:state2'
+  function writeLocalLight(record) {
+    try {
+      localStorage.setItem(LS_STATE2, JSON.stringify(record))
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  function readLocalLight() {
+    try {
+      return JSON.parse(localStorage.getItem(LS_STATE2) || 'null')
+    } catch {
+      return null
     }
   }
 
@@ -109,17 +213,39 @@ window.Hub = (() => {
     if (!state || !dirty) return
     dirty = false
     state.updatedAt = Date.now()
-    saveState().catch((err) => {
-      const local = writeLocal()
-      if (!local) toast(`No se pudo guardar: ${err.message}`, 'error')
-      else toast('Guardado localmente; el almacenamiento principal no está disponible.', 'error')
-    })
+    if (dbBroken) {
+      if (!writeLocal()) toast('No se pudo guardar: almacenamiento no disponible', 'error')
+      return
+    }
+    const { json, table, changed: tableChanged } = packState()
+    if (tableChanged) {
+      lastTable = table
+      tableId = uid()
+      writeLocal() // seguro de vida hasta que la tabla nueva esté en IndexedDB
+    }
+    const record = { v: 2, updatedAt: state.updatedAt, tableId, json }
+    const seq = ++flushSeq
+    const entries = [[KEY2, record]]
+    if (tableChanged) entries.push([KEY_TABLE, { id: tableId, table }])
+    else writeLocalLight(record)
+    idbPutMany(entries).then(
+      () => {
+        if (seq !== flushSeq) return
+        if (tableChanged) writeLocalLight(record)
+        try { localStorage.removeItem(LS_STATE) } catch { /* nada */ }
+      },
+      (err) => {
+        // IndexedDB falló: volver al espejo completo para no perder datos.
+        dbBroken = true
+        if (!writeLocal()) toast(`No se pudo guardar: ${err?.message || 'error de almacenamiento'}`, 'error')
+      },
+    )
   }
 
   function persist() {
     dirty = true
     clearTimeout(saveTimer)
-    saveTimer = setTimeout(flush, 120)
+    saveTimer = setTimeout(flush, 250)
   }
 
   addEventListener('pagehide', flush)
@@ -145,35 +271,38 @@ window.Hub = (() => {
     return isScore(n) ? n : null
   }
 
-  // Los escudos se guardan como data: URL (decenas de KB cada uno). Meterlos tal cual en el HTML obligaba
-  // a construir, escapar y parsear megabytes en cada render. Se convierten una sola vez a blob: URL
-  // (cadena corta, imagen decodificada una vez) y se reutilizan en todos los renders.
-  const logoUrls = new Map()
-  function logoSrc(logo) {
-    if (typeof logo !== 'string' || !logo.startsWith('data:')) return logo
-    let url = logoUrls.get(logo)
+  /* Los escudos se guardan como data: URL (base64, ~100 KB c/u). Incrustarlos tal cual en el HTML
+     obligaba al navegador a parsear y decodificar MB de texto en cada render (el Menú llegaba a 7.5 MB).
+     imgSrc() los convierte una sola vez en un blob: URL corto y lo reutiliza. */
+  const blobUrls = new Map()
+  function imgSrc(src) {
+    if (typeof src !== 'string' || !src.startsWith('data:')) return src
+    let url = blobUrls.get(src)
     if (url) return url
     try {
-      const comma = logo.indexOf(',')
-      const meta = logo.slice(5, comma)
-      const body = logo.slice(comma + 1)
-      let bytes
+      const comma = src.indexOf(',')
+      const meta = src.slice(5, comma)
+      const mime = meta.split(';')[0] || 'application/octet-stream'
+      let part
       if (/;base64/i.test(meta)) {
-        const bin = atob(body)
-        bytes = new Uint8Array(bin.length)
+        const bin = atob(src.slice(comma + 1))
+        const bytes = new Uint8Array(bin.length)
         for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-      } else bytes = new TextEncoder().encode(decodeURIComponent(body))
-      url = URL.createObjectURL(new Blob([bytes], { type: meta.split(';')[0] || 'image/png' }))
+        part = bytes
+      } else {
+        part = decodeURIComponent(src.slice(comma + 1))
+      }
+      url = URL.createObjectURL(new Blob([part], { type: mime }))
     } catch {
-      return logo
+      url = src
     }
-    logoUrls.set(logo, url)
+    blobUrls.set(src, url)
     return url
   }
 
   function crest(logo, size = 'md', name = '') {
     const inner = logo
-      ? `<img src="${esc(logoSrc(logo))}" alt="" loading="lazy" decoding="async">`
+      ? `<img src="${esc(imgSrc(logo))}" alt="" loading="lazy" decoding="async">`
       : `<span class="crest-initial">${esc((name || '?').trim().charAt(0).toUpperCase() || '?')}</span>`
     return `<span class="crest crest--${size}">${inner}</span>`
   }
@@ -1284,11 +1413,23 @@ window.Hub = (() => {
     return state.current.id ? state.seasons.find((s) => s.id === state.current.id) : null
   }
 
+  /* Igualdad estructural con salida temprana (equivale a comparar JSON, pero sin serializar los
+     escudos de cada equipo: antes se stringificaban ~1.6 MB dos veces por cada render de Seasons). */
+  function sameData(a, b) {
+    if (a === b) return true
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false
+    if (Array.isArray(a) !== Array.isArray(b)) return false
+    if (Array.isArray(a)) return a.length === b.length && a.every((item, i) => sameData(item, b[i]))
+    const keysA = Object.keys(a).filter((k) => a[k] !== undefined)
+    const keysB = Object.keys(b).filter((k) => b[k] !== undefined)
+    return keysA.length === keysB.length && keysA.every((k) => sameData(a[k], b[k]))
+  }
+
   function isDirty() {
     const saved = savedCopy()
     const cur = state.current
     if (!saved) return cur.teams.length > 0 || !!cur.fixtures || !!cur.playoffs || !!cur.manual
-    return JSON.stringify(saved) !== JSON.stringify(cur)
+    return !sameData(saved, cur)
   }
 
   /* ---------- UI utilities ---------- */
@@ -1453,12 +1594,12 @@ window.Hub = (() => {
 
   function renderBrand() {
     const custom = state.brandLogo
-    const css = custom ? `url("${logoSrc(custom).replace(/"/g, '%22')}")` : ''
+    const bg = custom ? `url("${imgSrc(custom).replace(/"/g, '%22')}")` : ''
     document.querySelectorAll('.logo, .nav-menu-icon').forEach((brand) => {
       brand.classList.toggle('is-custom', !!custom)
-      if (brand.dataset.brandCss !== css) {
-        brand.dataset.brandCss = css
-        brand.style.backgroundImage = css
+      if (brand.dataset.brandBg !== bg) {
+        brand.dataset.brandBg = bg
+        brand.style.backgroundImage = bg
       }
     })
   }
@@ -1470,7 +1611,7 @@ window.Hub = (() => {
     }
     pendingSkip = skip
     renderQueued = true
-    requestAnimationFrame(renderAll)
+    setTimeout(renderAll, 0)
   }
 
   function update(mutator, { skip = null } = {}) {
@@ -1593,40 +1734,52 @@ window.Hub = (() => {
 
   async function init() {
     loadUi()
-    let fromDb = null
+    const candidates = []
     let dbOk = true
+    let tableRec = null
     try {
-      fromDb = await loadState()
+      const [legacy, v2, tbl] = await idbGetMany([KEY, KEY2, KEY_TABLE])
+      tableRec = tbl || null
+      if (legacy) candidates.push(legacy)
+      if (v2?.json) {
+        try {
+          const unpacked = unpackState(v2.json, tbl?.table)
+          unpacked.updatedAt = v2.updatedAt || unpacked.updatedAt
+          candidates.push(unpacked)
+        } catch { /* registro v2 dañado: se ignora y se usa otro */ }
+      }
     } catch {
       dbOk = false
     }
-    // Read the legacy mirror once after the storage change. Parsing a large base64
-    // logo library on every launch was a noticeable source of startup delay.
-    let mirrorChecked = false
-    try { mirrorChecked = localStorage.getItem(LS_MIRROR_CHECKED) === '1' } catch {}
-    const fromLocal = mirrorChecked && dbOk && fromDb ? null : readLocal()
-    const localIsNewer = (fromLocal?.updatedAt || 0) > (fromDb?.updatedAt || 0)
-    const newest = localIsNewer ? fromLocal : fromDb || fromLocal
-    const oldLogoLibrary = Array.isArray(newest?.logos) ? newest.logos : []
+    const fromLocal = readLocal()
+    if (fromLocal) candidates.push(fromLocal)
+    const light = readLocalLight()
+    if (light?.json && tableRec && light.tableId === tableRec.id) {
+      try {
+        const unpacked = unpackState(light.json, tableRec.table)
+        unpacked.updatedAt = light.updatedAt || unpacked.updatedAt
+        candidates.push(unpacked)
+      } catch { /* espejo ligero dañado: se ignora */ }
+    }
+    if (tableRec) {
+      lastTable = tableRec.table
+      tableId = tableRec.id
+    }
+    dbBroken = !dbOk
+    const newest = candidates.reduce((best, item) => ((item?.updatedAt || 0) > (best?.updatedAt || 0) ? item : best), null) || candidates[0] || null
+    const oldLogoLibrary = JSON.stringify(newest?.logos || [])
     state = sanitizeState(newest)
     teamRecordsCache = null
-    const migratedLogoLibrary = oldLogoLibrary.length !== state.logos.length
-      || state.logos.some((logo, index) => {
-        const old = oldLogoLibrary[index]
-        return old?.id !== index || old?.data !== logo.data || (old?.category || 'custom') !== logo.category
-      })
+    const migratedLogoLibrary = JSON.stringify(state.logos) !== oldLogoLibrary
     if (newest?.updatedAt) state.updatedAt = newest.updatedAt
     if (!dbOk && !writeLocal()) toast('Almacenamiento no disponible: los datos no se guardarán', 'error')
-    if (dbOk && fromDb && !localIsNewer) {
-      try { localStorage.setItem(LS_MIRROR_CHECKED, '1') } catch {}
-    }
     navigator.storage?.persist?.().catch(() => {})
     Object.entries(views).forEach(([id, v]) => {
       const el = document.getElementById(`${id}-body`)
       if (el && v.bind) v.bind(el)
     })
     renderAll()
-    if (migratedLogoLibrary || localIsNewer) persist()
+    if (migratedLogoLibrary) persist()
     void syncPublishedSeasons()
   }
 
@@ -1645,7 +1798,7 @@ window.Hub = (() => {
     esc,
     clone,
     crest,
-    logoSrc,
+    imgSrc,
     played,
     parseScore,
     emptySeason,
