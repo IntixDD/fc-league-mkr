@@ -155,7 +155,7 @@
       .sort((a, b) => b.number - a.number)
       .flatMap((saved) => (saved.teams || []).map((team) => team.logo))
     const teamLogos = [...currentTeams.map((team) => team.logo), ...recentSeasonLogos]
-    const logoSources = [logo, ...shuffled([...new Set(teamLogos.filter((source) => source && source !== logo))].slice(0, 17))].filter(Boolean)
+    const logoSources = [logo, ...shuffled([...new Set(teamLogos.filter((source) => source && source !== logo))].slice(0, 17))].filter(Boolean).map((source) => H.imgSrc(source))
     const logoMarkup = logoSources.map((source, index) => `<img class="menu-hero-logo${index === 0 ? ' is-active' : ''}" data-logo-source="${esc(source)}" ${index === 0 ? `src="${esc(source)}"` : `data-src="${esc(source)}"`} alt="" decoding="async">`).join('')
     const leagueHonors = groups
       ? honorsTeamsTile('Campeones de grupo', groupWinners)
@@ -193,7 +193,7 @@
     const home = season.teams.find((team) => team.id === match?.home)
     const away = season.teams.find((team) => team.id === match?.away)
     const penalties = match?.tied && match?.decided ? `<div class="menu-match-pens">Penales ${match.hp}–${match.ap}</div>` : ''
-    return `<article class="menu-match-card"><h4>${label}</h4>${home ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(H.logoSrc(home.logo))}" alt="" loading="lazy">` : ''}${away ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(H.logoSrc(away.logo))}" alt="" loading="lazy">` : ''}<div class="menu-match-score">${match?.hg ?? '–'} <i>:</i> ${match?.ag ?? '–'}</div><div class="menu-match-names"><span>${esc(home?.name || 'Por definir')}</span><span>${esc(away?.name || 'Por definir')}</span></div>${penalties}</article>`
+    return `<article class="menu-match-card"><h4>${label}</h4>${home ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(H.imgSrc(home.logo))}" alt="" loading="lazy">` : ''}${away ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(H.imgSrc(away.logo))}" alt="" loading="lazy">` : ''}<div class="menu-match-score">${match?.hg ?? '–'} <i>:</i> ${match?.ag ?? '–'}</div><div class="menu-match-names"><span>${esc(home?.name || 'Por definir')}</span><span>${esc(away?.name || 'Por definir')}</span></div>${penalties}</article>`
   }
 
   function render(el, state) {

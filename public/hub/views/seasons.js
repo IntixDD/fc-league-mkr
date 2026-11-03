@@ -667,7 +667,7 @@
               <input class="input" type="text" name="library-export-name" maxlength="48" value="${esc(libraryExportName)}">
             </label>
             <div class="season-json-icon-control">
-              <span class="season-json-icon-preview">${libraryExportIcon ? `<img src="${esc(libraryExportIcon)}" alt="Escudo seleccionado">` : JSON_FILE_ICON}</span>
+              <span class="season-json-icon-preview">${libraryExportIcon ? `<img src="${esc(H.imgSrc(libraryExportIcon))}" alt="Escudo seleccionado">` : JSON_FILE_ICON}</span>
               <span class="season-json-icon-name">Escudo del JSON</span>
               <button class="btn btn--ghost btn--sm" data-action="choose-json-icon">${libraryExportIcon ? 'Cambiar' : 'Elegir'}</button>
               ${libraryExportIcon ? '<button class="btn btn--ghost btn--sm" data-action="clear-json-icon" aria-label="Quitar escudo">Quitar</button>' : ''}
@@ -680,7 +680,7 @@
                 ? `<p class="season-library-empty">${esc(publishedLibraryError)}</p>`
                 : publishedLibraryEntries?.length
                   ? publishedLibraryEntries.map((entry, index) => `<button class="season-library-entry" data-action="load-published" data-index="${index}">
-                      <span class="season-library-entry-icon">${entry.icon ? `<img src="${esc(entry.icon)}" alt="">` : JSON_FILE_ICON}</span>
+                      <span class="season-library-entry-icon">${entry.icon ? `<img src="${esc(H.imgSrc(entry.icon))}" alt="">` : JSON_FILE_ICON}</span>
                       <span class="season-library-entry-name"><strong>${esc(entry.name)}</strong><small>${esc(entry.file)}</small></span>
                       <span class="season-library-entry-action">Cargar</span>
                     </button>`).join('')
