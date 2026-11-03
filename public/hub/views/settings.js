@@ -19,15 +19,11 @@
   let musicDelayElapsed = false
   let musicPausedByUser = false
   let audio = null
-  let musicAudioContext = null
-  let musicAnalyser = null
-  let musicAnalyserSource = null
-  let musicCaptureStream = null
-  let musicCaptureSrc = ''
-  let musicCaptureRequest = 0
-  let musicAnalyserPending = false
   let musicMeterFrame = 0
-  let musicMeterData = null
+  let musicMeterLast = 0
+  let musicBars = []
+  let musicPlayToken = 0
+  const musicEnvelopes = new Map()
   let musicPlaybackError = false
   const musicBarLevels = [0, 0, 0, 0]
   let musicAdvanceTimer = 0
@@ -113,7 +109,8 @@
             : 'Añade canciones a la biblioteca'
     const player = document.querySelector('.music-current')
     player?.classList.toggle('is-playing', playing && !waitingForNext)
-    player?.classList.toggle('has-audio-meter', !!musicAnalyser)
+    player?.classList.add('has-audio-meter')
+    if (playing && !waitingForNext) startMusicMeter()
 
     const button = document.querySelector('[data-action="music-toggle"]')
     if (!button) return
@@ -124,126 +121,82 @@
     document.querySelectorAll('.music-transport [data-action="music-next"], .music-transport [data-action="music-previous"]').forEach((control) => { control.disabled = !available })
   }
 
-  async function attachMusicCapture() {
-    if (!audio || !musicAnalyser || !musicAudioContext || location.protocol !== 'file:') return
-    const requestedSrc = audio.src
-    if (musicCaptureSrc === requestedSrc && musicCaptureStream?.getAudioTracks().some((track) => track.readyState === 'live')) return
-    const request = ++musicCaptureRequest
-    const capture = audio.captureStream || audio.mozCaptureStream
-    if (!capture) return
-    if (audio.paused || audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
-      await new Promise((resolve) => {
-        let timer = 0
-        const done = () => {
-          clearTimeout(timer)
-          audio.removeEventListener('playing', done)
-          audio.removeEventListener('error', done)
-          resolve()
-        }
-        audio.addEventListener('playing', done, { once: true })
-        audio.addEventListener('error', done, { once: true })
-        timer = window.setTimeout(done, 7000)
-      })
-    }
-    if (request !== musicCaptureRequest || audio.paused || audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || audio.src !== requestedSrc) return
+  /* ---------- Barritas de música ----------
+     Se animan con una envolvente precalculada (media/music/bars.js) leída según audio.currentTime.
+     No pasan el audio por Web Audio, así que funcionan igual en cualquier navegador/dispositivo
+     (incluido file://) y no añaden carga ni crujidos al sonido. Si una canción no tiene envolvente,
+     se usa una animación suave de respaldo. */
+  function musicEnvelope(track) {
+    const pack = window.HUB_MUSIC_BARS
+    const key = track?.file
+    if (!pack || !key) return null
+    if (musicEnvelopes.has(key)) return musicEnvelopes.get(key)
+    let data = null
     try {
-      const stream = capture.call(audio)
-      if (!stream.getAudioTracks().some((track) => track.readyState === 'live')) return
-      const source = musicAudioContext.createMediaStreamSource(stream)
-      source.connect(musicAnalyser)
-      const previousSource = musicAnalyserSource
-      const previousStream = musicCaptureStream
-      musicAnalyserSource = source
-      musicCaptureStream = stream
-      musicCaptureSrc = requestedSrc
-      previousSource?.disconnect()
-      previousStream?.getTracks().forEach((track) => track.stop())
-      startMusicMeter()
-    } catch {}
-  }
-
-  async function enableMusicAnalyser() {
-    if (musicAnalyser) {
-      if (musicAudioContext?.state === 'suspended') musicAudioContext.resume().catch(() => {})
-      if (location.protocol === 'file:' && musicCaptureSrc !== audio?.src) void attachMusicCapture()
-      return
-    }
-    if (!audio || musicAnalyserPending) return
-    // Only route audio through Web Audio in a real user gesture so autoplay
-    // policies cannot silence the track before the user interacts.
-    if (!navigator.userActivation?.isActive) return
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext
-    if (!AudioContextClass) return
-    let context
-    musicAnalyserPending = true
-    try {
-      context = new AudioContextClass()
-      musicAudioContext = context
-      await context.resume()
-      if (context.state !== 'running' || !audio) {
-        await context.close().catch(() => {})
-        if (musicAudioContext === context) musicAudioContext = null
-        return
+      const raw = pack.data?.[key]
+      if (raw) {
+        const bin = atob(raw)
+        data = new Uint8Array(bin.length)
+        for (let i = 0; i < bin.length; i++) data[i] = bin.charCodeAt(i)
       }
-      const analyser = context.createAnalyser()
-      analyser.fftSize = 128
-      analyser.smoothingTimeConstant = .72
-      if (location.protocol === 'file:') {
-        const silentOutput = context.createGain()
-        silentOutput.gain.value = 0
-        analyser.connect(silentOutput)
-        silentOutput.connect(context.destination)
-      } else {
-        const source = context.createMediaElementSource(audio)
-        source.connect(analyser)
-        analyser.connect(context.destination)
-        musicAnalyserSource = source
-      }
-      musicAudioContext = context
-      musicAnalyser = analyser
-      musicMeterData = new Uint8Array(analyser.frequencyBinCount)
-      updateMusicControls()
-      if (location.protocol === 'file:') await attachMusicCapture()
-      startMusicMeter()
-    } catch {
-      context?.close().catch(() => {})
-      if (musicAudioContext === context) musicAudioContext = null
-    } finally {
-      musicAnalyserPending = false
-    }
+    } catch { data = null }
+    musicEnvelopes.set(key, data)
+    return data
   }
 
   function stopMusicMeter() {
     if (musicMeterFrame) cancelAnimationFrame(musicMeterFrame)
     musicMeterFrame = 0
-    document.querySelectorAll('.music-equalizer i').forEach((bar) => { bar.style.height = '' })
+    musicBarLevels.fill(0)
+    document.querySelectorAll('.music-equalizer i').forEach((bar) => { bar.style.transform = '' })
   }
 
   function startMusicMeter() {
-    if (!musicAnalyser || !musicMeterData || !audio || audio.paused || document.hidden || musicMeterFrame) return
-    const bars = [...document.querySelectorAll('.music-equalizer i')]
-    if (!bars.length) return
-    const draw = () => {
+    if (musicMeterFrame || !audio || audio.paused || document.hidden) return
+    const draw = (now) => {
       musicMeterFrame = 0
-      if (!musicAnalyser || !audio || audio.paused || document.hidden) return stopMusicMeter()
-      musicAnalyser.getByteFrequencyData(musicMeterData)
-      bars.forEach((bar, index) => {
-        const start = Math.floor(index * musicMeterData.length / bars.length)
-        const end = Math.max(start + 1, Math.floor((index + 1) * musicMeterData.length / bars.length))
-        let total = 0
-        for (let bin = start; bin < end; bin++) total += musicMeterData[bin]
-        const level = total / (end - start) / 255
-        musicBarLevels[index] = musicBarLevels[index] * .58 + level * .42
-        bar.style.height = `${Math.round(16 + musicBarLevels[index] * 84)}%`
-      })
+      if (!audio || audio.paused || document.hidden) return stopMusicMeter()
+      if (!musicBars.length || !musicBars[0].isConnected) musicBars = [...document.querySelectorAll('.music-equalizer i')]
+      // Sin barras visibles (otro apartado abierto): se detiene y vuelve con app:sectionchange.
+      if (!musicBars.length || musicBars[0].offsetParent === null) { musicMeterLast = 0; return }
+      if (now - musicMeterLast >= 32) {
+        musicMeterLast = now
+        const pack = window.HUB_MUSIC_BARS
+        const data = musicEnvelope(musicLibrary[currentTrack])
+        const bands = pack?.bands || 4
+        const pos = Math.max(0, audio.currentTime) * (pack?.fps || 20)
+        const i0 = Math.floor(pos)
+        const frac = pos - i0
+        const frames = data ? Math.floor(data.length / bands) : 0
+        const live = data && i0 + 1 < frames
+        musicBars.forEach((bar, index) => {
+          let target
+          if (live) {
+            const a = data[i0 * bands + index]
+            const b = data[(i0 + 1) * bands + index]
+            target = (a + (b - a) * frac) / 255
+          } else {
+            const t = now / 1000
+            target = .5 + .3 * Math.sin(t * (2.1 + index * .7) + index * 1.9) + .15 * Math.sin(t * (5.3 + index) + index)
+          }
+          // Curva exagerada: los valles bajan casi a cero y los picos llegan al tope.
+          const shaped = Math.min(1, Math.pow(Math.max(0, target), 2.4) * 1.5)
+          const prev = musicBarLevels[index]
+          musicBarLevels[index] = prev + (shaped - prev) * (shaped > prev ? .8 : .32)
+          bar.style.transform = `scaleY(${(.08 + musicBarLevels[index] * .92).toFixed(3)})`
+        })
+      }
       musicMeterFrame = requestAnimationFrame(draw)
     }
     musicMeterFrame = requestAnimationFrame(draw)
   }
 
+  document.addEventListener('app:sectionchange', () => requestAnimationFrame(startMusicMeter))
+
   function ensureAudio() {
     if (!audio) {
       audio = new Audio()
+      audio.preload = 'auto'
       audio.volume = P.get().musicVolume ?? 0.15
       audio.addEventListener('ended', () => {
         stopMusicMeter()
@@ -257,12 +210,18 @@
         }, 2000)
       })
       audio.addEventListener('play', () => {
-        if (musicAudioContext?.state === 'suspended') musicAudioContext.resume().catch(() => {})
         updateMusicControls()
         startMusicMeter()
       })
       audio.addEventListener('pause', () => {
         stopMusicMeter()
+        updateMusicControls()
+      })
+      audio.addEventListener('error', () => {
+        stopMusicMeter()
+        if (!audio.src) return
+        musicStarted = false
+        musicPlaybackError = true
         updateMusicControls()
       })
     }
@@ -278,18 +237,18 @@
     musicPausedByUser = false
     const track = musicLibrary[currentTrack]
     musicPlaybackError = false
+    const token = ++musicPlayToken
     audio.src = track.src
-    try { audio.currentTime = 0 } catch {}
     updateMusicControls()
-    // Start capture after the track is assigned, while the play gesture is
-    // still active. Capturing an empty Audio element produces a silent stream.
-    void enableMusicAnalyser()
     audio.play().then(() => {
+      if (token !== musicPlayToken) return
       musicStarted = true
       musicPlaybackError = false
       musicNotice(track)
       updateMusicControls()
-    }).catch(() => {
+    }).catch((error) => {
+      // Un cambio rápido de canción interrumpe el play() anterior: no es un error real.
+      if (token !== musicPlayToken || error?.name === 'AbortError') return
       musicStarted = false
       musicPlaybackError = true
       updateMusicControls()
@@ -317,6 +276,7 @@
         const item = typeof entry === 'string' ? { file: entry } : entry
         if (!item?.file || !/\.mp3$/i.test(item.file)) return null
         return {
+          file: item.file,
           title: item.title || item.file.split('/').pop().replace(/\.mp3$/i, ''),
           src: musicAssetUrl(item.file),
           cover: item.cover || '',
@@ -361,23 +321,46 @@
     playMusic()
   }, { capture: true, passive: true })
 
+  /* ---------- SFX ----------
+     Web Audio con buffers decodificados (latencia mínima, sin recrear elementos <audio>).
+     Máximo de voces simultáneas para que los toques rápidos no se acumulen ni saturen,
+     y <audio> como respaldo solo si Web Audio o la carga de archivos no está disponible. */
+  const SFX_MAX_VOICES = 4
+  const sfxVoices = []
+  const sfxLastPlayed = new Map()
+
+  function prepareSfxFallback(file) {
+    if (sfxPlayers.has(file)) return sfxPlayers.get(file)
+    const sound = new Audio(`media/sfx/${file}`)
+    sound.preload = 'auto'
+    sfxPlayers.set(file, sound)
+    return sound
+  }
+
+  function loadSfxBuffer(file) {
+    const context = sfxContext
+    fetch(new URL(`media/sfx/${file}`, document.baseURI), { cache: 'force-cache' })
+      .then((response) => {
+        if (!response.ok) throw new Error('sfx')
+        return response.arrayBuffer()
+      })
+      .then((buffer) => context.decodeAudioData(buffer))
+      .then((decoded) => { if (context === sfxContext) sfxBuffers.set(file, decoded) })
+      .catch(() => prepareSfxFallback(file))
+  }
+
   function ensureSfxContext() {
-    if (sfxContext) return sfxContext
+    if (sfxContext && sfxContext.state !== 'closed') return sfxContext
+    sfxContext = null
+    sfxBuffers.clear()
     const AudioContextClass = window.AudioContext || window.webkitAudioContext
     if (!AudioContextClass) return null
     try {
-      sfxContext = new AudioContextClass()
-      Promise.all(SFX_FILES.map(async (file) => {
-        try {
-          const response = await fetch(new URL(`media/sfx/${file}`, document.baseURI), { cache: 'force-cache' })
-          if (!response.ok) return
-          const buffer = await response.arrayBuffer()
-          sfxBuffers.set(file, await sfxContext.decodeAudioData(buffer))
-        } catch {}
-      }))
+      sfxContext = new AudioContextClass({ latencyHint: 'interactive' })
     } catch {
-      sfxContext = null
+      try { sfxContext = new AudioContextClass() } catch { sfxContext = null }
     }
+    if (sfxContext) SFX_FILES.forEach(loadSfxBuffer)
     return sfxContext
   }
 
@@ -386,12 +369,24 @@
     const buffer = sfxBuffers.get(file)
     if (!buffer) return false
     try {
+      while (sfxVoices.length >= SFX_MAX_VOICES) {
+        const oldest = sfxVoices.shift()
+        try { oldest.source.stop() } catch {}
+      }
       const source = sfxContext.createBufferSource()
       const gain = sfxContext.createGain()
       source.buffer = buffer
       gain.gain.value = volume
       source.connect(gain)
       gain.connect(sfxContext.destination)
+      const voice = { source }
+      sfxVoices.push(voice)
+      source.onended = () => {
+        const at = sfxVoices.indexOf(voice)
+        if (at >= 0) sfxVoices.splice(at, 1)
+        source.disconnect()
+        gain.disconnect()
+      }
       source.start(0)
       return true
     } catch {
@@ -402,10 +397,14 @@
   function playSfx(file = 'tap.wav') {
     const volume = P.get().sfxVolume ?? 1
     if (!volume) return
+    const now = performance.now()
+    if (now - (sfxLastPlayed.get(file) || 0) < 40) return
+    sfxLastPlayed.set(file, now)
     const context = ensureSfxContext()
     if (context && sfxBuffers.has(file)) {
-      if (context.state === 'running' && playSfxBuffer(file, volume)) return
-      if (context.state === 'suspended') {
+      if (context.state === 'running') {
+        if (playSfxBuffer(file, volume)) return
+      } else {
         context.resume().then(() => { if (!playSfxBuffer(file, volume)) playSfxFallback(file, volume) }).catch(() => playSfxFallback(file, volume))
         return
       }
@@ -414,24 +413,20 @@
   }
 
   function playSfxFallback(file, volume) {
-    let sound = sfxPlayers.get(file)
-    if (!sound) {
-      sound = new Audio(`media/sfx/${file}`)
-      sound.preload = 'auto'
-      sound.load()
-      sfxPlayers.set(file, sound)
-    }
+    const sound = prepareSfxFallback(file)
     sound.volume = volume
     try { sound.currentTime = 0 } catch {}
     sound.play().catch(() => {})
   }
-  SFX_FILES.forEach((file) => {
-    const sound = new Audio(`media/sfx/${file}`)
-    sound.preload = 'auto'
-    sound.load()
-    sfxPlayers.set(file, sound)
-  })
+
   ensureSfxContext()
+  // Despierta el contexto en el primer toque (antes del click) para que el primer sonido no llegue tarde.
+  const unlockSfx = () => {
+    const context = ensureSfxContext()
+    if (context && context.state !== 'running') context.resume().catch(() => {})
+  }
+  document.addEventListener('pointerdown', unlockSfx, { capture: true, passive: true })
+  document.addEventListener('keydown', unlockSfx, { capture: true, passive: true })
   let lastSfxControl = null
   let lastSfxAt = 0
   document.addEventListener('click', (event) => {
@@ -707,7 +702,7 @@
           sub: 'League Hub',
           wide: true,
           extraClass: 'set-about',
-          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-3.1</strong><span class="about-build">Beta Build</span></div>',
+          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-3.2</strong><span class="about-build">Beta Build</span></div>',
         })}
       </div>`
     updateMusicControls()
@@ -716,13 +711,6 @@
   function bind() {
     const el = document.getElementById('settings-body')
     if (!el) return
-    const attachMeterOnInteraction = (event) => {
-      if (!audio || audio.paused || musicAnalyser || musicAnalyserPending) return
-      if (event.target?.closest?.('.music-transport')) return
-      void enableMusicAnalyser()
-    }
-    document.addEventListener('pointerdown', attachMeterOnInteraction, true)
-    document.addEventListener('keydown', attachMeterOnInteraction, true)
     document.addEventListener('league:brandlogochange', () => render())
     el.addEventListener('click', async (e) => {
       const btn = e.target.closest('[data-action]')
@@ -745,7 +733,6 @@
           musicPausedByUser = true
         } else if (finishedCurrentTrack) playTrack(currentTrack + 1)
         else {
-          void enableMusicAnalyser()
           audio.play().then(() => { musicStarted = true; musicPausedByUser = false; updateMusicControls() }).catch(() => {})
         }
         updateMusicControls()

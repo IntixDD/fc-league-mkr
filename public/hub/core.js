@@ -145,9 +145,35 @@ window.Hub = (() => {
     return isScore(n) ? n : null
   }
 
+  // Los escudos se guardan como data: URL (decenas de KB cada uno). Meterlos tal cual en el HTML obligaba
+  // a construir, escapar y parsear megabytes en cada render. Se convierten una sola vez a blob: URL
+  // (cadena corta, imagen decodificada una vez) y se reutilizan en todos los renders.
+  const logoUrls = new Map()
+  function logoSrc(logo) {
+    if (typeof logo !== 'string' || !logo.startsWith('data:')) return logo
+    let url = logoUrls.get(logo)
+    if (url) return url
+    try {
+      const comma = logo.indexOf(',')
+      const meta = logo.slice(5, comma)
+      const body = logo.slice(comma + 1)
+      let bytes
+      if (/;base64/i.test(meta)) {
+        const bin = atob(body)
+        bytes = new Uint8Array(bin.length)
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+      } else bytes = new TextEncoder().encode(decodeURIComponent(body))
+      url = URL.createObjectURL(new Blob([bytes], { type: meta.split(';')[0] || 'image/png' }))
+    } catch {
+      return logo
+    }
+    logoUrls.set(logo, url)
+    return url
+  }
+
   function crest(logo, size = 'md', name = '') {
     const inner = logo
-      ? `<img src="${esc(logo)}" alt="" loading="lazy" decoding="async">`
+      ? `<img src="${esc(logoSrc(logo))}" alt="" loading="lazy" decoding="async">`
       : `<span class="crest-initial">${esc((name || '?').trim().charAt(0).toUpperCase() || '?')}</span>`
     return `<span class="crest crest--${size}">${inner}</span>`
   }
@@ -1427,9 +1453,13 @@ window.Hub = (() => {
 
   function renderBrand() {
     const custom = state.brandLogo
+    const css = custom ? `url("${logoSrc(custom).replace(/"/g, '%22')}")` : ''
     document.querySelectorAll('.logo, .nav-menu-icon').forEach((brand) => {
       brand.classList.toggle('is-custom', !!custom)
-      brand.style.backgroundImage = custom ? `url("${custom.replace(/"/g, '%22')}")` : ''
+      if (brand.dataset.brandCss !== css) {
+        brand.dataset.brandCss = css
+        brand.style.backgroundImage = css
+      }
     })
   }
 
@@ -1615,6 +1645,7 @@ window.Hub = (() => {
     esc,
     clone,
     crest,
+    logoSrc,
     played,
     parseScore,
     emptySeason,

@@ -64,6 +64,7 @@
     if (desktop) {
       const z = appWidth / DESKTOP_WIDTH
       root.style.zoom = String(z)
+      root.style.setProperty('--ui-zoom', String(z))
       root.style.setProperty('--app-h', `${(forceLandscape ? window.innerWidth : window.innerHeight) / z}px`)
       if (forceLandscape) {
         root.style.setProperty('--force-landscape-width', `${window.innerHeight / z}px`)
@@ -72,6 +73,7 @@
       }
     } else {
       root.style.zoom = ''
+      root.style.removeProperty('--ui-zoom')
       root.style.removeProperty('--app-h')
       if (forceLandscape) {
         root.style.setProperty('--force-landscape-width', `${window.innerHeight}px`)

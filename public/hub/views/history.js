@@ -189,7 +189,7 @@
           <div class="table-wrap history-table-wrap" role="region" aria-label="Tabla historial de clubes" tabindex="0">
             <table class="data-table data-table--history">
               <thead><tr><th scope="col" class="num pos-col">Pos</th><th scope="col" class="club">Club</th>${head}</tr></thead>
-              <tbody>${records.map((r, i) => `<tr data-name="${esc(r.key)}"><td class="num pos pos-col${i < 3 ? ` pos-top pos-${i + 1}` : ''}">${i + 1}</td><th scope="row" class="club"><span class="history-club"><span class="history-name" title="${esc(r.name)}">${esc(r.name)}</span><span class="logo-strip">${r.logos.map((l) => `<span class="crest crest--xs"><img src="${esc(l)}" alt="" loading="lazy"></span>`).join('')}</span></span></th>${COLS.map((c) => `<td class="num ${H.STAT_STYLE[c.key].cls}${c.key === sortKey ? ' is-sorted' : ''}${r.t[c.key] ? '' : ' is-zero'}">${r.t[c.key]}</td>`).join('')}</tr>`).join('')}</tbody>
+              <tbody>${records.map((r, i) => `<tr data-name="${esc(r.key)}"><td class="num pos pos-col${i < 3 ? ` pos-top pos-${i + 1}` : ''}">${i + 1}</td><th scope="row" class="club"><span class="history-club"><span class="history-name" title="${esc(r.name)}">${esc(r.name)}</span><span class="logo-strip">${r.logos.map((l) => `<span class="crest crest--xs"><img src="${esc(H.logoSrc(l))}" alt="" loading="lazy"></span>`).join('')}</span></span></th>${COLS.map((c) => `<td class="num ${H.STAT_STYLE[c.key].cls}${c.key === sortKey ? ' is-sorted' : ''}${r.t[c.key] ? '' : ' is-zero'}">${r.t[c.key]}</td>`).join('')}</tr>`).join('')}</tbody>
             </table>
           </div>
           <p class="hint" data-export-hide>Haz clic en el encabezado de una columna para ordenar por esa categoría.</p>

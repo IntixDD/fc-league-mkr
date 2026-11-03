@@ -32,7 +32,7 @@
       ? logos
           .map(
             (l) =>
-              `<button class="logo-tile${l.data === selected ? ' is-selected' : ''}" value="${esc(l.id)}" aria-label="Usar este escudo"><img src="${esc(l.data)}" alt=""></button>`,
+              `<button class="logo-tile${l.data === selected ? ' is-selected' : ''}" value="${esc(l.id)}" aria-label="Usar este escudo"><img src="${esc(H.logoSrc(l.data))}" alt=""></button>`,
           )
           .join('')
       : `<p class="empty">${empty}</p>`
@@ -455,7 +455,7 @@
           </header>
           <form class="register" data-form="team" novalidate>
             <button type="button" class="crest-picker" data-action="pick-logo" aria-label="Elegir escudo de la galería">
-              ${selected && filteredLogos.some((l) => l.id === selected.id) ? `<img src="${esc(selected.data)}" alt="">` : '<span class="crest-picker-empty">Escudo*</span>'}
+              ${selected && filteredLogos.some((l) => l.id === selected.id) ? `<img src="${esc(H.logoSrc(selected.data))}" alt="">` : '<span class="crest-picker-empty">Escudo*</span>'}
             </button>
             <div class="register-fields">
               <label class="field">
@@ -502,7 +502,7 @@
             s.logos.length
               ? `<div class="logo-category-groups">${['custom', 'selections', 'premier', 'laliga', 'other'].map((category) => { const logos = s.logos.filter((logo) => (logo.category || 'custom') === category); return logos.length ? `<section class="logo-category"><h3>${categoryName[category]}</h3><div class="logo-grid">${logos.map((l) => `
                 <div class="logo-tile-wrap">
-                  <button class="logo-tile${String(l.id) === String(H.ui.selectedLogo) ? ' is-selected' : ''}" data-action="select-logo" data-id="${esc(l.id)}" aria-pressed="${String(l.id) === String(H.ui.selectedLogo)}" aria-label="Seleccionar escudo"><img src="${esc(l.data)}" alt="" loading="lazy"></button>
+                  <button class="logo-tile${String(l.id) === String(H.ui.selectedLogo) ? ' is-selected' : ''}" data-action="select-logo" data-id="${esc(l.id)}" aria-pressed="${String(l.id) === String(H.ui.selectedLogo)}" aria-label="Seleccionar escudo"><img src="${esc(H.logoSrc(l.data))}" alt="" loading="lazy"></button>
                 </div>`).join('')}</div></section>` : '' }).join('')}</div>`
               : '<p class="empty">Aún no hay escudos. Importa PNG, JPG, SVG o WEBP, un JSON de escudos o arrastra un ZIP antiguo.</p>'
           }

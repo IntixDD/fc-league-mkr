@@ -103,10 +103,23 @@
     indicator.style.opacity = '1'
   }
 
-  function replay(el, className) {
-    el.classList.remove(className)
-    void el.offsetWidth
+  // Reinicia una animación de clase. La clase se retira sola al terminar (animationend de `animation`),
+  // así que en el caso normal basta con añadirla: antes cada navegación forzaba 3 reflows síncronos
+  // (void el.offsetWidth). Solo si la animación sigue en curso (navegación muy rápida) se reinicia con reflow.
+  function replay(el, className, animation) {
+    if (el.classList.contains(className)) {
+      el.classList.remove(className)
+      void el.offsetWidth
+    }
     el.classList.add(className)
+    if (!el._replayDone) {
+      el._replayDone = new Map()
+      el.addEventListener('animationend', (event) => {
+        const name = el._replayDone.get(event.animationName)
+        if (name) el.classList.remove(name)
+      })
+    }
+    el._replayDone.set(animation, className)
   }
 
   function activate(id, { animate = true } = {}) {
@@ -120,31 +133,34 @@
     if (button) button.setAttribute('aria-current', 'page')
     document.querySelector('[data-menu-nav]')?.toggleAttribute('aria-current', id === 'menu')
 
+    // Todo lo que LEE layout (indicador, scrollIntoView, scrollTop) va antes de cambiar de sección:
+    // así el layout aún está limpio y no se fuerza un reflow de la sección nueva con contenido viejo
+    // que el render va a reemplazar enseguida.
+    // .content is shared by every section: start each one at the top instead of inheriting the previous scroll.
+    const scroller = document.querySelector('.content')
+    if (scroller) scroller.scrollTop = 0
+    if (button) {
+      moveIndicator(button)
+      button.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: animate ? 'smooth' : 'auto' })
+    } else indicator.style.opacity = '0'
+
     sections.forEach((section) => {
       const active = section.id === id
       section.hidden = !active
       if (active && animate) {
         const chars = section.querySelectorAll('.char')
         chars.forEach((c) => { c.style.animation = 'none' })
-        replay(section, 'is-entering')
+        replay(section, 'is-entering', 'section-in')
         chars.forEach((c) => { c.style.animation = '' })
       }
     })
 
-    // .content is shared by every section: start each one at the top instead of inheriting the previous scroll.
-    const scroller = document.querySelector('.content')
-    if (scroller) scroller.scrollTop = 0
-
     document.dispatchEvent(new CustomEvent('app:sectionchange', { detail: { id } }))
     window.Hub?.render?.()
 
-    if (button) {
-      moveIndicator(button)
-      button.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: animate ? 'smooth' : 'auto' })
-    } else indicator.style.opacity = '0'
     if (animate && button) {
-      replay(indicator, 'is-moving')
-      replay(button, 'is-popping')
+      replay(indicator, 'is-moving', 'indicator-stretch')
+      replay(button, 'is-popping', 'icon-pop')
     }
 
     document.title = `${button?.getAttribute('aria-label') || 'Menú'} · League Hub`
