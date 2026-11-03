@@ -179,9 +179,11 @@
             const t = now / 1000
             target = .5 + .3 * Math.sin(t * (2.1 + index * .7) + index * 1.9) + .15 * Math.sin(t * (5.3 + index) + index)
           }
+          // Curva exagerada: los valles bajan casi a cero y los picos llegan al tope.
+          const shaped = Math.min(1, Math.pow(Math.max(0, target), 2.4) * 1.5)
           const prev = musicBarLevels[index]
-          musicBarLevels[index] = prev + (target - prev) * (target > prev ? .6 : .25)
-          bar.style.transform = `scaleY(${(.14 + musicBarLevels[index] * .86).toFixed(3)})`
+          musicBarLevels[index] = prev + (shaped - prev) * (shaped > prev ? .8 : .32)
+          bar.style.transform = `scaleY(${(.08 + musicBarLevels[index] * .92).toFixed(3)})`
         })
       }
       musicMeterFrame = requestAnimationFrame(draw)
