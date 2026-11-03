@@ -1,8 +1,5 @@
-import type { Metadata } from 'next'
-import { SectionHeader } from '@/components/section-header'
+﻿import { redirect } from 'next/navigation'
 
-export const metadata: Metadata = { title: 'Table' }
-
-export default function TablePage() {
-  return <SectionHeader title="Table" />
+export default function LegacyPlayoffsPage() {
+  redirect('/tournament')
 }

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import { SectionHeader } from '@/components/section-header'
 
-export const metadata: Metadata = { title: 'Teams' }
+export const metadata: Metadata = { title: 'Table' }
 
-export default function TeamsPage() {
-  return <SectionHeader title="Teams" />
+export default function TablePage() {
+  return <SectionHeader title="Table" />
 }
