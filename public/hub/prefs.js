@@ -35,20 +35,6 @@
   let prefs = read()
   const root = document.documentElement
   let landscapeLockRequested = false
-  let activeSection = location.hash.slice(1) || 'menu'
-
-  // Settings is the one section that is NOT scaled to a 1100px "PC canvas" on a handset held upright.
-  // Portrait + narrow viewport => real handset layout (no zoom, no rotation, bottom nav bar).
-  // Landscape => the normal zoomed PC layout, exactly like every other section, so the nav never
-  // jumps from the side rail to a bottom bar and the content keeps the full screen height.
-  function isSettingsMobileMode() {
-    if (prefs.scale !== -1 || activeSection !== 'settings') return false
-    const portrait = matchMedia('(orientation: portrait)').matches
-    if (!portrait) return false
-    const coarse = matchMedia('(pointer: coarse)').matches
-    const narrowSide = Math.min(screen.width || innerWidth, screen.height || innerHeight)
-    return innerWidth <= 600 || (coarse && narrowSide <= 600)
-  }
 
   function syncLandscapeLock(desktop) {
     const mobile = matchMedia('(pointer: coarse)').matches
@@ -66,17 +52,15 @@
 
   function applyScale() {
     const mobile = matchMedia('(pointer: coarse)').matches
-    const settingsMobile = isSettingsMobileMode()
-    const forceLandscape = prefs.scale === -1 && mobile && !settingsMobile && matchMedia('(orientation: portrait)').matches
+    const forceLandscape = prefs.scale === -1 && mobile && matchMedia('(orientation: portrait)').matches
     const appWidth = forceLandscape ? window.innerHeight : window.innerWidth
-    const desktop = prefs.scale === -1 && appWidth < DESKTOP_WIDTH && !settingsMobile
+    const desktop = prefs.scale === -1 && appWidth < DESKTOP_WIDTH
     root.classList.toggle('ui-desktop', desktop)
     root.classList.toggle('ui-scale-minus-one', prefs.scale === -1)
     root.classList.toggle('force-landscape', forceLandscape)
-    root.classList.toggle('settings-mobile', settingsMobile)
-    // Never lock the orientation while Settings is open: the phone can be rotated freely
-    // (portrait => handset layout, landscape => PC layout).
-    syncLandscapeLock(prefs.scale === -1 && activeSection !== 'settings')
+    // Settings behaves like every other section: entering it never changes the layout or the
+    // orientation lock, so the screen no longer flips by itself.
+    syncLandscapeLock(prefs.scale === -1)
     if (desktop) {
       const z = appWidth / DESKTOP_WIDTH
       root.style.zoom = String(z)
@@ -123,13 +107,9 @@
 
   window.addEventListener('resize', applyScale)
   window.addEventListener('orientationchange', applyScale)
-  document.addEventListener('app:sectionchange', (event) => {
-    activeSection = event.detail?.id || location.hash.slice(1) || 'menu'
-    applyScale()
-  })
   document.addEventListener('pointerdown', (event) => {
-    if (prefs.scale !== -1 || event.target?.closest?.('[data-section="settings"]')) return
-    syncLandscapeLock(activeSection !== 'settings')
+    if (prefs.scale !== -1) return
+    syncLandscapeLock(true)
   }, { passive: true })
 
   window.HubPrefs = {

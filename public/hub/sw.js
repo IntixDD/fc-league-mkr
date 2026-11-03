@@ -1,4 +1,4 @@
-const CACHE = 'league-hub-v170'
+const CACHE = 'league-hub-v171'
 
 const BASE = new URL('./', self.location.href)
 
@@ -6,8 +6,8 @@ const SHELL = [
   './',
   'index.html',
   'styles.css?v=20',
-  'components.css?v=132',
-  'prefs.js?v=20',
+  'components.css?v=133',
+  'prefs.js?v=21',
   'core.js?v=50',
   'views/teams.js?v=26',
   'views/table.js?v=27',
@@ -20,10 +20,11 @@ const SHELL = [
   'views/history.js?v=22',
   'views/performance.js?v=28',
   'views/badges.js?v=25',
-  'views/settings.js?v=40',
+  'views/settings.js?v=41',
   'views/menu.js?v=25',
   'app.js?v=35',
   'media/music/tracks.js?v=3',
+  'media/music/bars.js?v=1',
   'icon-teams.svg?v=4',
   'icon-table.svg?v=4',
   'icon-fixtures.svg?v=4',
@@ -71,6 +72,9 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url)
   if (url.origin !== self.location.origin || !url.href.startsWith(BASE.href)) return
+  // El audio/video lo gestiona el navegador directamente (peticiones Range): pasarlo por el SW
+  // clonaba y cacheaba MP3 enteros y provocaba cortes en el celular.
+  if (request.headers.has('range') || request.destination === 'audio' || request.destination === 'video' || /\.mp3$/i.test(url.pathname)) return
 
   event.respondWith(
     fetch(request)
