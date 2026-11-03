@@ -4792,26 +4792,27 @@ select.input option {
 .set-music .music-transport { margin-top: 0; }
 .set-music .music-autoplay-setting { padding: 9px 11px; border: 1px solid var(--line); background: rgb(255 255 255 / .025); }
 @media (max-width: 900px) {
-  #settings .set-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  #settings .set-grid > .set-card.set-logo,
-  #settings .set-grid > .set-card.set-scale { grid-column: span 1; }
-  #settings .set-grid > .set-card.set-music,
-  #settings .set-grid > .set-card.set-theme,
-  #settings .set-grid > .set-card.card--wide { grid-column: 1 / -1; }
+  :root:not(.ui-desktop) #settings .set-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :root:not(.ui-desktop) #settings .set-grid > .set-card { grid-column: span 1; }
+  :root:not(.ui-desktop) #settings .set-grid > .set-card.set-logo,
+  :root:not(.ui-desktop) #settings .set-grid > .set-card.set-scale { grid-column: span 1; }
+  :root:not(.ui-desktop) #settings .set-grid > .set-card.set-music,
+  :root:not(.ui-desktop) #settings .set-grid > .set-card.set-theme,
+  :root:not(.ui-desktop) #settings .set-grid > .set-card.card--wide { grid-column: 1 / -1; }
 }
 @media (max-width: 600px) {
-  #settings .set-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  #settings .set-grid > .set-card,
-  #settings .set-grid > .set-card.set-logo,
-  #settings .set-grid > .set-card.set-music,
-  #settings .set-grid > .set-card.set-scale,
-  #settings .set-grid > .set-card.set-theme,
-  #settings .set-grid > .set-card.card--wide { grid-column: 1 / -1; }
-  .music-current { grid-template-columns: 64px minmax(0, 1fr); gap: 11px; }
-  .music-current-cover { width: 64px; }
-  .music-equalizer { position: absolute; right: 9px; bottom: 8px; transform: scale(.8); transform-origin: bottom right; }
-  .music-current-info { padding-right: 14px; }
-  .music-current-info strong { font-size: 14px; }
+  :root:not(.ui-desktop) #settings .set-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  :root:not(.ui-desktop) #settings .set-grid > .set-card,
+  :root:not(.ui-desktop) #settings .set-grid > .set-card.set-logo,
+  :root:not(.ui-desktop) #settings .set-grid > .set-card.set-music,
+  :root:not(.ui-desktop) #settings .set-grid > .set-card.set-scale,
+  :root:not(.ui-desktop) #settings .set-grid > .set-card.set-theme,
+  :root:not(.ui-desktop) #settings .set-grid > .set-card.card--wide { grid-column: 1 / -1; }
+  :root:not(.ui-desktop) .music-current { grid-template-columns: 64px minmax(0, 1fr); gap: 11px; }
+  :root:not(.ui-desktop) .music-current-cover { width: 64px; }
+  :root:not(.ui-desktop) .music-equalizer { position: absolute; right: 9px; bottom: 8px; transform: scale(.8); transform-origin: bottom right; }
+  :root:not(.ui-desktop) .music-current-info { padding-right: 14px; }
+  :root:not(.ui-desktop) .music-current-info strong { font-size: 14px; }
 }
 
 /* Make table setup toggles larger and keep them with the setup controls. */
@@ -4848,45 +4849,45 @@ select.input option {
 
 /* Settings uses a dedicated narrow-screen layout even when desktop scaling is selected. */
 @media (max-width: 767px) {
-  #settings,
-  #settings .section-body,
-  #settings .set-grid,
-  #settings .set-card,
-  #settings .set-body { min-width: 0; max-width: 100%; }
-  #settings .set-grid {
+  :root:not(.ui-desktop) #settings,
+  :root:not(.ui-desktop) #settings .section-body,
+  :root:not(.ui-desktop) #settings .set-grid,
+  :root:not(.ui-desktop) #settings .set-card,
+  :root:not(.ui-desktop) #settings .set-body { min-width: 0; max-width: 100%; }
+  :root:not(.ui-desktop) #settings .set-grid {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 12px;
     width: 100%;
   }
-  #settings .set-grid > .set-card,
-  #settings .set-grid > .set-card.card--wide {
+  :root:not(.ui-desktop) #settings .set-grid > .set-card,
+  :root:not(.ui-desktop) #settings .set-grid > .set-card.card--wide {
     grid-column: 1 / -1;
     width: 100%;
     box-sizing: border-box;
   }
-  #settings .set-card { padding: 14px; }
-  #settings .set-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
-  #settings .set-actions .btn { width: 100%; min-width: 0; }
-  #settings .brand-settings { flex-wrap: wrap; }
-  #settings .audio-controls,
-  #settings .bg-controls { grid-template-columns: minmax(0, 1fr); }
-  #settings .music-current { grid-template-columns: 56px minmax(0, 1fr); gap: 10px; }
-  #settings .music-current-cover { width: 56px; }
-  #settings .music-current-info { padding-right: 20px; }
-  #settings .music-transport { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
-  #settings .music-transport .btn { min-width: 0; padding-inline: 5px; gap: 4px; font-size: 11px; }
-  #settings .theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  #settings .bg-gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  #settings .bg-tile-wrap,
-  #settings .bg-tile { min-width: 0; }
-  #settings .bg-tile-del { right: 4px; top: 4px; }
-  #settings .about-version { flex-wrap: wrap; gap: 8px; }
+  :root:not(.ui-desktop) #settings .set-card { padding: 14px; }
+  :root:not(.ui-desktop) #settings .set-actions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  :root:not(.ui-desktop) #settings .set-actions .btn { width: 100%; min-width: 0; }
+  :root:not(.ui-desktop) #settings .brand-settings { flex-wrap: wrap; }
+  :root:not(.ui-desktop) #settings .audio-controls,
+  :root:not(.ui-desktop) #settings .bg-controls { grid-template-columns: minmax(0, 1fr); }
+  :root:not(.ui-desktop) #settings .music-current { grid-template-columns: 56px minmax(0, 1fr); gap: 10px; }
+  :root:not(.ui-desktop) #settings .music-current-cover { width: 56px; }
+  :root:not(.ui-desktop) #settings .music-current-info { padding-right: 20px; }
+  :root:not(.ui-desktop) #settings .music-transport { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  :root:not(.ui-desktop) #settings .music-transport .btn { min-width: 0; padding-inline: 5px; gap: 4px; font-size: 10px; letter-spacing: .02em; }
+  :root:not(.ui-desktop) #settings .theme-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :root:not(.ui-desktop) #settings .bg-gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  :root:not(.ui-desktop) #settings .bg-tile-wrap,
+  :root:not(.ui-desktop) #settings .bg-tile { min-width: 0; }
+  :root:not(.ui-desktop) #settings .bg-tile-del { right: 4px; top: 4px; }
+  :root:not(.ui-desktop) #settings .about-version { flex-wrap: wrap; gap: 8px; }
 }
 
-@media (max-width: 380px) {
-  #settings .music-transport .btn span { display: none; }
-  #settings .music-transport .btn { min-height: 42px; }
+@media (max-width: 400px) {
+  :root:not(.ui-desktop) #settings .music-transport .btn span { display: none; }
+  :root:not(.ui-desktop) #settings .music-transport .btn { min-height: 42px; }
 }
 
 .settings-mobile #settings .set-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }

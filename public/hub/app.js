@@ -131,6 +131,10 @@
       }
     })
 
+    // .content is shared by every section: start each one at the top instead of inheriting the previous scroll.
+    const scroller = document.querySelector('.content')
+    if (scroller) scroller.scrollTop = 0
+
     document.dispatchEvent(new CustomEvent('app:sectionchange', { detail: { id } }))
     window.Hub?.render?.()
 

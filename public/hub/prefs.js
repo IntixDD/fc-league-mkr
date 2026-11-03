@@ -37,10 +37,17 @@
   let landscapeLockRequested = false
   let activeSection = location.hash.slice(1) || 'menu'
 
+  // Settings is the one section that is NOT scaled to a 1100px "PC canvas" on a handset held upright.
+  // Portrait + narrow viewport => real handset layout (no zoom, no rotation, bottom nav bar).
+  // Landscape => the normal zoomed PC layout, exactly like every other section, so the nav never
+  // jumps from the side rail to a bottom bar and the content keeps the full screen height.
   function isSettingsMobileMode() {
-    const mobile = matchMedia('(pointer: coarse)').matches
+    if (prefs.scale !== -1 || activeSection !== 'settings') return false
+    const portrait = matchMedia('(orientation: portrait)').matches
+    if (!portrait) return false
+    const coarse = matchMedia('(pointer: coarse)').matches
     const narrowSide = Math.min(screen.width || innerWidth, screen.height || innerHeight)
-    return prefs.scale === -1 && activeSection === 'settings' && mobile && narrowSide <= 600
+    return innerWidth <= 600 || (coarse && narrowSide <= 600)
   }
 
   function syncLandscapeLock(desktop) {
@@ -67,7 +74,9 @@
     root.classList.toggle('ui-scale-minus-one', prefs.scale === -1)
     root.classList.toggle('force-landscape', forceLandscape)
     root.classList.toggle('settings-mobile', settingsMobile)
-    syncLandscapeLock(prefs.scale === -1 && !settingsMobile)
+    // Never lock the orientation while Settings is open: the phone can be rotated freely
+    // (portrait => handset layout, landscape => PC layout).
+    syncLandscapeLock(prefs.scale === -1 && activeSection !== 'settings')
     if (desktop) {
       const z = appWidth / DESKTOP_WIDTH
       root.style.zoom = String(z)
@@ -120,7 +129,7 @@
   })
   document.addEventListener('pointerdown', (event) => {
     if (prefs.scale !== -1 || event.target?.closest?.('[data-section="settings"]')) return
-    syncLandscapeLock(!isSettingsMobileMode())
+    syncLandscapeLock(activeSection !== 'settings')
   }, { passive: true })
 
   window.HubPrefs = {
