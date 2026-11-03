@@ -161,7 +161,7 @@
 
 
 
-**\[Big update] Beta 3.0:** 
+**\[Big update] Beta 3.0:**
 
 * Nuevo apartado: Menú (Se ingresa desde el icono de liga).
 * Settings: Añadido el recuadro Logo de la liga.
@@ -184,10 +184,12 @@
 * Menú/Hall of fame: Recuadro más corto, ahora se ajusta a su contenido.
 
 
+
 **Beta 3.2:**
 
-* Settings/Escala -1 en celular: Arreglada la interfaz rota. Las reglas responsive de Settings medían el ancho físico de la pantalla en lugar del lienzo reducido de la Vista PC, por lo que en horizontal las tarjetas se aplastaban y se encimaban.
-* Settings/Escala -1: En vertical usa el diseño de celular (barra inferior); en horizontal usa el mismo diseño reducido que el resto de apartados, sin que la barra de navegación cambie de lugar.
-* Settings/Escala -1: Dentro de Settings ya no se fuerza la orientación horizontal, se puede girar el celular libremente.
-* Settings/Música y sonidos: Los botones Anterior / Reproducir / Siguiente ya no se cortan en pantallas de hasta 400px (solo icono).
-* Al cambiar de apartado, el contenido vuelve al inicio (antes heredaba el scroll del apartado anterior).
+* General/Rendimiento: La app va mucho más fluida. Los escudos ya no se incrustan completos en el HTML (el Menú pasó de 7.5 MB a 44 KB) y los cambios se guardan sin reescribir todo (de \~200 ms por edición a \~2 ms en un celular medio).
+* General/Guardado: Nuevo formato de guardado más ligero (ahorra \~2.7 MB por escritura). Tus datos anteriores se migran solos al abrir la app.
+* Teams/Galería de escudos: Cambiar la categoría de un escudo ya no usa un selector dentro de cada escudo. Mantén presionado (o arrastra) un escudo, elige la categoría en la barra que aparece y listo (con teclado: tecla M).
+* Seasons: Comprobar si hay cambios sin guardar ya no recalcula toda la temporada en cada pantalla.
+* Desarrollo: Nueva guía ARQUITECTURA.md, script `dev/bump-versions.mjs` (sube las versiones de caché solo) y prueba de humo `dev/smoke-test.cjs`.
+
