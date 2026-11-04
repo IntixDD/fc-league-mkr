@@ -133,7 +133,7 @@
     if (button) button.setAttribute('aria-current', 'page')
     document.querySelector('[data-menu-nav]')?.toggleAttribute('aria-current', id === 'menu')
 
-    // Todo lo que LEE layout (indicador, scrollIntoView, scrollTop) va antes de cambiar de sección:
+    // Todo lo que LEE layout (indicador y scrollTop) va antes de cambiar de sección:
     // así el layout aún está limpio y no se fuerza un reflow de la sección nueva con contenido viejo
     // que el render va a reemplazar enseguida.
     // .content is shared by every section: start each one at the top instead of inheriting the previous scroll.
@@ -141,7 +141,8 @@
     if (scroller) scroller.scrollTop = 0
     if (button) {
       moveIndicator(button)
-      button.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: animate ? 'smooth' : 'auto' })
+      // Don't ask the browser to search and scroll ancestor containers for a tab that
+      // was just tapped. It can otherwise scroll the content pane as well as the nav.
     } else indicator.style.opacity = '0'
 
     sections.forEach((section) => {
@@ -156,7 +157,8 @@
     })
 
     document.dispatchEvent(new CustomEvent('app:sectionchange', { detail: { id } }))
-    window.Hub?.render?.()
+    if (window.Hub?.renderSection) window.Hub.renderSection(id)
+    else window.Hub?.render?.()
 
     if (animate && button) {
       replay(indicator, 'is-moving', 'indicator-stretch')
@@ -245,7 +247,6 @@
 
   buttons.forEach((button) => {
     button.addEventListener('mouseenter', () => showTip(button))
-    button.addEventListener('pointerdown', (event) => event.pointerType !== 'mouse' && showTip(button))
     button.addEventListener('mouseleave', () => hideTip(button))
     button.addEventListener('focus', () => button.matches(':focus-visible') && showTip(button))
     button.addEventListener('blur', () => hideTip(button))

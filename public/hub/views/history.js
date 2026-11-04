@@ -133,6 +133,11 @@
     },
 
     render(el) {
+      if (!H.teamRecordsReady() && H.statSeasons().length) {
+        el.innerHTML = '<article class="card" aria-live="polite"><p class="empty">Preparando historial de temporadas…</p></article>'
+        void H.prepareTeamRecords().then(() => H.render())
+        return
+      }
       const records = H.teamRecords().map((r) => ({ ...r, t: { ...H.teamTotals(r), badges: H.badgeCount?.(r) || 0 } }))
       const seasons = H.statSeasons()
       if (!records.length) {

@@ -266,20 +266,6 @@
     H.toast(`Escudo de ${team.name} actualizado`)
   }
 
-  function reorderTeam(id, targetId, after = false) {
-    if (!id || !targetId || id === targetId) return
-    H.update((st) => {
-      const teams = st.current.teams
-      const from = teams.findIndex((team) => team.id === id)
-      let to = teams.findIndex((team) => team.id === targetId)
-      if (from < 0 || to < 0) return
-      const [team] = teams.splice(from, 1)
-      if (from < to) to -= 1
-      if (after) to += 1
-      teams.splice(to, 0, team)
-    })
-  }
-
   function moveTeam(id, direction) {
     const teams = H.state.current.teams
     const index = teams.findIndex((team) => team.id === id)
@@ -364,37 +350,6 @@
         else if (action === 'move-team-down') moveTeam(id, 1)
         else if (action === 'clear-teams') clearTeams()
       })
-      let draggedTeamId = null
-      el.addEventListener('dragstart', (e) => {
-        const row = e.target.closest('.team-row[data-team-row]')
-        if (!row) return
-        draggedTeamId = row.dataset.teamRow
-        row.classList.add('is-dragging')
-        e.dataTransfer.effectAllowed = 'move'
-        e.dataTransfer.setData('text/plain', draggedTeamId)
-      })
-      el.addEventListener('dragend', () => {
-        draggedTeamId = null
-        el.querySelectorAll('.team-row.is-dragging,.team-row.is-drop-target').forEach((row) => row.classList.remove('is-dragging', 'is-drop-target'))
-      })
-      el.addEventListener('dragover', (e) => {
-        const row = e.target.closest('.team-row[data-team-row]')
-        if (!row || !draggedTeamId || row.dataset.teamRow === draggedTeamId) return
-        e.preventDefault()
-        row.classList.add('is-drop-target')
-      })
-      el.addEventListener('dragleave', (e) => {
-        const row = e.target.closest('.team-row[data-team-row]')
-        if (row && !row.contains(e.relatedTarget)) row.classList.remove('is-drop-target')
-      })
-      el.addEventListener('drop', (e) => {
-        const row = e.target.closest('.team-row[data-team-row]')
-        if (!row || !draggedTeamId) return
-        e.preventDefault()
-        const after = e.clientY > row.getBoundingClientRect().top + row.offsetHeight / 2
-        reorderTeam(draggedTeamId, row.dataset.teamRow, after)
-        draggedTeamId = null
-      })
       el.addEventListener('dragover', (e) => {
         const zone = e.target.closest('.dropzone')
         if (!zone) return
@@ -423,24 +378,25 @@
       const roster = `
         <section class="team-roster" aria-label="Equipos registrados">
           <header class="team-roster-head">
-            <div><h3>Equipos registrados</h3><span>${teams.length} ${teams.length === 1 ? 'club' : 'clubes'} · arrastra para reordenar</span></div>
+            <div><h3>Equipos registrados</h3><span>${teams.length} ${teams.length === 1 ? 'club' : 'clubes'} · ordena con las flechas</span></div>
             ${teams.length ? '<button class="btn btn--danger btn--sm" data-action="clear-teams">Eliminar todos</button>' : ''}
           </header>
           ${teams.length
             ? `<ul class="team-list">${teams.map((t, i) => `
-                <li class="team-row" data-team-row="${esc(t.id)}" draggable="true">
-                  <span class="team-drag-handle" aria-hidden="true">⠿</span>
+                <li class="team-row">
                   <span class="team-index">${i + 1}</span>
                   ${crest(t.logo, 'md', t.name)}
                   <span class="team-name">${esc(t.name)}</span>
-                  <span class="team-order-actions">
-                    <button class="btn btn--ghost btn--sm" data-action="move-team-up" data-id="${esc(t.id)}" aria-label="Subir ${esc(t.name)}" title="Subir" ${i === 0 ? 'disabled' : ''}>↑</button>
-                    <button class="btn btn--ghost btn--sm" data-action="move-team-down" data-id="${esc(t.id)}" aria-label="Bajar ${esc(t.name)}" title="Bajar" ${i === teams.length - 1 ? 'disabled' : ''}>↓</button>
-                  </span>
-                  <span class="team-actions">
-                    <button class="btn btn--ghost btn--sm" data-action="change-logo" data-id="${esc(t.id)}">Escudo</button>
-                    <button class="btn btn--danger btn--sm" data-action="delete-team" data-id="${esc(t.id)}" aria-label="Eliminar ${esc(t.name)}">Eliminar</button>
-                  </span>
+                  <div class="team-actions">
+                    <span class="team-management-actions">
+                      <span class="team-order-actions" role="group" aria-label="Ordenar ${esc(t.name)}">
+                        <button class="btn btn--ghost btn--sm" data-action="move-team-up" data-id="${esc(t.id)}" aria-label="Subir ${esc(t.name)}" title="Subir" ${i === 0 ? 'disabled' : ''}>▲</button>
+                        <button class="btn btn--ghost btn--sm" data-action="move-team-down" data-id="${esc(t.id)}" aria-label="Bajar ${esc(t.name)}" title="Bajar" ${i === teams.length - 1 ? 'disabled' : ''}>▼</button>
+                      </span>
+                      <button class="btn btn--ghost btn--sm" data-action="change-logo" data-id="${esc(t.id)}">Escudo</button>
+                      <button class="btn btn--danger btn--sm" data-action="delete-team" data-id="${esc(t.id)}" aria-label="Eliminar ${esc(t.name)}">Eliminar</button>
+                    </span>
+                  </div>
                 </li>`).join('')}</ul>`
             : '<p class="team-roster-empty">Aún no hay equipos. Registra tu primer club arriba para empezar a llenar la plantilla.</p>'}
         </section>`

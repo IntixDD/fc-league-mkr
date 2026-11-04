@@ -656,7 +656,7 @@
           title: 'Escala de la interfaz',
           sub: 'Cómo se ajusta la app a tu pantalla',
           body: `<div class="seg" role="group" aria-label="Escala de la interfaz">
-              <button class="seg-btn" data-action="scale" data-scale="-1" aria-pressed="${p.scale === -1}">-1 · Vista PC<small>Toda la interfaz en pantalla</small></button>
+              <button class="seg-btn" data-action="scale" data-scale="-1" aria-pressed="${p.scale === -1}">-1 · Vista PC<small>Interfaz completa ajustada a la pantalla</small></button>
               <button class="seg-btn" data-action="scale" data-scale="0" aria-pressed="${p.scale === 0}">0 · Predeterminada<small>Adaptada al celular</small></button>
             </div>
             <p class="hint">Con <strong>-1</strong> la app usa el diseño de computadora y lo reduce para que entre entero en la pantalla del celular. En pantallas grandes no cambia nada.</p>`,

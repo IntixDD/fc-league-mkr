@@ -202,8 +202,13 @@
       clearTimeout(resumeTimers[key])
       timers[key] = 0
     })
-    const season = [...state.seasons].sort((a, b) => b.number - a.number)[0]
+    const season = state.seasons.reduce((latest, item) => !latest || item.number > latest.number ? item : latest, null)
     const stats = season ? H.seasonStats(season) : []
+    if (!H.teamRecordsReady() && H.statSeasons().length) {
+      el.innerHTML = '<div class="menu-stage"><article class="card" aria-live="polite"><p class="empty">Preparando el resumen de temporadas…</p></article></div>'
+      void H.prepareTeamRecords().then(() => H.render())
+      return
+    }
     const records = H.teamRecords().map((record) => ({ ...record, total: H.teamTotals(record) }))
     if (!season) {
       el.innerHTML = `<div class="menu-stage">${heroMarkup(state, null, [])}${metricsMarkup(state, records)}<article class="menu-first-season"><div class="menu-first-season-icon">${H.ICONS.trophy}</div><div><span class="menu-section-kicker">NUEVA CAMPAÑA</span><h2>Escribe el primer capítulo.</h2><p>Registra tus equipos y prepara una liga que todos recordarán.</p></div><a class="menu-hero-button menu-hero-button--primary" href="#teams">Crear temporada <span>↗</span></a></article>${quickDeck()}</div>`

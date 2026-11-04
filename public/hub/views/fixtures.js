@@ -1,6 +1,9 @@
 ;(() => {
   const H = window.Hub
   const { esc, crest } = H
+  let roundObserver = null
+  let hydrateFixtureRound = null
+  let hydrateAllFixtureRounds = null
 
   function teamsChanged(season) {
     if (!season.fixtures) return false
@@ -67,6 +70,10 @@
   H.view('fixtures', {
     bind(el) {
       el.addEventListener('click', (e) => {
+        if (e.target.closest('[data-export]')) {
+          hydrateAllFixtureRounds?.()
+          return
+        }
         const btn = e.target.closest('[data-action]')
         if (!btn) return
         const { action } = btn.dataset
@@ -97,6 +104,7 @@
           })
           H.toast('Asignación de canchas eliminada')
         } else if (action === 'jump') {
+          hydrateFixtureRound?.(Number(btn.dataset.round))
           el.querySelector(`#fx-round-${btn.dataset.round}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
         } else if (action === 'clear-round') {
           const ri = Number(btn.dataset.round)
@@ -173,6 +181,10 @@
         </article>`
 
       if (!season.fixtures) {
+        roundObserver?.disconnect()
+        roundObserver = null
+        hydrateFixtureRound = null
+        hydrateAllFixtureRounds = null
         el.innerHTML = `<div class="panel-grid panel-grid--even">${config}${fieldsCard}</div>`
         return
       }
@@ -192,13 +204,32 @@
           data-key="fx:${esc(m.id)}:${sideKey}" data-match="${esc(m.id)}" data-side="${sideKey}" aria-label="Goles de ${esc(t?.name)}">`
 
       const currentIndex = rounds.findIndex((r) => r.some((m) => !H.played(m)))
+      const focusIndex = currentIndex < 0 ? rounds.length - 1 : currentIndex
+      const hydratedRounds = new Set()
 
       const roundBlock = (r, i) => {
-        const rest = season.teams.filter((t) => !r.some((m) => m.home === t.id || m.away === t.id))
         const playedCount = r.filter(H.played).length
         const done = playedCount === r.length
         const pct = r.length ? Math.round((playedCount / r.length) * 100) : 0
         const state = done ? ' is-done' : i === currentIndex ? ' is-current' : ''
+        const eager = hydratedRounds.has(i) || Math.abs(i - focusIndex) <= 1
+        if (eager) hydratedRounds.add(i)
+        else {
+          const reserve = Math.max(104, r.length * 54 + (season.teams.length > r.length * 2 ? 38 : 14))
+          return `
+            <section class="fx-round${state}" id="fx-round-${i}" aria-labelledby="rb-${i}" style="contain-intrinsic-size:auto ${reserve + 84}px">
+              <header class="fx-round-head">
+                <span class="fx-round-num" aria-hidden="true">${i + 1}</span>
+                <div class="fx-round-info"><h3 id="rb-${i}" class="fx-round-title">Jornada ${i + 1}</h3><span class="fx-round-status">${done ? 'Completada' : i === currentIndex ? 'En juego' : playedCount ? 'En curso' : 'Pendiente'}</span></div>
+                <div class="fx-round-progress" aria-hidden="true"><span style="width:${pct}%"></span></div>
+                <span class="fx-round-tools"><span class="fx-round-count round-block-count">${playedCount}/${r.length}</span>
+                  ${playedCount ? `<button class="fx-icon-btn" data-action="clear-round" data-round="${i}" data-export-hide aria-label="Limpiar jornada ${i + 1}" title="Limpiar jornada"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>` : ''}
+                </span>
+              </header>
+              <div class="fx-round-body" data-round-body="${i}" aria-busy="true" style="min-height:${reserve}px"><p class="fx-round-loading">Los partidos se prepararán antes de que llegues a esta jornada.</p></div>
+            </section>`
+        }
+        const rest = season.teams.filter((t) => !r.some((m) => m.home === t.id || m.away === t.id))
         return `
           <section class="fx-round${state}" id="fx-round-${i}" aria-labelledby="rb-${i}">
             <header class="fx-round-head">
@@ -282,6 +313,56 @@
             <p class="hint" data-export-hide>Escribe los goles directamente en cada partido: la tabla se actualiza al instante y todo queda guardado.</p>
           </article>
         </div>`
+
+      roundObserver?.disconnect()
+      roundObserver = null
+      const hydrateOneFixtureRound = (index) => {
+        if (!Number.isInteger(index) || index < 0 || index >= rounds.length || hydratedRounds.has(index)) return
+        const body = el.querySelector(`[data-round-body="${index}"]`)
+        const oldRound = body?.closest('.fx-round')
+        if (!oldRound) return
+        roundObserver?.unobserve(body)
+        hydratedRounds.add(index)
+        const template = document.createElement('template')
+        template.innerHTML = roundBlock(rounds[index], index)
+        const newRound = template.content.firstElementChild
+        if (newRound) oldRound.replaceWith(newRound)
+      }
+      hydrateFixtureRound = hydrateOneFixtureRound
+      hydrateAllFixtureRounds = () => rounds.forEach((_, index) => hydrateOneFixtureRound(index))
+
+      const deferredRounds = [...el.querySelectorAll('[data-round-body]')]
+      if (typeof window.IntersectionObserver !== 'function') {
+        deferredRounds.forEach((body) => hydrateOneFixtureRound(Number(body.dataset.roundBody)))
+      } else if (deferredRounds.length) {
+        const queue = []
+        let idleHandle = null
+        const scheduleQueue = () => {
+          if (idleHandle !== null) return
+          const process = (deadline) => {
+            idleHandle = null
+            let count = 0
+            while (queue.length && (count === 0 || deadline.timeRemaining() > 5)) {
+              hydrateOneFixtureRound(queue.shift())
+              count += 1
+            }
+            if (queue.length) scheduleQueue()
+          }
+          if (typeof window.requestIdleCallback === 'function') idleHandle = window.requestIdleCallback(process, { timeout: 180 })
+          else idleHandle = window.setTimeout(() => process({ timeRemaining: () => 0 }), 24)
+        }
+        roundObserver = new window.IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return
+            const body = entry.target
+            roundObserver?.unobserve(body)
+            const index = Number(body.dataset.roundBody)
+            if (!hydratedRounds.has(index) && !queue.includes(index)) queue.push(index)
+          })
+          if (queue.length) scheduleQueue()
+        }, { root: document.querySelector('.content'), rootMargin: `${Math.max(880, window.innerHeight * 1.8)}px 0px` })
+        deferredRounds.forEach((body) => roundObserver.observe(body))
+      }
     },
   })
 })()

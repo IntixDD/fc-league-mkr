@@ -54,6 +54,8 @@
     const mobile = matchMedia('(pointer: coarse)').matches
     const forceLandscape = prefs.scale === -1 && mobile && matchMedia('(orientation: portrait)').matches
     const appWidth = forceLandscape ? window.innerHeight : window.innerWidth
+    // Scale -1 intentionally keeps the desktop layout on phones and fits it to the
+    // available landscape width, matching the desktop view at a reduced zoom.
     const desktop = prefs.scale === -1 && appWidth < DESKTOP_WIDTH
     root.classList.toggle('ui-desktop', desktop)
     root.classList.toggle('ui-scale-minus-one', prefs.scale === -1)
@@ -74,7 +76,11 @@
     } else {
       root.style.zoom = ''
       root.style.removeProperty('--ui-zoom')
-      root.style.removeProperty('--app-h')
+      if (prefs.scale === -1 && mobile) {
+        root.style.setProperty('--app-h', `${forceLandscape ? window.innerWidth : window.innerHeight}px`)
+      } else {
+        root.style.removeProperty('--app-h')
+      }
       if (forceLandscape) {
         root.style.setProperty('--force-landscape-width', `${window.innerHeight}px`)
         root.style.setProperty('--force-landscape-height', `${window.innerWidth}px`)

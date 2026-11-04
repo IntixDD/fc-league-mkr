@@ -4042,6 +4042,26 @@ select.input option {
   .split-table .split-table-stats .data-table td { padding: 8px 5px; }
 }
 
+/* Mobile browsers otherwise paint a blue tap flash or focus rectangle over controls. */
+button,
+a,
+[role='button'],
+summary,
+input[type='button'],
+input[type='submit'] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+[role='button']:focus:not(:focus-visible),
+summary:focus:not(:focus-visible),
+input[type='button']:focus:not(:focus-visible),
+input[type='submit']:focus:not(:focus-visible) {
+  outline: none;
+}
+
 /* Compact and align the identity pane in the two split standings tables. */
 .section:not(#menu) .history-split-table { grid-template-columns: minmax(188px, 222px) minmax(0, 1fr); }
 #menu .menu-season-content .season-standing-split { grid-template-columns: minmax(188px, 220px) minmax(0, 1fr); }
@@ -4150,11 +4170,7 @@ select.input option {
   .menu-hero-logo { width:86%; height:86%; }
 }
 .team-roster .team-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
-.team-roster .team-row { min-width:0; gap:7px; padding:8px; cursor:grab; user-select:none; }
-.team-roster .team-row:active { cursor:grabbing; }
-.team-roster .team-row.is-dragging { opacity:.45; }
-.team-roster .team-row.is-drop-target { border-color:var(--accent); background:color-mix(in srgb,var(--accent) 9%,var(--surface-2)); }
-.team-drag-handle { flex:none; color:var(--muted); font-size:16px; line-height:1; cursor:grab; }
+.team-roster .team-row { min-width:0; gap:7px; padding:8px; }
 .team-roster .team-index { width:18px; font-size:10px; }
 .team-roster .team-name { font-size:11px; }
 .team-order-actions { display:flex; flex:none; gap:3px; }
@@ -4901,3 +4917,81 @@ select.input option {
 .settings-mobile #settings .audio-controls,
 .settings-mobile #settings .bg-controls { grid-template-columns: minmax(0, 1fr); }
 .settings-mobile #settings .music-transport { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* Lower repaint cost on handset GPUs while preserving the card surfaces and layout. */
+@media (max-width: 767px) {
+  :root:not(.ui-desktop) .section:not(#menu) .card,
+  :root:not(.ui-desktop) .section:not(#menu) .fx-round,
+  :root:not(.ui-desktop) #performance .perf-hero,
+  :root:not(.ui-desktop) #tournament .po-match--final {
+    box-shadow: none;
+  }
+
+  :root:not(.ui-desktop) .section:not(#menu) .card {
+    transition: none;
+  }
+
+  :root:not(.ui-desktop) .nav-tooltip {
+    display: none;
+  }
+}
+
+.settings-mobile .nav-tooltip { display: none; }
+
+/* Open the category chooser without the scale animation or blurred backdrop. */
+#logo-category-dialog[open] { animation: none; }
+#logo-category-dialog::backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+/* Team cards use explicit arrow controls; keep identity and actions in a clear order. */
+.team-roster .team-row {
+  grid-template-columns: 24px 38px minmax(0, 1fr);
+  grid-template-rows: minmax(38px, auto) auto;
+  align-items: center;
+  gap: 8px 10px;
+  cursor: default;
+  user-select: text;
+}
+.team-roster .team-index { grid-column: 1; grid-row: 1; width: 24px; text-align: center; }
+.team-roster .team-row > .crest { grid-column: 2; grid-row: 1; width: 36px; height: 36px; }
+.team-roster .team-name { grid-column: 3; grid-row: 1; }
+.team-roster .team-actions { grid-column: 1 / -1; grid-row: 2; display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px; }
+.team-roster .team-order-actions,
+.team-roster .team-management-actions { display: flex; align-items: center; gap: 6px; }
+.team-roster .team-order-actions .btn { min-width: 40px; min-height: 40px; padding-inline: 0; font-size: 10px; }
+.team-roster .team-management-actions .btn { min-height: 40px; }
+.season-detail-loading { margin: 0; padding: 12px; color: var(--muted); text-align: center; }
+.season-stats-loading { grid-column: 1 / -1; display: grid; gap: 8px; min-height: 150px; align-content: center; text-align: center; }
+.season-stats-loading strong { font-size: 16px; }
+.season-stats-loading span { color: var(--muted); font-size: 13px; }
+
+/* Keep saved season controls present while the browser skips off-screen painting. */
+.team-list > .team-row,
+.season-list > .season-row,
+.match-list > .match,
+.fx-rounds > .fx-round,
+.logo-grid > .logo-tile,
+.badge-grid > *,
+.team-series-list > .team-series-row,
+.season-fixture-round,
+.menu-fixture-round {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
+}
+.season-list > .season-row { contain-intrinsic-size: auto 340px; }
+.season-fixture-round,
+.menu-fixture-round { contain-intrinsic-size: auto 320px; }
+.season-fixture-round--pending { min-height: 82px; display: grid; place-items: center; color: var(--muted); }
+.fx-round-loading { display: grid; min-height: inherit; margin: 0; padding: 16px; place-items: center; color: var(--muted); text-align: center; font-size: 12px; }
+
+@media (max-width: 767px) {
+  :root:not(.ui-desktop) .team-roster .team-row {
+    grid-template-columns: 22px 36px minmax(0, 1fr);
+    gap: 8px;
+  }
+  :root:not(.ui-desktop) .team-roster .team-order-actions .btn,
+  :root:not(.ui-desktop) .team-roster .team-management-actions .btn { min-height: 42px; }
+  .team-roster .team-actions { justify-content: flex-end; }
+  .team-roster .team-management-actions { flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
+  .team-roster .team-order-actions { gap: 3px; }
+  .team-roster .team-order-actions .btn { min-width: 34px; min-height: 36px; }
+}

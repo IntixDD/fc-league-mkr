@@ -23,8 +23,31 @@ window.Hub = (() => {
   let saveTimer = 0
   let renderQueued = false
   let pendingSkip = null
+  let pendingSection = null
   let dbPromise = null
   let teamRecordsCache = null
+  let seasonStatsCache = new WeakMap()
+  let tableCache = new WeakMap()
+  let teamTotalsCache = new WeakMap()
+  let teamRecordsTask = null
+  let seasonStatsWorker = null
+  let seasonStatsWorkerFailed = false
+  let seasonStatsWorkerRequestId = 0
+  const seasonStatsWorkerRequests = new Map()
+  let stateRevision = 0
+  const renderedRevision = new Map()
+
+  function invalidateDerivedCaches() {
+    teamRecordsCache = null
+    seasonStatsCache = new WeakMap()
+    tableCache = new WeakMap()
+    teamTotalsCache = new WeakMap()
+    if (teamRecordsTask) {
+      const pending = teamRecordsTask
+      teamRecordsTask = null
+      pending.resolve(null)
+    }
+  }
 
   /* ---------- Persistence (IndexedDB) ---------- */
   function openDb() {
@@ -820,15 +843,26 @@ window.Hub = (() => {
   }
 
   function computeTable(season, teamIds = null) {
+    let seasonTables = tableCache.get(season)
+    if (!seasonTables) {
+      seasonTables = new Map()
+      tableCache.set(season, seasonTables)
+    }
+    const cacheKey = teamIds ? JSON.stringify([...teamIds].sort()) : '*'
+    if (seasonTables.has(cacheKey)) return seasonTables.get(cacheKey)
+    const remember = (rows) => {
+      seasonTables.set(cacheKey, rows)
+      return rows
+    }
     const selected = teamIds ? new Set(teamIds) : null
     const teams = selected ? season.teams.filter((t) => selected.has(t.id)) : season.teams
     if (isManualTable(season)) {
-      return teams
+      return remember(teams
         .map((t) => {
           const r = manualRecord(season, t.id)
           return { team: t, ...r, dg: r.gf - r.gc }
         })
-        .sort((a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.team.name.localeCompare(b.team.name))
+        .sort((a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.team.name.localeCompare(b.team.name)))
     }
     const rows = new Map(teams.map((t) => [t.id, { team: t, ...zero() }]))
     leagueMatches(season).forEach((m) => {
@@ -839,9 +873,9 @@ window.Hub = (() => {
       addResult(h, m.hg, m.ag, true)
       addResult(a, m.ag, m.hg, true)
     })
-    return [...rows.values()]
+    return remember([...rows.values()]
       .map((r) => ({ ...r, dg: r.gf - r.gc }))
-      .sort((a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.team.name.localeCompare(b.team.name))
+      .sort((a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.team.name.localeCompare(b.team.name)))
   }
 
   function seedOrder(n) {
@@ -987,6 +1021,8 @@ window.Hub = (() => {
   }
 
   function seasonStats(season) {
+    const cached = seasonStatsCache.get(season)
+    if (cached) return cached
     const byId = new Map()
     season.teams.forEach((t) =>
       byId.set(t.id, {
@@ -1249,6 +1285,7 @@ window.Hub = (() => {
       )
       team.legendarySeason = team.perfectSeason && team.league.gc + team.cup.gc === 0
     })
+    seasonStatsCache.set(season, all)
     return all
   }
 
@@ -1264,20 +1301,175 @@ window.Hub = (() => {
     return list.sort((a, b) => a.number - b.number)
   }
 
+  function addSeasonRecords(map, season) {
+    seasonStats(season).forEach((s) => {
+      if (!map.has(s.key)) map.set(s.key, { key: s.key, name: s.name, logos: [], seasons: [], _logoSet: new Set() })
+      const rec = map.get(s.key)
+      rec.name = s.name
+      if (s.logo && !rec._logoSet.has(s.logo)) {
+        rec._logoSet.add(s.logo)
+        rec.logos.push(s.logo)
+      }
+      rec.seasons.push(s)
+    })
+  }
+
+  function workerSeasonStats(season) {
+    const cached = seasonStatsCache.get(season)
+    if (cached) return Promise.resolve(cached)
+    if (seasonStatsWorkerFailed || typeof Worker !== 'function') return Promise.resolve(null)
+    if (!seasonStatsWorker) {
+      try {
+        seasonStatsWorker = new Worker(new URL('stats-worker.js?v=1', location.href))
+        seasonStatsWorker.onmessage = (event) => {
+          const { id, stats } = event.data || {}
+          const request = seasonStatsWorkerRequests.get(id)
+          if (!request) return
+          seasonStatsWorkerRequests.delete(id)
+          if (request.revision !== stateRevision) return request.resolve(null)
+          if (!Array.isArray(stats)) return request.resolve(null)
+          const logosById = new Map(request.season.teams.map((team) => [team.id, team.logo]))
+          const logosByName = new Map(request.season.teams.map((team) => [norm(team.name), team.logo]))
+          stats.forEach((item) => {
+            item.logo = logosById.get(item.id) || null
+            item.matches?.forEach((match) => { match.oppLogo = logosByName.get(norm(match.opp)) || null })
+          })
+          seasonStatsCache.set(request.season, stats)
+          request.resolve(stats)
+        }
+        seasonStatsWorker.onerror = () => {
+          seasonStatsWorkerFailed = true
+          seasonStatsWorker?.terminate()
+          seasonStatsWorker = null
+          seasonStatsWorkerRequests.forEach((request) => request.resolve(null))
+          seasonStatsWorkerRequests.clear()
+        }
+      } catch {
+        seasonStatsWorkerFailed = true
+        seasonStatsWorker = null
+        return Promise.resolve(null)
+      }
+    }
+
+    const id = ++seasonStatsWorkerRequestId
+    return new Promise((resolve) => {
+      seasonStatsWorkerRequests.set(id, { resolve, season, revision: stateRevision })
+      const payload = {
+        ...season,
+        teams: season.teams.map((team) => ({ ...team, logo: null })),
+      }
+      try {
+        seasonStatsWorker.postMessage({ id, season: payload })
+      } catch {
+        seasonStatsWorkerRequests.delete(id)
+        resolve(null)
+      }
+    })
+  }
+
+  function finishTeamRecords(map) {
+    teamRecordsCache = [...map.values()]
+    teamRecordsCache.forEach((record) => delete record._logoSet)
+    // Cached views that were waiting on this work can now render their data.
+    renderedRevision.clear()
+    return teamRecordsCache
+  }
+
+  function teamRecordsReady() {
+    return teamRecordsCache !== null && teamRecordsTask === null
+  }
+
+  function prepareTeamRecords() {
+    if (teamRecordsTask) return teamRecordsTask.promise
+    if (teamRecordsCache) return Promise.resolve(teamRecordsCache.slice())
+
+    let resolve
+    const promise = new Promise((done) => { resolve = done })
+    const task = { promise, resolve, revision: stateRevision }
+    teamRecordsTask = task
+    const seasons = statSeasons()
+    const map = new Map()
+    let index = 0
+
+    const runWhenIdle = (callback) => {
+      if (typeof requestIdleCallback === 'function') requestIdleCallback(callback, { timeout: 240 })
+      else setTimeout(() => callback({ timeRemaining: () => 0 }), 0)
+    }
+    const buildNextSeason = () => {
+      if (teamRecordsTask !== task) return
+      if (task.revision !== stateRevision) {
+        teamRecordsTask = null
+        task.resolve(null)
+        return
+      }
+      if (index < seasons.length) {
+        const season = seasons[index++]
+        void workerSeasonStats(season).then((stats) => {
+          if (teamRecordsTask !== task) return
+          if (task.revision !== stateRevision) {
+            teamRecordsTask = null
+            task.resolve(null)
+            return
+          }
+          if (!stats) {
+            runWhenIdle(() => {
+              if (teamRecordsTask !== task || task.revision !== stateRevision) return buildNextSeason()
+              addSeasonRecords(map, season)
+              buildNextSeason()
+            })
+            return
+          }
+          addSeasonRecords(map, season)
+          buildNextSeason()
+        })
+        return
+      }
+
+      const records = finishTeamRecords(map)
+      let badgeIndex = 0
+      const warmBadgeChunk = (badgeDeadline) => {
+        if (teamRecordsTask !== task) return
+        if (task.revision !== stateRevision) {
+          teamRecordsTask = null
+          task.resolve(null)
+          return
+        }
+        let warmed = 0
+        while (badgeIndex < records.length && (warmed === 0 || badgeDeadline.timeRemaining() > 4)) {
+          window.Hub?.badgeCount?.(records[badgeIndex])
+          badgeIndex += 1
+          warmed += 1
+        }
+        if (badgeIndex < records.length) {
+          runWhenIdle(warmBadgeChunk)
+          return
+        }
+        teamRecordsTask = null
+        task.resolve(records.slice())
+      }
+      runWhenIdle(warmBadgeChunk)
+    }
+
+    if (!seasons.length) {
+      const records = finishTeamRecords(map)
+      teamRecordsTask = null
+      task.resolve(records.slice())
+      return promise
+    }
+    runWhenIdle(buildNextSeason)
+    return promise
+  }
+
   function teamRecords() {
     if (teamRecordsCache) return teamRecordsCache.slice()
+    if (teamRecordsTask) {
+      const pending = teamRecordsTask
+      teamRecordsTask = null
+      pending.resolve(null)
+    }
     const map = new Map()
-    statSeasons().forEach((season) =>
-      seasonStats(season).forEach((s) => {
-        if (!map.has(s.key)) map.set(s.key, { key: s.key, name: s.name, logos: [], seasons: [] })
-        const rec = map.get(s.key)
-        rec.name = s.name
-        if (s.logo && !rec.logos.includes(s.logo)) rec.logos.push(s.logo)
-        rec.seasons.push(s)
-      }),
-    )
-    teamRecordsCache = [...map.values()]
-    return teamRecordsCache.slice()
+    statSeasons().forEach((season) => addSeasonRecords(map, season))
+    return finishTeamRecords(map).slice()
   }
 
   function savedCopy() {
@@ -1421,17 +1613,22 @@ window.Hub = (() => {
   function renderAll() {
     renderQueued = false
     const skip = pendingSkip
+    const onlySection = pendingSection
     pendingSkip = null
+    pendingSection = null
     if (!state || document.visibilityState === 'hidden') return
     const active = document.activeElement
     const key = active && active.dataset ? active.dataset.key : null
     Object.entries(views).forEach(([id, v]) => {
+      if (onlySection && id !== onlySection) return
       if (id === skip) return
       const el = document.getElementById(`${id}-body`)
       if (!el) return
       if (el.closest('.section')?.hidden) return
+      if (onlySection && renderedRevision.get(id) === stateRevision) return
       const scrolls = [...el.querySelectorAll('[data-scroll]')].map((s) => [s.dataset.scroll, s.scrollTop, s.scrollLeft])
       v.render(el, state)
+      renderedRevision.set(id, stateRevision)
       scrolls.forEach(([name, top, left]) => {
         const s = el.querySelector(`[data-scroll="${name}"]`)
         if (s) {
@@ -1466,16 +1663,33 @@ window.Hub = (() => {
   function scheduleRender(skip = null) {
     if (renderQueued) {
       if (pendingSkip !== skip) pendingSkip = null
+      pendingSection = null
       return
     }
     pendingSkip = skip
+    pendingSection = null
+    renderQueued = true
+    requestAnimationFrame(renderAll)
+  }
+
+  function scheduleSectionRender(id) {
+    // The section stays mounted while hidden. When it already reflects this state,
+    // switching back needs no animation-frame render at all.
+    if (!renderQueued && state && renderedRevision.get(id) === stateRevision) return
+    if (renderQueued) {
+      if (pendingSection !== id) pendingSection = null
+      return
+    }
+    pendingSkip = null
+    pendingSection = id
     renderQueued = true
     requestAnimationFrame(renderAll)
   }
 
   function update(mutator, { skip = null } = {}) {
     mutator(state)
-    teamRecordsCache = null
+    stateRevision += 1
+    invalidateDerivedCaches()
     persist()
     scheduleRender(skip)
   }
@@ -1552,7 +1766,8 @@ window.Hub = (() => {
       )
     }
     state.seasons = next
-    teamRecordsCache = null
+    stateRevision += 1
+    invalidateDerivedCaches()
     if (logosChanged || previous !== JSON.stringify(state.seasons) || previousCurrent !== JSON.stringify(state.current)) {
       persist()
       scheduleRender()
@@ -1567,6 +1782,8 @@ window.Hub = (() => {
   }
 
   function teamTotals(rec) {
+    const cached = teamTotalsCache.get(rec)
+    if (cached) return cached
     const t = { cups: 0, leagues: 0, series: 0, runnerUp: 0, third: 0, fourth: 0, leagueScorer: 0, cupScorer: 0, league: zero(), cup: zero() }
     rec.seasons.forEach((s) => {
       if (s.cupChampion) t.cups++
@@ -1588,6 +1805,7 @@ window.Hub = (() => {
     t.points = t.league.pts
     t.titles = titleCount(rec)
     t.achievements = rec.seasons.reduce((n, season) => n + ['cupScorer', 'leagueScorer', 'seriesScorer', 'perfectSeason', 'invincibleLeague', 'invincibleSeries', 'legendarySeason', 'groupChampion'].reduce((sum, flag) => sum + Number(!!season[flag]), 0), 0)
+    teamTotalsCache.set(rec, t)
     return t
   }
 
@@ -1609,7 +1827,8 @@ window.Hub = (() => {
     const newest = localIsNewer ? fromLocal : fromDb || fromLocal
     const oldLogoLibrary = Array.isArray(newest?.logos) ? newest.logos : []
     state = sanitizeState(newest)
-    teamRecordsCache = null
+    stateRevision += 1
+    invalidateDerivedCaches()
     const migratedLogoLibrary = oldLogoLibrary.length !== state.logos.length
       || state.logos.some((logo, index) => {
         const old = oldLogoLibrary[index]
@@ -1640,6 +1859,7 @@ window.Hub = (() => {
     init,
     update,
     render: scheduleRender,
+    renderSection: scheduleSectionRender,
     uid,
     norm,
     esc,
@@ -1672,6 +1892,8 @@ window.Hub = (() => {
     seasonStats,
     statSeasons,
     teamRecords,
+    teamRecordsReady,
+    prepareTeamRecords,
     teamTotals,
     titleCount,
     achievementCount: (record) => teamTotals(record).achievements,

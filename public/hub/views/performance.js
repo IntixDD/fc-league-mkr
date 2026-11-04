@@ -86,6 +86,11 @@
 
     render(el) {
       stopRotation()
+      if (!H.teamRecordsReady() && H.statSeasons().length) {
+        el.innerHTML = '<article class="card" aria-live="polite"><p class="empty">Preparando rendimiento de temporadas…</p></article>'
+        void H.prepareTeamRecords().then(() => H.render())
+        return
+      }
       const records = H.teamRecords().sort((a, b) => a.name.localeCompare(b.name))
       if (!records.length) {
         el.innerHTML = `<article class="card"><p class="empty">Juega partidos o guarda temporadas para ver el rendimiento de cada club.</p></article>`

@@ -2,6 +2,8 @@
   const H = window.Hub
   const { esc, crest } = H
   let miniBracketObserver = null
+  let seasonStatsBlocked = false
+  let fixtureRoundObserver = null
   let libraryExportName = 'Temporadas'
   let libraryExportIcon = ''
   let publishedLibraryEntries = null
@@ -14,6 +16,18 @@
     if (event.detail?.id !== 'seasons') {
       miniBracketObserver?.disconnect()
       miniBracketObserver = null
+      fixtureRoundObserver?.disconnect()
+      fixtureRoundObserver = null
+    } else {
+      if (seasonStatsBlocked && H.teamRecordsReady()) {
+        seasonStatsBlocked = false
+        H.render()
+      }
+      const el = document.getElementById('seasons-body')
+      if (el) {
+        watchMiniBrackets(el)
+        watchFixtureRounds(el)
+      }
     }
   })
 
@@ -27,6 +41,32 @@
     }
     const find = (prop) => stats.find((x) => x[prop])
     return { league: find('leagueChampion'), cup: find('cupChampion') }
+  }
+
+  function savedSeasonContent(season, cur) {
+    const open = season.id === cur.id
+    const selectedSeason = open ? cur : season
+    const sm = summary(selectedSeason)
+    return `
+      <span class="season-num">T${season.number}</span>
+      <div class="season-info">
+        <span class="season-title">Temporada ${season.number}${open ? ' <span class="badge badge--accent">Abierta</span>' : ''}${season.readOnly ? ' <span class="badge badge--warn">Solo lectura</span>' : ''}</span>
+        <span class="season-meta">${selectedSeason.teams.length} equipos${season.savedAt ? ` · ${new Date(season.savedAt).toLocaleDateString('es')}` : ''}</span>
+      </div>
+      <div class="season-champs">
+        ${sm.league ? `<span class="champ" title="Campeón de liga">${crest(sm.league.logo, 'sm', sm.league.name)}<span>Liga</span></span>` : ''}
+        ${sm.cup ? `<span class="champ" title="Campeón de copa">${crest(sm.cup.logo, 'sm', sm.cup.name)}<span>Copa</span></span>` : ''}
+      </div>
+      <div class="team-actions">
+        <button class="btn btn--ghost btn--sm" data-action="edit" data-id="${esc(season.id)}" ${open || season.readOnly ? 'disabled' : ''} ${season.readOnly ? 'title="Edición bloqueada al importar"' : ''}>Editar</button>
+        <button class="btn btn--ghost btn--sm" data-action="export" data-id="${esc(season.id)}">Exportar</button>
+        <button class="btn btn--danger btn--sm" data-action="delete" data-id="${esc(season.id)}" aria-label="Eliminar Temporada ${season.number}">Eliminar</button>
+      </div>
+      ${standingsSummary(selectedSeason, true)}
+      ${fixtureSummary(selectedSeason, true)}
+      ${repechageSummary(selectedSeason, true)}
+      ${tournamentSummary(selectedSeason, true)}
+      ${awardSummary(selectedSeason, open, true)}`
   }
 
   const AWARD_SECTIONS = [
@@ -138,6 +178,86 @@
       : '<p class="season-awards-empty">No se creó un fixture para esta temporada.</p>'
     const count = rounds.length ? lazy ? `${rounds.length} jornadas` : `${played}/${matches.length} partidos` : 'No creado'
     return `<details class="season-awards season-fixture-details" data-season-detail="fixture" data-season-id="${esc(season.id || '')}"><summary><span class="season-awards-heading">${TABLE_ICON}<span>Fixture</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
+  }
+
+  function fixtureRoundMarkup(season, index) {
+    const fixtures = season.fixtures
+    const round = fixtures?.rounds?.[index]
+    if (!round) return ''
+    const teams = new Map(season.teams.map((team) => [team.id, team]))
+    const seriesFor = new Map()
+    ;(fixtures.series1 || []).forEach((id) => seriesFor.set(id, 'Serie 1'))
+    ;(fixtures.series2 || []).forEach((id) => seriesFor.set(id, 'Serie 2'))
+    ;(fixtures.groups || []).forEach((group, groupIndex) => group.forEach((id) => seriesFor.set(id, `Grupo ${String.fromCharCode(65 + groupIndex)}`)))
+    const roundCount = fixtures.roundsPerLeg || (fixtures.mode === 'double' ? fixtures.rounds.length / 2 : 0)
+    const done = round.filter(H.played).length
+    const leg = fixtures.mode === 'double' ? ` · ${index < roundCount ? 'Ida' : 'Vuelta'}` : ''
+    const games = round.map((match, matchIndex) => {
+      const home = teams.get(match.home)
+      const away = teams.get(match.away)
+      const isPlayed = H.played(match)
+      const outcome = isPlayed ? match.hg > match.ag ? 'home' : match.hg < match.ag ? 'away' : 'draw' : ''
+      const field = season.fields ? (matchIndex % season.fields) + 1 : null
+      return `<article class="season-fixture-match${isPlayed ? ` is-played is-${outcome}` : ''}">
+        <span class="season-fixture-index" title="${field ? `Cancha ${field}` : `Partido ${matchIndex + 1}`} ">${field || matchIndex + 1}</span>
+        <span class="season-fixture-team season-fixture-home">${home ? crest(home.logo, 'xs', home.name) : '<span class="crest crest--xs crest--tbd"></span>'}<span>${esc(home?.name || '—')}</span>${seriesFor.has(match.home) ? `<small>${seriesFor.get(match.home)}</small>` : ''}</span>
+        <strong class="season-fixture-score">${match.hg ?? '—'} <i>:</i> ${match.ag ?? '—'}</strong>
+        <span class="season-fixture-team season-fixture-away">${away ? crest(away.logo, 'xs', away.name) : '<span class="crest crest--xs crest--tbd"></span>'}<span>${esc(away?.name || '—')}</span>${seriesFor.has(match.away) ? `<small>${seriesFor.get(match.away)}</small>` : ''}</span>
+      </article>`
+    }).join('')
+    const rest = season.teams.filter((team) => !round.some((match) => match.home === team.id || match.away === team.id))
+    return `<header><h4>Jornada ${index + 1}${leg}</h4><span>${done}/${round.length} partidos</span></header><div class="season-fixture-games">${games}</div>${rest.length ? `<p class="season-fixture-rest">Descansa: ${rest.map((team) => esc(team.name)).join(', ')}</p>` : ''}`
+  }
+
+  function deferredFixtureSummary(season) {
+    const rounds = season.fixtures?.rounds || []
+    const content = rounds.length
+      ? `<div class="season-fixture-rounds">${rounds.map((_, index) => `<section class="season-fixture-round season-fixture-round--pending" data-fixture-round data-season-id="${esc(season.id || '')}" data-round-index="${index}" aria-busy="true"><span>Preparando jornada ${index + 1}…</span></section>`).join('')}</div>`
+      : '<p class="season-awards-empty">No se creó un fixture para esta temporada.</p>'
+    return `<details class="season-awards season-fixture-details" data-season-detail="fixture" data-season-id="${esc(season.id || '')}" open data-hydrated="true"><summary><span class="season-awards-heading">${TABLE_ICON}<span>Fixture</span></span><span class="season-awards-count">${rounds.length ? `${rounds.length} jornadas` : 'No creado'}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
+  }
+
+  function watchFixtureRounds(el) {
+    fixtureRoundObserver?.disconnect()
+    fixtureRoundObserver = null
+    const rounds = el.querySelectorAll('details[data-season-detail="fixture"][open] [data-fixture-round]:not([data-hydrated])')
+    if (!rounds.length) return
+    const hydrate = (node) => {
+      if (!node.isConnected || node.dataset.hydrated || !node.closest('details')?.open) return
+      const season = H.state.seasons.find((item) => item.id === node.dataset.seasonId)
+      if (!season) return
+      node.innerHTML = fixtureRoundMarkup(season, Number(node.dataset.roundIndex))
+      node.dataset.hydrated = 'true'
+      node.removeAttribute('aria-busy')
+    }
+    if (typeof window.IntersectionObserver !== 'function') {
+      rounds.forEach(hydrate)
+      return
+    }
+    const pending = []
+    fixtureRoundObserver = new window.IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && !entry.target.dataset.hydrated) {
+          pending.push(entry.target)
+          fixtureRoundObserver?.unobserve(entry.target)
+        }
+      })
+      if (!pending.length) return
+      const run = (deadline) => {
+        let count = 0
+        while (pending.length && (count === 0 || deadline.timeRemaining() > 5)) {
+          hydrate(pending.shift())
+          count += 1
+        }
+        if (pending.length) {
+          if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(run, { timeout: 160 })
+          else window.setTimeout(() => run({ timeRemaining: () => 0 }), 24)
+        }
+      }
+      if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(run, { timeout: 160 })
+      else window.setTimeout(() => run({ timeRemaining: () => 0 }), 24)
+    }, { rootMargin: '380px 0px' })
+    rounds.forEach((node) => fixtureRoundObserver.observe(node))
   }
 
   function menuFixtureSummary(season) {
@@ -546,30 +666,49 @@
     bind(el) {
       el.addEventListener('toggle', (e) => {
         const detail = e.target
-        if (detail.matches('details[data-season-detail]') && detail.open && !detail.dataset.hydrated) {
+        if (detail.matches('details[data-season-detail]') && detail.open && !detail.dataset.hydrated && !detail.dataset.hydrating) {
           const season = H.state.seasons.find((item) => item.id === detail.dataset.seasonId)
           if (season) {
             const renderers = {
               awards: (item) => awardSummary(item, true),
               standings: standingsSummary,
-              fixture: fixtureSummary,
+              fixture: deferredFixtureSummary,
               repechage: repechageSummary,
               tournament: tournamentSummary,
             }
             const renderDetail = renderers[detail.dataset.seasonDetail]
             if (renderDetail) {
-              const template = document.createElement('template')
-              template.innerHTML = renderDetail(season)
-              const hydrated = template.content.firstElementChild
-              if (hydrated) {
-                hydrated.open = true
-                hydrated.dataset.hydrated = 'true'
-                detail.replaceWith(hydrated)
+              const content = detail.querySelector('.season-awards-content')
+              if (!content) return
+              detail.dataset.hydrating = 'true'
+              detail.setAttribute('aria-busy', 'true')
+              content.innerHTML = '<p class="season-detail-loading" role="status">Cargando apartado…</p>'
+
+              const hydrate = () => {
+                if (!detail.isConnected || !detail.open) {
+                  delete detail.dataset.hydrating
+                  detail.removeAttribute('aria-busy')
+                  return
+                }
+                const keepFocus = detail.contains(document.activeElement)
+                const template = document.createElement('template')
+                template.innerHTML = renderDetail(season)
+                const hydrated = template.content.firstElementChild
+                if (hydrated) {
+                  hydrated.open = true
+                  hydrated.dataset.hydrated = 'true'
+                  detail.replaceWith(hydrated)
+                  if (keepFocus) hydrated.querySelector('summary')?.focus({ preventScroll: true })
+                  watchFixtureRounds(el)
+                }
               }
+              if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(hydrate, { timeout: 300 })
+              else window.setTimeout(hydrate, 32)
             }
           }
         }
         if (detail.matches('.season-tournament-details')) watchMiniBrackets(el)
+        if (detail.matches('details[data-season-detail="fixture"]') && detail.open) watchFixtureRounds(el)
       }, true)
       el.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-action]')
@@ -616,6 +755,16 @@
     },
 
     render(el, s) {
+      if (H.statSeasons().length && !H.teamRecordsReady()) {
+        seasonStatsBlocked = true
+        el.innerHTML = '<div class="card card--wide season-stats-loading" role="status" aria-live="polite"><strong>Preparando temporadas…</strong><span>Este cálculo se ejecuta en segundo plano para mantener fluida la navegación.</span></div>'
+        void H.prepareTeamRecords().then(() => {
+          if (!H.teamRecordsReady()) return
+          if (!document.getElementById('seasons')?.hidden) H.render()
+        })
+        return
+      }
+      seasonStatsBlocked = false
       const cur = s.current
       const dirty = H.isDirty()
       const status = !cur.id ? 'Sin guardar' : dirty ? 'Cambios sin guardar' : 'Guardada'
@@ -702,33 +851,7 @@
           ${
             s.seasons.length
               ? `<ul class="season-list">${s.seasons
-                  .map((season) => {
-                    const open = season.id === cur.id
-                    const selectedSeason = open ? cur : season
-                    const sm = summary(selectedSeason)
-                    return `
-                  <li class="season-row${open ? ' is-open' : ''}">
-                    <span class="season-num">T${season.number}</span>
-                    <div class="season-info">
-                      <span class="season-title">Temporada ${season.number}${open ? ' <span class="badge badge--accent">Abierta</span>' : ''}${season.readOnly ? ' <span class="badge badge--warn">Solo lectura</span>' : ''}</span>
-                      <span class="season-meta">${selectedSeason.teams.length} equipos${season.savedAt ? ` · ${new Date(season.savedAt).toLocaleDateString('es')}` : ''}</span>
-                    </div>
-                    <div class="season-champs">
-                      ${sm.league ? `<span class="champ" title="Campeón de liga">${crest(sm.league.logo, 'sm', sm.league.name)}<span>Liga</span></span>` : ''}
-                      ${sm.cup ? `<span class="champ" title="Campeón de copa">${crest(sm.cup.logo, 'sm', sm.cup.name)}<span>Copa</span></span>` : ''}
-                    </div>
-                    <div class="team-actions">
-                      <button class="btn btn--ghost btn--sm" data-action="edit" data-id="${esc(season.id)}" ${open || season.readOnly ? 'disabled' : ''} ${season.readOnly ? 'title="Edición bloqueada al importar"' : ''}>Editar</button>
-                      <button class="btn btn--ghost btn--sm" data-action="export" data-id="${esc(season.id)}">Exportar</button>
-                      <button class="btn btn--danger btn--sm" data-action="delete" data-id="${esc(season.id)}" aria-label="Eliminar Temporada ${season.number}">Eliminar</button>
-                    </div>
-                    ${standingsSummary(selectedSeason, true)}
-                    ${fixtureSummary(selectedSeason, true)}
-                    ${repechageSummary(selectedSeason, true)}
-                    ${tournamentSummary(selectedSeason, true)}
-                    ${awardSummary(selectedSeason, open, true)}
-                  </li>`
-                  })
+                  .map((season) => `<li class="season-row${season.id === cur.id ? ' is-open' : ''}">${savedSeasonContent(season, cur)}</li>`)
                   .join('')}</ul>`
               : '<p class="empty">Aún no guardaste ninguna temporada.</p>'
           }
