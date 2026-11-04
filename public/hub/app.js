@@ -5,39 +5,12 @@
   const indicator = document.querySelector('.nav-indicator')
   const list = document.querySelector('.nav-list')
   const ids = buttons.map((b) => b.dataset.section)
-  const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
   let current = null
-  let indicatorFrame = 0
 
   const intro = document.getElementById('app-intro')
   if (intro) {
-    const shell = document.querySelector('.shell')
-    const finishIntro = (immediate = false) => {
-      if (intro.dataset.closing) return
-      intro.dataset.closing = '1'
-      if (immediate) {
-        intro.style.transition = 'opacity .16s ease-out'
-        intro.style.opacity = '0'
-        intro.style.pointerEvents = 'none'
-        window.setTimeout(() => {
-          intro.remove()
-          shell?.removeAttribute('inert')
-        }, 170)
-        return
-      }
-      intro.classList.add('is-closing')
-      window.setTimeout(() => {
-        intro.remove()
-        shell?.removeAttribute('inert')
-      }, 2600)
-    }
-
-    // The intro must play on every launch. Devices with "reduce motion" enabled
-    // used to skip it entirely (the old reduceMotion() branch removed the node),
-    // which made the animation seem broken on many phones.
-    {
-      const mesh = intro.querySelector('.intro-triangle-mesh')
-      if (mesh) {
+    const mesh = intro.querySelector('.intro-triangle-mesh')
+    if (mesh) {
         const namespace = 'http://www.w3.org/2000/svg'
         const svg = mesh.ownerSVGElement
         const svgRect = svg?.getBoundingClientRect()
@@ -51,22 +24,13 @@
           || (navigator.deviceMemory && navigator.deviceMemory <= 4)
           || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4)
         const shortestSide = Math.min(viewportWidth, viewportHeight)
-        const baseSide = lowPowerDevice
+        const side = lowPowerDevice
           ? Math.max(116, Math.min(144, shortestSide / 4.7))
           : Math.max(164, Math.min(196, shortestSide / 5.4))
-        // Keep the intro decorative but bounded: a smaller triangle would create
-        // hundreds of animated SVG nodes on a phone and make the first paint crawl.
-        const triangleBudget = lowPowerDevice ? 70 : 150
-        const measure = (side) => {
-          const rowHeight = side * Math.sqrt(3) / 2
-          const rows = Math.ceil(viewportHeight / rowHeight) + 1
-          const columns = Math.ceil(viewportWidth / side) + 2
-          return { side, rowHeight, rows, columns, count: rows * columns * 2 }
-        }
-        let grid = measure(baseSide)
-        while (grid.count > triangleBudget && grid.side < shortestSide) grid = measure(grid.side * 1.15)
-        const { side, rowHeight, rows, columns } = grid
         const halfSide = side / 2
+        const rowHeight = side * Math.sqrt(3) / 2
+        const rows = Math.ceil(viewportHeight / rowHeight) + 1
+        const columns = Math.ceil(viewportWidth / side) + 2
         const triangles = []
         const triangleFragment = document.createDocumentFragment()
         for (let row = 0; row < rows; row += 1) {
@@ -95,20 +59,25 @@
             || b.centerY - a.centerY
             || b.centerX - a.centerX
             || a.part - b.part)
-        const stagger = lowPowerDevice ? 0.85 : 1.9
         orderedTriangles.forEach(({ triangle }, order) => {
-          triangle.style.setProperty('--triangle-delay', `${order * stagger / triangles.length}s`)
+          triangle.style.setProperty('--triangle-delay', `${order * 1.9 / triangles.length}s`)
           triangleFragment.appendChild(triangle)
         })
         mesh.appendChild(triangleFragment)
-      }
-      shell?.setAttribute('inert', '')
-      requestAnimationFrame(() => intro.classList.add('is-playing'))
-      // Tapping the intro skips it immediately (and does not wait ~7 seconds).
-      intro.addEventListener('pointerdown', () => finishIntro(true), { once: true, passive: true })
-      intro.addEventListener('keydown', () => finishIntro(true), { once: true })
-      window.setTimeout(finishIntro, 4500)
     }
+    let closing = false
+    const finishIntro = () => {
+      if (closing) return
+      closing = true
+      intro.classList.add('is-closing')
+      window.setTimeout(() => {
+        intro.remove()
+        document.querySelector('.shell')?.removeAttribute('inert')
+      }, 2600)
+    }
+    document.querySelector('.shell')?.setAttribute('inert', '')
+    requestAnimationFrame(() => intro.classList.add('is-playing'))
+    window.setTimeout(finishIntro, 4500)
   }
 
   sections.forEach((section) => {
@@ -128,65 +97,29 @@
   })
 
   function moveIndicator(button) {
-    if (!button) {
-      indicator.style.opacity = '0'
-      return
-    }
     indicator.style.width = `${button.offsetWidth}px`
     indicator.style.height = `${button.offsetHeight}px`
     indicator.style.transform = `translate(${button.offsetLeft}px, ${button.offsetTop}px)`
     indicator.style.opacity = '1'
   }
 
-  function scheduleIndicator() {
-    if (indicatorFrame) return
-    indicatorFrame = requestAnimationFrame(() => {
-      indicatorFrame = 0
-      moveIndicator(buttons[ids.indexOf(current)])
-    })
-  }
-
-  function replay(el, className) {
-    el.classList.remove(className)
-    // Reading layout here is cheap for the small nav elements and guarantees the
-    // CSS animation restarts. Large content areas use the Web Animations API below.
-    void el.offsetWidth
-    el.classList.add(className)
-  }
-
-  // Web Animations avoid a forced synchronous layout after every section switch.
-  // With History/Performance open the old code relaid out the whole page (and all
-  // its SVGs) for each letter of the title, which caused visible jank on phones.
-  function animateSection(section) {
-    const chars = section.querySelectorAll('.char')
-    if (reduceMotion()) {
-      section.classList.remove('is-entering')
-      chars.forEach((c) => {
-        c.style.animation = 'none'
-        c.style.opacity = '1'
-        c.style.transform = 'none'
-      })
-      return
+  // Reinicia una animación de clase. La clase se retira sola al terminar (animationend de `animation`),
+  // así que en el caso normal basta con añadirla: antes cada navegación forzaba 3 reflows síncronos
+  // (void el.offsetWidth). Solo si la animación sigue en curso (navegación muy rápida) se reinicia con reflow.
+  function replay(el, className, animation) {
+    if (el.classList.contains(className)) {
+      el.classList.remove(className)
+      void el.offsetWidth
     }
-    section.getAnimations().forEach((animation) => {
-      if (animation.id === 'section-enter') animation.cancel()
-    })
-    const enter = section.animate(
-      [{ opacity: 0, transform: 'translateX(-12px)' }, { opacity: 1, transform: 'translateX(0)' }],
-      { duration: 450, easing: 'ease-out' },
-    )
-    enter.id = 'section-enter'
-    chars.forEach((c, i) => {
-      c.getAnimations().forEach((animation) => {
-        if (animation.id === 'char-enter') animation.cancel()
+    el.classList.add(className)
+    if (!el._replayDone) {
+      el._replayDone = new Map()
+      el.addEventListener('animationend', (event) => {
+        const name = el._replayDone.get(event.animationName)
+        if (name) el.classList.remove(name)
       })
-      c.style.animation = 'none'
-      const animation = c.animate(
-        [{ opacity: 0, transform: 'translateY(0.45em)' }, { opacity: 1, transform: 'translateY(0)' }],
-        { duration: 550, delay: i * 38, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)', fill: 'both' },
-      )
-      animation.id = 'char-enter'
-    })
+    }
+    el._replayDone.set(animation, className)
   }
 
   function activate(id, { animate = true } = {}) {
@@ -195,45 +128,40 @@
     if (id === current) return
     current = id
 
-    // Announce the destination before hiding/showing sections. prefs.js uses this
-    // to pick the right layout mode in the same frame, so Settings does not rotate
-    // after it is already visible.
-    document.dispatchEvent(new CustomEvent('app:sectionwillchange', { detail: { id } }))
-
     const button = ids.includes(id) ? buttons[ids.indexOf(id)] : null
     buttons.forEach((b) => b.toggleAttribute('aria-current', b === button))
     if (button) button.setAttribute('aria-current', 'page')
     document.querySelector('[data-menu-nav]')?.toggleAttribute('aria-current', id === 'menu')
 
-    sections.forEach((section) => {
-      const active = section.id === id
-      section.hidden = !active
-      if (active && animate) animateSection(section)
-      else if (active) section.classList.remove('is-entering')
-    })
-
+    // Todo lo que LEE layout (indicador, scrollIntoView, scrollTop) va antes de cambiar de sección:
+    // así el layout aún está limpio y no se fuerza un reflow de la sección nueva con contenido viejo
+    // que el render va a reemplazar enseguida.
     // .content is shared by every section: start each one at the top instead of inheriting the previous scroll.
     const scroller = document.querySelector('.content')
     if (scroller) scroller.scrollTop = 0
-
-    document.dispatchEvent(new CustomEvent('app:sectionchange', { detail: { id } }))
-    // "renderVisible" only redraws a view when its data changed. Revisiting
-    // History/Performance or Settings is instant instead of rebuilding large tables.
-    if (window.Hub?.renderVisible) window.Hub.renderVisible()
-    else window.Hub?.render?.()
-
-    requestAnimationFrame(() => {
-      if (!button) {
-        indicator.style.opacity = '0'
-        return
-      }
+    if (button) {
       moveIndicator(button)
       button.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: animate ? 'smooth' : 'auto' })
-      if (animate) {
-        replay(indicator, 'is-moving')
-        replay(button, 'is-popping')
+    } else indicator.style.opacity = '0'
+
+    sections.forEach((section) => {
+      const active = section.id === id
+      section.hidden = !active
+      if (active && animate) {
+        const chars = section.querySelectorAll('.char')
+        chars.forEach((c) => { c.style.animation = 'none' })
+        replay(section, 'is-entering', 'section-in')
+        chars.forEach((c) => { c.style.animation = '' })
       }
     })
+
+    document.dispatchEvent(new CustomEvent('app:sectionchange', { detail: { id } }))
+    window.Hub?.render?.()
+
+    if (animate && button) {
+      replay(indicator, 'is-moving', 'indicator-stretch')
+      replay(button, 'is-popping', 'icon-pop')
+    }
 
     document.title = `${button?.getAttribute('aria-label') || 'Menú'} · League Hub`
   }
@@ -340,7 +268,10 @@
   window.addEventListener('popstate', () => activate(location.hash.slice(1)))
   window.addEventListener('hashchange', () => activate(location.hash.slice(1)))
 
-  new ResizeObserver(scheduleIndicator).observe(list)
+  new ResizeObserver(() => {
+    const button = buttons[ids.indexOf(current)]
+    if (button) moveIndicator(button)
+  }).observe(list)
 
   if (location.hash !== '#menu') {
     try { history.replaceState(null, '', '#menu') } catch {}

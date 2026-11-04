@@ -23,10 +23,6 @@
   // Fullscreen is provided by the installed PWA's manifest display mode.
   // Never toggle the Fullscreen API on pointer events: focusing/editing inputs can
   // cause mobile browsers to leave and re-enter fullscreen, producing a black frame.
-  // The same applies to the Screen Orientation API: forcing/unforcing landscape when
-  // changing sections makes the phone rotate by itself (especially when opening
-  // Settings). The "Vista PC" mode is rotated with CSS only, so the device stays
-  // exactly where the user is holding it.
 
   function read() {
     try {
@@ -38,61 +34,51 @@
 
   let prefs = read()
   const root = document.documentElement
-  let scaleFrame = 0
-  let lastScaleKey = ''
+  let landscapeLockRequested = false
 
-  const isCoarse = () => window.matchMedia('(pointer: coarse)').matches
-
-  // A handset keeps the same UI mode in portrait and landscape. This avoids the
-  // section flipping when the address bar hides/shows or when the phone rotates.
-  function isHandset() {
-    if (isCoarse()) return true
-    const shortest = Math.min(screen.width || innerWidth, screen.height || innerHeight)
-    return innerWidth <= 600 && shortest <= 900
+  function syncLandscapeLock(desktop) {
+    const mobile = matchMedia('(pointer: coarse)').matches
+    const orientation = screen.orientation
+    if (desktop && mobile) {
+      if (!landscapeLockRequested && orientation?.lock) {
+        landscapeLockRequested = true
+        orientation.lock('landscape').catch(() => { landscapeLockRequested = false })
+      }
+    } else if (landscapeLockRequested) {
+      landscapeLockRequested = false
+      orientation?.unlock?.()
+    }
   }
 
-  // Layout mode must never depend on the active section. Making Settings switch
-  // to another mode was what visually rotated/flipped the page when opening it:
-  // the rest of the sections were inside a rotated 1100px canvas and Settings
-  // was not. Now every section follows the same scale/orientation rules.
   function applyScale() {
-    const mobile = isCoarse()
-    const handset = isHandset()
-    const portrait = window.matchMedia('(orientation: portrait)').matches
-    // Scale -1 on a handset always uses the rotated desktop canvas in portrait,
-    // including Settings, so navigating between sections never changes what is
-    // on screen.
-    const forceLandscape = prefs.scale === -1 && mobile && portrait
-    const viewWidth = window.innerWidth
-    const viewHeight = window.innerHeight
-    // When the phone is held upright we rotate a 1100px desktop canvas with CSS.
-    const appWidth = forceLandscape ? viewHeight : viewWidth
+    const mobile = matchMedia('(pointer: coarse)').matches
+    const forceLandscape = prefs.scale === -1 && mobile && matchMedia('(orientation: portrait)').matches
+    const appWidth = forceLandscape ? window.innerHeight : window.innerWidth
     const desktop = prefs.scale === -1 && appWidth < DESKTOP_WIDTH
-
-    const key = `${prefs.scale}|${viewWidth}x${viewHeight}|${portrait}|${mobile}|${handset}|${desktop}`
-    if (key === lastScaleKey) return
-    lastScaleKey = key
-
     root.classList.toggle('ui-desktop', desktop)
     root.classList.toggle('ui-scale-minus-one', prefs.scale === -1)
     root.classList.toggle('force-landscape', forceLandscape)
-
+    // Settings behaves like every other section: entering it never changes the layout or the
+    // orientation lock, so the screen no longer flips by itself.
+    syncLandscapeLock(prefs.scale === -1)
     if (desktop) {
       const z = appWidth / DESKTOP_WIDTH
       root.style.zoom = String(z)
-      root.style.setProperty('--app-h', `${(forceLandscape ? viewWidth : viewHeight) / z}px`)
+      root.style.setProperty('--ui-zoom', String(z))
+      root.style.setProperty('--app-h', `${(forceLandscape ? window.innerWidth : window.innerHeight) / z}px`)
       if (forceLandscape) {
-        root.style.setProperty('--force-landscape-width', `${viewHeight / z}px`)
-        root.style.setProperty('--force-landscape-height', `${viewWidth / z}px`)
-        root.style.setProperty('--force-landscape-left', `${viewWidth / z}px`)
+        root.style.setProperty('--force-landscape-width', `${window.innerHeight / z}px`)
+        root.style.setProperty('--force-landscape-height', `${window.innerWidth / z}px`)
+        root.style.setProperty('--force-landscape-left', `${window.innerWidth / z}px`)
       }
     } else {
       root.style.zoom = ''
+      root.style.removeProperty('--ui-zoom')
       root.style.removeProperty('--app-h')
       if (forceLandscape) {
-        root.style.setProperty('--force-landscape-width', `${viewHeight}px`)
-        root.style.setProperty('--force-landscape-height', `${viewWidth}px`)
-        root.style.setProperty('--force-landscape-left', `${viewWidth}px`)
+        root.style.setProperty('--force-landscape-width', `${window.innerHeight}px`)
+        root.style.setProperty('--force-landscape-height', `${window.innerWidth}px`)
+        root.style.setProperty('--force-landscape-left', `${window.innerWidth}px`)
       }
     }
     if (!forceLandscape) {
@@ -100,14 +86,6 @@
       root.style.removeProperty('--force-landscape-height')
       root.style.removeProperty('--force-landscape-left')
     }
-  }
-
-  function scheduleScale() {
-    if (scaleFrame) return
-    scaleFrame = window.requestAnimationFrame(() => {
-      scaleFrame = 0
-      applyScale()
-    })
   }
 
   function apply() {
@@ -126,18 +104,15 @@
     Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v))
     root.classList.toggle('hide-grid', !prefs.bgGrid)
     root.classList.toggle('has-custom-bg', !!prefs.hasBg)
-    // Theme changes can affect the layout key (e.g. scrollbars), but recomputing
-    // it every time is cheap; applyScale itself exits early when nothing changed.
-    lastScaleKey = ''
     applyScale()
   }
 
-  window.addEventListener('resize', scheduleScale, { passive: true })
-  window.addEventListener('orientationchange', scheduleScale, { passive: true })
-  window.visualViewport?.addEventListener('resize', scheduleScale, { passive: true })
-  // Section changes no longer alter the layout mode, but keep the hook so a
-  // rotation/scrollbar change that happened while switching is picked up.
-  document.addEventListener('app:sectionchange', scheduleScale)
+  window.addEventListener('resize', applyScale)
+  window.addEventListener('orientationchange', applyScale)
+  document.addEventListener('pointerdown', (event) => {
+    if (prefs.scale !== -1) return
+    syncLandscapeLock(true)
+  }, { passive: true })
 
   window.HubPrefs = {
     THEMES,

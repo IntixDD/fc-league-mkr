@@ -1,7 +1,6 @@
 ;(() => {
   const H = window.Hub
   const P = window.HubPrefs
-  const A = window.HubAudio
   const LEGACY_BG_KEY = 'ui:background'
   const LIBRARY_KEY = 'ui:bg-library'
   const MAX_RAW_BYTES = 6 * 1024 * 1024
@@ -14,6 +13,30 @@
     next: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 5v14M5 5l10 7-10 7z"/></svg>',
   }
   let library = []
+  let musicLibrary = []
+  let currentTrack = 0
+  let musicStarted = false
+  let musicDelayElapsed = false
+  let musicPausedByUser = false
+  let audio = null
+  let musicMeterFrame = 0
+  let musicMeterLast = 0
+  let musicBars = []
+  let musicPlayToken = 0
+  const musicEnvelopes = new Map()
+  let musicPlaybackError = false
+  const musicBarLevels = [0, 0, 0, 0]
+  let musicAdvanceTimer = 0
+  let musicStartTimer = 0
+  let musicStartAt = 0
+  let waitingForNext = false
+  let finishedCurrentTrack = false
+  let resumeMusicOnVisible = false
+  let resumeNextTrackOnVisible = false
+  const sfxPlayers = new Map()
+  const sfxBuffers = new Map()
+  const SFX_FILES = ['tap.wav', 'nav.wav']
+  let sfxContext = null
   const urls = new Map()
   let installEvent = null
 
@@ -35,6 +58,387 @@
   const idbPut = (key, value) => idb('readwrite', (s) => s.put(value, key))
   const idbDel = (key) => idb('readwrite', (s) => s.delete(key))
   const saveLibrary = () => idbPut(LIBRARY_KEY, library)
+
+  function musicNotice(track) {
+    let notice = document.getElementById('music-notice')
+    if (!notice) {
+      notice = document.createElement('aside')
+      notice.id = 'music-notice'
+      notice.className = 'music-notice'
+      notice.setAttribute('role', 'status')
+      document.body.appendChild(notice)
+    }
+    const coverUrl = track.cover ? musicAssetUrl(track.cover) : ''
+    notice.innerHTML = `${coverUrl ? `<img src="${H.esc(coverUrl)}" alt="">` : '<span class="music-cover-placeholder">♫</span>'}<span><strong>${H.esc(track.title)}</strong><small>Reproduciendo</small></span>`
+    notice.classList.add('is-visible')
+    clearTimeout(notice._timer)
+    notice._timer = setTimeout(() => notice.classList.remove('is-visible'), 4400)
+  }
+
+  function musicAssetUrl(filename) {
+    const safePath = String(filename || '').split('/').filter((part) => part && part !== '.' && part !== '..').map(encodeURIComponent).join('/')
+    return new URL(`media/music/${safePath}`, document.baseURI).href
+  }
+
+  function updateMusicControls() {
+    const track = musicLibrary[currentTrack]
+    const playing = (!!audio && !audio.paused) || waitingForNext
+    const cover = document.querySelector('[data-music-cover]')
+    if (cover) {
+      const coverUrl = track?.cover ? musicAssetUrl(track.cover) : ''
+      if (cover.dataset.src !== coverUrl) {
+        cover.dataset.src = coverUrl
+        cover.innerHTML = coverUrl
+          ? `<img src="${H.esc(coverUrl)}" alt="">`
+          : '<span class="music-current-placeholder" aria-hidden="true">♫</span>'
+      }
+    }
+    const title = document.querySelector('[data-music-title]')
+    if (title) title.textContent = track?.title || 'No hay canciones disponibles'
+    const status = document.querySelector('[data-music-state]')
+    if (status) status.textContent = waitingForNext
+      ? 'Preparando la siguiente canción'
+      : playing
+        ? 'Reproduciendo ahora'
+        : musicPlaybackError
+          ? 'El navegador no pudo reproducir esta canción'
+          : audio?.src
+          ? 'En pausa'
+          : track
+            ? 'Lista para reproducir'
+            : 'Añade canciones a la biblioteca'
+    const player = document.querySelector('.music-current')
+    player?.classList.toggle('is-playing', playing && !waitingForNext)
+    player?.classList.add('has-audio-meter')
+    if (playing && !waitingForNext) startMusicMeter()
+
+    const button = document.querySelector('[data-action="music-toggle"]')
+    if (!button) return
+    const available = musicLibrary.length > 0
+    button.innerHTML = `${playing ? MUSIC_ICONS.pause : MUSIC_ICONS.play}<span>${playing ? 'Pausar' : 'Reproducir'}</span>`
+    button.setAttribute('aria-label', playing ? 'Pausar música' : 'Reproducir música')
+    button.disabled = !available
+    document.querySelectorAll('.music-transport [data-action="music-next"], .music-transport [data-action="music-previous"]').forEach((control) => { control.disabled = !available })
+  }
+
+  /* ---------- Barritas de música ----------
+     Se animan con una envolvente precalculada (media/music/bars.js) leída según audio.currentTime.
+     No pasan el audio por Web Audio, así que funcionan igual en cualquier navegador/dispositivo
+     (incluido file://) y no añaden carga ni crujidos al sonido. Si una canción no tiene envolvente,
+     se usa una animación suave de respaldo. */
+  function musicEnvelope(track) {
+    const pack = window.HUB_MUSIC_BARS
+    const key = track?.file
+    if (!pack || !key) return null
+    if (musicEnvelopes.has(key)) return musicEnvelopes.get(key)
+    let data = null
+    try {
+      const raw = pack.data?.[key]
+      if (raw) {
+        const bin = atob(raw)
+        data = new Uint8Array(bin.length)
+        for (let i = 0; i < bin.length; i++) data[i] = bin.charCodeAt(i)
+      }
+    } catch { data = null }
+    musicEnvelopes.set(key, data)
+    return data
+  }
+
+  function stopMusicMeter() {
+    if (musicMeterFrame) cancelAnimationFrame(musicMeterFrame)
+    musicMeterFrame = 0
+    musicBarLevels.fill(0)
+    document.querySelectorAll('.music-equalizer i').forEach((bar) => { bar.style.transform = '' })
+  }
+
+  function startMusicMeter() {
+    if (musicMeterFrame || !audio || audio.paused || document.hidden) return
+    const draw = (now) => {
+      musicMeterFrame = 0
+      if (!audio || audio.paused || document.hidden) return stopMusicMeter()
+      if (!musicBars.length || !musicBars[0].isConnected) musicBars = [...document.querySelectorAll('.music-equalizer i')]
+      // Sin barras visibles (otro apartado abierto): se detiene y vuelve con app:sectionchange.
+      if (!musicBars.length || musicBars[0].offsetParent === null) { musicMeterLast = 0; return }
+      if (now - musicMeterLast >= 32) {
+        musicMeterLast = now
+        const pack = window.HUB_MUSIC_BARS
+        const data = musicEnvelope(musicLibrary[currentTrack])
+        const bands = pack?.bands || 4
+        const pos = Math.max(0, audio.currentTime) * (pack?.fps || 20)
+        const i0 = Math.floor(pos)
+        const frac = pos - i0
+        const frames = data ? Math.floor(data.length / bands) : 0
+        const live = data && i0 + 1 < frames
+        musicBars.forEach((bar, index) => {
+          let target
+          if (live) {
+            const a = data[i0 * bands + index]
+            const b = data[(i0 + 1) * bands + index]
+            target = (a + (b - a) * frac) / 255
+          } else {
+            const t = now / 1000
+            target = .5 + .3 * Math.sin(t * (2.1 + index * .7) + index * 1.9) + .15 * Math.sin(t * (5.3 + index) + index)
+          }
+          // Curva exagerada: los valles bajan casi a cero y los picos llegan al tope.
+          const shaped = Math.min(1, Math.pow(Math.max(0, target), 2.4) * 1.5)
+          const prev = musicBarLevels[index]
+          musicBarLevels[index] = prev + (shaped - prev) * (shaped > prev ? .8 : .32)
+          bar.style.transform = `scaleY(${(.08 + musicBarLevels[index] * .92).toFixed(3)})`
+        })
+      }
+      musicMeterFrame = requestAnimationFrame(draw)
+    }
+    musicMeterFrame = requestAnimationFrame(draw)
+  }
+
+  document.addEventListener('app:sectionchange', () => requestAnimationFrame(startMusicMeter))
+
+  function ensureAudio() {
+    if (!audio) {
+      audio = new Audio()
+      audio.preload = 'auto'
+      audio.volume = P.get().musicVolume ?? 0.15
+      audio.addEventListener('ended', () => {
+        stopMusicMeter()
+        finishedCurrentTrack = true
+        waitingForNext = true
+        updateMusicControls()
+        clearTimeout(musicAdvanceTimer)
+        musicAdvanceTimer = window.setTimeout(() => {
+          waitingForNext = false
+          playTrack(currentTrack + 1)
+        }, 2000)
+      })
+      audio.addEventListener('play', () => {
+        updateMusicControls()
+        startMusicMeter()
+      })
+      audio.addEventListener('pause', () => {
+        stopMusicMeter()
+        updateMusicControls()
+      })
+      audio.addEventListener('error', () => {
+        stopMusicMeter()
+        if (!audio.src) return
+        musicStarted = false
+        musicPlaybackError = true
+        updateMusicControls()
+      })
+    }
+  }
+
+  function playTrack(index) {
+    if (!musicLibrary.length) return
+    ensureAudio()
+    clearTimeout(musicAdvanceTimer)
+    waitingForNext = false
+    finishedCurrentTrack = false
+    currentTrack = (index + musicLibrary.length) % musicLibrary.length
+    musicPausedByUser = false
+    const track = musicLibrary[currentTrack]
+    musicPlaybackError = false
+    const token = ++musicPlayToken
+    audio.src = track.src
+    updateMusicControls()
+    audio.play().then(() => {
+      if (token !== musicPlayToken) return
+      musicStarted = true
+      musicPlaybackError = false
+      musicNotice(track)
+      updateMusicControls()
+    }).catch((error) => {
+      // Un cambio rápido de canción interrumpe el play() anterior: no es un error real.
+      if (token !== musicPlayToken || error?.name === 'AbortError') return
+      musicStarted = false
+      musicPlaybackError = true
+      updateMusicControls()
+    })
+  }
+
+  function playMusic() {
+    if (!musicLibrary.length || musicStarted) return
+    playTrack(currentTrack)
+  }
+
+  function scheduleInitialMusic() {
+    if (musicStartTimer || musicDelayElapsed || musicStarted || document.hidden || !musicLibrary.length || P.get().musicAutoplay === false) return
+    if (!musicStartAt) musicStartAt = Date.now() + 4000
+    musicStartTimer = window.setTimeout(() => {
+      musicStartTimer = 0
+      musicDelayElapsed = true
+      playMusic()
+    }, Math.max(0, musicStartAt - Date.now()))
+  }
+
+  async function loadMusic() {
+    const entries = window.HUB_MUSIC_TRACKS
+    musicLibrary = Array.isArray(entries) ? entries.map((entry) => {
+        const item = typeof entry === 'string' ? { file: entry } : entry
+        if (!item?.file || !/\.mp3$/i.test(item.file)) return null
+        return {
+          file: item.file,
+          title: item.title || item.file.split('/').pop().replace(/\.mp3$/i, ''),
+          src: musicAssetUrl(item.file),
+          cover: item.cover || '',
+        }
+      }).filter(Boolean) : []
+    if (musicLibrary.length && P.get().musicAutoplay !== false) {
+      currentTrack = 0
+      scheduleInitialMusic()
+    }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      clearTimeout(musicStartTimer)
+      musicStartTimer = 0
+      if (waitingForNext) {
+        clearTimeout(musicAdvanceTimer)
+        musicAdvanceTimer = 0
+        resumeNextTrackOnVisible = true
+      } else if (audio && !audio.paused) {
+        resumeMusicOnVisible = true
+        audio.pause()
+      }
+      return
+    }
+    if (resumeNextTrackOnVisible) {
+      resumeNextTrackOnVisible = false
+      musicAdvanceTimer = window.setTimeout(() => {
+        musicAdvanceTimer = 0
+        waitingForNext = false
+        playTrack(currentTrack + 1)
+      }, 2000)
+    } else if (resumeMusicOnVisible && audio && !musicPausedByUser) {
+      resumeMusicOnVisible = false
+      audio.play().then(() => { musicStarted = true; updateMusicControls() }).catch(() => {})
+    }
+    scheduleInitialMusic()
+  })
+
+  document.addEventListener('pointerdown', (event) => {
+    if (!musicDelayElapsed || musicStarted || musicPausedByUser || !musicLibrary.length || event.target.closest('.music-transport')) return
+    playMusic()
+  }, { capture: true, passive: true })
+
+  /* ---------- SFX ----------
+     Web Audio con buffers decodificados (latencia mínima, sin recrear elementos <audio>).
+     Máximo de voces simultáneas para que los toques rápidos no se acumulen ni saturen,
+     y <audio> como respaldo solo si Web Audio o la carga de archivos no está disponible. */
+  const SFX_MAX_VOICES = 4
+  const sfxVoices = []
+  const sfxLastPlayed = new Map()
+
+  function prepareSfxFallback(file) {
+    if (sfxPlayers.has(file)) return sfxPlayers.get(file)
+    const sound = new Audio(`media/sfx/${file}`)
+    sound.preload = 'auto'
+    sfxPlayers.set(file, sound)
+    return sound
+  }
+
+  function loadSfxBuffer(file) {
+    const context = sfxContext
+    fetch(new URL(`media/sfx/${file}`, document.baseURI), { cache: 'force-cache' })
+      .then((response) => {
+        if (!response.ok) throw new Error('sfx')
+        return response.arrayBuffer()
+      })
+      .then((buffer) => context.decodeAudioData(buffer))
+      .then((decoded) => { if (context === sfxContext) sfxBuffers.set(file, decoded) })
+      .catch(() => prepareSfxFallback(file))
+  }
+
+  function ensureSfxContext() {
+    if (sfxContext && sfxContext.state !== 'closed') return sfxContext
+    sfxContext = null
+    sfxBuffers.clear()
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext
+    if (!AudioContextClass) return null
+    try {
+      sfxContext = new AudioContextClass({ latencyHint: 'interactive' })
+    } catch {
+      try { sfxContext = new AudioContextClass() } catch { sfxContext = null }
+    }
+    if (sfxContext) SFX_FILES.forEach(loadSfxBuffer)
+    return sfxContext
+  }
+
+  function playSfxBuffer(file, volume) {
+    if (!sfxContext || sfxContext.state !== 'running') return false
+    const buffer = sfxBuffers.get(file)
+    if (!buffer) return false
+    try {
+      while (sfxVoices.length >= SFX_MAX_VOICES) {
+        const oldest = sfxVoices.shift()
+        try { oldest.source.stop() } catch {}
+      }
+      const source = sfxContext.createBufferSource()
+      const gain = sfxContext.createGain()
+      source.buffer = buffer
+      gain.gain.value = volume
+      source.connect(gain)
+      gain.connect(sfxContext.destination)
+      const voice = { source }
+      sfxVoices.push(voice)
+      source.onended = () => {
+        const at = sfxVoices.indexOf(voice)
+        if (at >= 0) sfxVoices.splice(at, 1)
+        source.disconnect()
+        gain.disconnect()
+      }
+      source.start(0)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  function playSfx(file = 'tap.wav') {
+    const volume = P.get().sfxVolume ?? 1
+    if (!volume) return
+    const now = performance.now()
+    if (now - (sfxLastPlayed.get(file) || 0) < 40) return
+    sfxLastPlayed.set(file, now)
+    const context = ensureSfxContext()
+    if (context && sfxBuffers.has(file)) {
+      if (context.state === 'running') {
+        if (playSfxBuffer(file, volume)) return
+      } else {
+        context.resume().then(() => { if (!playSfxBuffer(file, volume)) playSfxFallback(file, volume) }).catch(() => playSfxFallback(file, volume))
+        return
+      }
+    }
+    playSfxFallback(file, volume)
+  }
+
+  function playSfxFallback(file, volume) {
+    const sound = prepareSfxFallback(file)
+    sound.volume = volume
+    try { sound.currentTime = 0 } catch {}
+    sound.play().catch(() => {})
+  }
+
+  ensureSfxContext()
+  // Despierta el contexto en el primer toque (antes del click) para que el primer sonido no llegue tarde.
+  const unlockSfx = () => {
+    const context = ensureSfxContext()
+    if (context && context.state !== 'running') context.resume().catch(() => {})
+  }
+  document.addEventListener('pointerdown', unlockSfx, { capture: true, passive: true })
+  document.addEventListener('keydown', unlockSfx, { capture: true, passive: true })
+  let lastSfxControl = null
+  let lastSfxAt = 0
+  document.addEventListener('click', (event) => {
+    const target = event.target.closest('.nav-button, button, a[href], [role="button"], .file-btn, [data-action], [data-open-menu], .logo')
+    if (!target) return
+    const now = performance.now()
+    if (target === lastSfxControl && now - lastSfxAt < 120) return
+    lastSfxControl = target
+    lastSfxAt = now
+    if (target.closest('.nav-button')) playSfx('nav.wav')
+    else playSfx()
+  })
 
   const urlFor = (item) => {
     if (!urls.has(item.id)) urls.set(item.id, URL.createObjectURL(item.blob))
@@ -219,8 +623,7 @@
     const el = document.getElementById('settings-body')
     if (!el) return
     const p = P.get()
-    const track = A.current
-    const trackCount = A.library.length
+    const track = musicLibrary[currentTrack]
     const themes = Object.entries(P.THEMES)
       .map(
         ([id, t]) => `
@@ -244,8 +647,8 @@
 
         ${card({
           title: 'Música y sonidos',
-          sub: `${trackCount} canción(es) disponibles en la app`,
-          body: `<div class="music-current" aria-live="polite"><div class="music-current-cover" data-music-cover>${track?.cover ? `<img src="${H.esc(A.assetUrl(track.cover))}" alt="">` : '<span class="music-current-placeholder" aria-hidden="true">♫</span>'}</div><div class="music-current-info"><span class="music-current-kicker">Ahora en reproducción</span><strong data-music-title>${H.esc(track?.title || (trackCount ? 'Preparando biblioteca' : 'No hay canciones disponibles'))}</strong><small data-music-state>${trackCount ? 'Lista para reproducir' : 'Añade canciones a la biblioteca'}</small></div><span class="music-equalizer" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div><div class="audio-controls"><label class="field range-field"><span class="field-label">Volumen de la música <output>${Math.round((p.musicVolume ?? .15) * 100)}%</output></span><input type="range" name="music-volume" min="0" max="1" step="0.05" value="${p.musicVolume ?? .15}"></label><label class="field range-field"><span class="field-label">Volumen de los SFX <output>${Math.round((p.sfxVolume ?? 1) * 100)}%</output></span><input type="range" name="sfx-volume" min="0" max="1" step="0.05" value="${p.sfxVolume ?? 1}"></label></div><label class="check music-autoplay-setting"><input type="checkbox" name="music-autoplay" ${p.musicAutoplay !== false ? 'checked' : ''}> Reproducir música al iniciar la app</label><div class="music-transport" role="group" aria-label="Controles de música"><button class="btn btn--ghost" type="button" data-action="music-previous" aria-label="Canción anterior">${MUSIC_ICONS.previous}<span>Anterior</span></button><button class="btn btn--primary music-toggle" type="button" data-action="music-toggle" aria-label="Pausar música">${MUSIC_ICONS.pause}<span>Pausar</span></button><button class="btn btn--ghost" type="button" data-action="music-next" aria-label="Siguiente canción">${MUSIC_ICONS.next}<span>Siguiente</span></button></div>`,
+          sub: `${musicLibrary.length} canción(es) disponibles en la app`,
+          body: `<div class="music-current" aria-live="polite"><div class="music-current-cover" data-music-cover>${track?.cover ? `<img src="${H.esc(musicAssetUrl(track.cover))}" alt="">` : '<span class="music-current-placeholder" aria-hidden="true">♫</span>'}</div><div class="music-current-info"><span class="music-current-kicker">Ahora en reproducción</span><strong data-music-title>${H.esc(track?.title || (musicLibrary.length ? 'Preparando biblioteca' : 'No hay canciones disponibles'))}</strong><small data-music-state>${musicLibrary.length ? 'Lista para reproducir' : 'Añade canciones a la biblioteca'}</small></div><span class="music-equalizer" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div><div class="audio-controls"><label class="field range-field"><span class="field-label">Volumen de la música <output>${Math.round((p.musicVolume ?? .15) * 100)}%</output></span><input type="range" name="music-volume" min="0" max="1" step="0.05" value="${p.musicVolume ?? .15}"></label><label class="field range-field"><span class="field-label">Volumen de los SFX <output>${Math.round((p.sfxVolume ?? 1) * 100)}%</output></span><input type="range" name="sfx-volume" min="0" max="1" step="0.05" value="${p.sfxVolume ?? 1}"></label></div><label class="check music-autoplay-setting"><input type="checkbox" name="music-autoplay" ${p.musicAutoplay !== false ? 'checked' : ''}> Reproducir música al iniciar la app</label><div class="music-transport" role="group" aria-label="Controles de música"><button class="btn btn--ghost" type="button" data-action="music-previous" aria-label="Canción anterior">${MUSIC_ICONS.previous}<span>Anterior</span></button><button class="btn btn--primary music-toggle" type="button" data-action="music-toggle" aria-label="Pausar música">${MUSIC_ICONS.pause}<span>Pausar</span></button><button class="btn btn--ghost" type="button" data-action="music-next" aria-label="Siguiente canción">${MUSIC_ICONS.next}<span>Siguiente</span></button></div>`,
           extraClass: 'set-music',
         })}
 
@@ -299,11 +702,10 @@
           sub: 'League Hub',
           wide: true,
           extraClass: 'set-about',
-          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-3.3</strong><span class="about-build">Beta Build</span></div>',
+          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-3.0</strong><span class="about-build">Beta Build</span></div>',
         })}
       </div>`
-    A.syncControls()
-    A.refreshMeter()
+    updateMusicControls()
   }
 
   function bind() {
@@ -315,9 +717,31 @@
       if (!btn) return
       const { action } = btn.dataset
       if (action === 'pick-brand') H.pickBrand?.()
-      else if (action === 'music-toggle') A.toggle()
-      else if (action === 'music-next') A.next()
-      else if (action === 'music-previous') A.previous()
+      else if (action === 'music-toggle') {
+        if (!musicLibrary.length) return H.toast('No hay canciones cargadas en la app')
+        ensureAudio()
+        if (!audio || !audio.src) playTrack(currentTrack < 0 ? 0 : currentTrack)
+        else if (waitingForNext) {
+          clearTimeout(musicAdvanceTimer)
+          waitingForNext = false
+          finishedCurrentTrack = true
+          musicStarted = false
+          musicPausedByUser = true
+        } else if (!audio.paused) {
+          audio.pause()
+          musicStarted = false
+          musicPausedByUser = true
+        } else if (finishedCurrentTrack) playTrack(currentTrack + 1)
+        else {
+          audio.play().then(() => { musicStarted = true; musicPausedByUser = false; updateMusicControls() }).catch(() => {})
+        }
+        updateMusicControls()
+      } else if (action === 'music-next' || action === 'music-previous') {
+        if (!musicLibrary.length) return H.toast('No hay canciones cargadas en la app')
+        const direction = action === 'music-next' ? 1 : -1
+        const nextTrack = currentTrack < 0 ? (direction < 0 ? musicLibrary.length - 1 : 0) : currentTrack + direction
+        playTrack(nextTrack)
+      }
       else if (action === 'scale') {
         P.set({ scale: Number(btn.dataset.scale) })
         render()
@@ -344,7 +768,12 @@
         P.set({ bgGrid: e.target.checked })
       } else if (name === 'music-autoplay') {
         P.set({ musicAutoplay: e.target.checked })
-        A.setAutoplay(e.target.checked)
+        if (e.target.checked) scheduleInitialMusic()
+        else {
+          clearTimeout(musicStartTimer)
+          musicStartTimer = 0
+          musicStartAt = 0
+        }
       }
     })
     el.addEventListener('input', (e) => {
@@ -354,7 +783,7 @@
         P.set({ [key]: value })
         const out = e.target.closest('.range-field')?.querySelector('output')
         if (out) out.textContent = `${Math.round(value * 100)}%`
-        if (key === 'musicVolume') A.setMusicVolume(value)
+        if (key === 'musicVolume' && audio) audio.volume = value
         return
       }
       if (e.target.name !== 'bg-dim') return
@@ -368,6 +797,7 @@
   async function init() {
     bind()
     render()
+    void loadMusic()
     await loadLibrary()
     render()
   }

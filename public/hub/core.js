@@ -25,16 +25,6 @@ window.Hub = (() => {
   let pendingSkip = null
   let dbPromise = null
   let teamRecordsCache = null
-  let statSeasonsCache = null
-  // Bumped whenever persisted data changes. Views remember the version they drew
-  // so revisiting a section can reuse the existing DOM instead of rebuilding it.
-  let dataVersion = 0
-  const viewVersions = Object.create(null)
-  // Derived data is keyed by the record/season object, so the caches empty
-  // themselves as soon as a new object graph is produced after an edit.
-  const totalsCache = new WeakMap()
-  const titleCountCache = new WeakMap()
-  let seasonStatsCache = new WeakMap()
 
   /* ---------- Persistence (IndexedDB) ---------- */
   function openDb() {
@@ -59,14 +49,97 @@ window.Hub = (() => {
     })
   }
 
-  const loadState = () => idb('readonly', (s) => s.get(KEY))
-  const saveState = () => idb('readwrite', (s) => s.put(state, KEY))
+  /* Formato de guardado v2: el estado se guarda SIN las imágenes (data: URL).
+     Cada escudo (~100 KB) aparece decenas de veces en el estado (galería + cada equipo de cada
+     temporada); reescribir ~2.7 MB en cada edición congelaba la app. Ahora las imágenes van una sola
+     vez en una tabla aparte ('logos2') que solo se reescribe cuando cambian los escudos, y el estado
+     ligero ('state2', ~100 KB) referencia esa tabla con marcadores. 'state' es el formato antiguo:
+     se sigue leyendo (migración automática) pero ya no se escribe. */
+  const KEY2 = 'state2'
+  const KEY_TABLE = 'logos2'
+  const REF = '\u0001L'
+  const ESCAPED = '\u0001E'
 
-  // IndexedDB is the primary store (handles large logo galleries). localStorage remains
-  // a fallback for browsers where IndexedDB is unavailable, without serializing images
-  // synchronously during every normal save.
+  function idbGetMany(keys) {
+    return openDb().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly')
+      const store = tx.objectStore(STORE)
+      const reqs = keys.map((key) => store.get(key))
+      tx.oncomplete = () => resolve(reqs.map((req) => req.result))
+      tx.onerror = () => reject(tx.error)
+    }))
+  }
+
+  function idbPutMany(entries) {
+    return openDb().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite')
+      const store = tx.objectStore(STORE)
+      entries.forEach(([key, value]) => store.put(value, key))
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+      tx.onabort = () => reject(tx.error || new Error('Transacción cancelada'))
+    }))
+  }
+
+  /* Estado -> { json, table, changed }. `table` son las imágenes únicas. Conserva el orden de la
+     tabla ya guardada y solo añade al final, así `changed` es true únicamente cuando aparece un
+     escudo nuevo (o cuando se compacta la basura de escudos ya borrados). */
+  function packState() {
+    const previous = lastTable || []
+    const table = previous.slice()
+    const index = new Map()
+    table.forEach((data, i) => index.set(data, i))
+    const used = new Set()
+    const json = JSON.stringify(state, (key, value) => {
+      if (typeof value !== 'string' || !value) return value
+      const first = value.charCodeAt(0)
+      if (first === 1) return ESCAPED + value
+      if (first === 100 && value.startsWith('data:image/')) {
+        let i = index.get(value)
+        if (i === undefined) {
+          i = table.length
+          index.set(value, i)
+          table.push(value)
+        }
+        used.add(i)
+        return REF + i
+      }
+      return value
+    })
+    if (previous.length && table.length - used.size > 8) {
+      lastTable = null // demasiados escudos borrados en la tabla: se reconstruye compacta
+      return packState()
+    }
+    return { json, table, changed: !lastTable || table.length !== previous.length }
+  }
+
+  function unpackState(json, table) {
+    const parsed = JSON.parse(json)
+    const walk = (value) => {
+      if (typeof value === 'string') {
+        if (value.charCodeAt(0) !== 1) return value
+        if (value.startsWith(REF)) return table?.[Number(value.slice(2))] ?? null
+        if (value.startsWith(ESCAPED)) return value.slice(2)
+        return value
+      }
+      if (Array.isArray(value)) {
+        for (let i = 0; i < value.length; i++) value[i] = walk(value[i])
+      } else if (value && typeof value === 'object') {
+        for (const k in value) value[k] = walk(value[k])
+      }
+      return value
+    }
+    return walk(parsed)
+  }
+
+  let lastTable = null // tabla de imágenes ya guardada en IndexedDB
+  let tableId = ''
+  let dbBroken = false
+  let flushSeq = 0
+
+  // IndexedDB is the primary store (handles large logo galleries); localStorage is a
+  // synchronous mirror so the latest edit survives a reload even if the async write is cut off.
   const LS_STATE = 'league-hub:state'
-  const LS_MIRROR_CHECKED = 'league-hub:mirror-checked'
   const LS_UI = 'league-hub:ui'
   const UI_KEYS = ['fxMode', 'poSize', 'perfTeam', 'historySort', 'historySortVersion', 'historyDir', 'historyQuery', 'newKeepTeams', 'tableEdit', 'repechageEnabled', 'lockSeasonExport', 'tournamentTwoLegged']
   let dirty = false
@@ -80,12 +153,33 @@ window.Hub = (() => {
     }
   }
 
+  // Espejo completo (formato antiguo): solo se usa si IndexedDB no está disponible o mientras
+  // se guarda una tabla de imágenes nueva (para no perder nada si se corta la escritura asíncrona).
   function writeLocal() {
     try {
       localStorage.setItem(LS_STATE, JSON.stringify(state))
       return true
     } catch {
       return false
+    }
+  }
+
+  // Espejo ligero (formato v2): ~100 KB, síncrono, sobrevive a un cierre brusco.
+  const LS_STATE2 = 'league-hub:state2'
+  function writeLocalLight(record) {
+    try {
+      localStorage.setItem(LS_STATE2, JSON.stringify(record))
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  function readLocalLight() {
+    try {
+      return JSON.parse(localStorage.getItem(LS_STATE2) || 'null')
+    } catch {
+      return null
     }
   }
 
@@ -119,20 +213,39 @@ window.Hub = (() => {
     if (!state || !dirty) return
     dirty = false
     state.updatedAt = Date.now()
-    saveState().catch((err) => {
-      const local = writeLocal()
-      if (!local) toast(`No se pudo guardar: ${err.message}`, 'error')
-      else toast('Guardado localmente; el almacenamiento principal no está disponible.', 'error')
-    })
+    if (dbBroken) {
+      if (!writeLocal()) toast('No se pudo guardar: almacenamiento no disponible', 'error')
+      return
+    }
+    const { json, table, changed: tableChanged } = packState()
+    if (tableChanged) {
+      lastTable = table
+      tableId = uid()
+      writeLocal() // seguro de vida hasta que la tabla nueva esté en IndexedDB
+    }
+    const record = { v: 2, updatedAt: state.updatedAt, tableId, json }
+    const seq = ++flushSeq
+    const entries = [[KEY2, record]]
+    if (tableChanged) entries.push([KEY_TABLE, { id: tableId, table }])
+    else writeLocalLight(record)
+    idbPutMany(entries).then(
+      () => {
+        if (seq !== flushSeq) return
+        if (tableChanged) writeLocalLight(record)
+        try { localStorage.removeItem(LS_STATE) } catch { /* nada */ }
+      },
+      (err) => {
+        // IndexedDB falló: volver al espejo completo para no perder datos.
+        dbBroken = true
+        if (!writeLocal()) toast(`No se pudo guardar: ${err?.message || 'error de almacenamiento'}`, 'error')
+      },
+    )
   }
 
   function persist() {
     dirty = true
     clearTimeout(saveTimer)
-    // Writing the whole state (including base64 logos) on every keystroke was a
-    // large source of stutter while typing scores. 400 ms still survives a
-    // normal tab close thanks to the pagehide/beforeunload flush.
-    saveTimer = setTimeout(flush, 400)
+    saveTimer = setTimeout(flush, 250)
   }
 
   addEventListener('pagehide', flush)
@@ -158,43 +271,38 @@ window.Hub = (() => {
     return isScore(n) ? n : null
   }
 
-  /* ---------- Small scheduling helpers shared by views ---------- */
-  function rafThrottle(fn) {
-    let frame = 0
-    let lastArgs = null
-    const run = () => {
-      frame = 0
-      fn(...(lastArgs || []))
-      lastArgs = null
+  /* Los escudos se guardan como data: URL (base64, ~100 KB c/u). Incrustarlos tal cual en el HTML
+     obligaba al navegador a parsear y decodificar MB de texto en cada render (el Menú llegaba a 7.5 MB).
+     imgSrc() los convierte una sola vez en un blob: URL corto y lo reutiliza. */
+  const blobUrls = new Map()
+  function imgSrc(src) {
+    if (typeof src !== 'string' || !src.startsWith('data:')) return src
+    let url = blobUrls.get(src)
+    if (url) return url
+    try {
+      const comma = src.indexOf(',')
+      const meta = src.slice(5, comma)
+      const mime = meta.split(';')[0] || 'application/octet-stream'
+      let part
+      if (/;base64/i.test(meta)) {
+        const bin = atob(src.slice(comma + 1))
+        const bytes = new Uint8Array(bin.length)
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+        part = bytes
+      } else {
+        part = decodeURIComponent(src.slice(comma + 1))
+      }
+      url = URL.createObjectURL(new Blob([part], { type: mime }))
+    } catch {
+      url = src
     }
-    return (...args) => {
-      lastArgs = args
-      if (frame) return
-      frame = requestAnimationFrame(run)
-    }
+    blobUrls.set(src, url)
+    return url
   }
-
-  function debounce(fn, wait = 150) {
-    let timer = 0
-    const debounced = (...args) => {
-      clearTimeout(timer)
-      timer = setTimeout(() => {
-        timer = 0
-        fn(...args)
-      }, wait)
-    }
-    debounced.cancel = () => {
-      clearTimeout(timer)
-      timer = 0
-    }
-    return debounced
-  }
-
-  const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   function crest(logo, size = 'md', name = '') {
     const inner = logo
-      ? `<img src="${esc(logo)}" alt="" loading="lazy" decoding="async">`
+      ? `<img src="${esc(imgSrc(logo))}" alt="" loading="lazy" decoding="async">`
       : `<span class="crest-initial">${esc((name || '?').trim().charAt(0).toUpperCase() || '?')}</span>`
     return `<span class="crest crest--${size}">${inner}</span>`
   }
@@ -530,7 +638,6 @@ window.Hub = (() => {
         toast(`${file.name}: ${err.message}`, 'error')
       }
     }
-    bumpData()
     persist()
     scheduleRender()
     return added
@@ -552,7 +659,6 @@ window.Hub = (() => {
       added.push(id)
     }
     if (added.length) {
-      bumpData()
       persist()
       scheduleRender()
     }
@@ -1010,9 +1116,6 @@ window.Hub = (() => {
   }
 
   function seasonStats(season) {
-    if (!season) return []
-    const cached = seasonStatsCache.get(season)
-    if (cached) return cached
     const byId = new Map()
     season.teams.forEach((t) =>
       byId.set(t.id, {
@@ -1275,7 +1378,6 @@ window.Hub = (() => {
       )
       team.legendarySeason = team.perfectSeason && team.league.gc + team.cup.gc === 0
     })
-    seasonStatsCache.set(season, all)
     return all
   }
 
@@ -1285,12 +1387,10 @@ window.Hub = (() => {
   }
 
   function statSeasons() {
-    if (statSeasonsCache) return statSeasonsCache.slice()
     const cur = state.current
     const list = state.seasons.map((s) => (cur.id && s.id === cur.id ? cur : s))
     if (!cur.id && (cur.fixtures || cur.playoffs || cur.manual)) list.push(cur)
-    statSeasonsCache = list.sort((a, b) => a.number - b.number)
-    return statSeasonsCache.slice()
+    return list.sort((a, b) => a.number - b.number)
   }
 
   function teamRecords() {
@@ -1313,11 +1413,23 @@ window.Hub = (() => {
     return state.current.id ? state.seasons.find((s) => s.id === state.current.id) : null
   }
 
+  /* Igualdad estructural con salida temprana (equivale a comparar JSON, pero sin serializar los
+     escudos de cada equipo: antes se stringificaban ~1.6 MB dos veces por cada render de Seasons). */
+  function sameData(a, b) {
+    if (a === b) return true
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false
+    if (Array.isArray(a) !== Array.isArray(b)) return false
+    if (Array.isArray(a)) return a.length === b.length && a.every((item, i) => sameData(item, b[i]))
+    const keysA = Object.keys(a).filter((k) => a[k] !== undefined)
+    const keysB = Object.keys(b).filter((k) => b[k] !== undefined)
+    return keysA.length === keysB.length && keysA.every((k) => sameData(a[k], b[k]))
+  }
+
   function isDirty() {
     const saved = savedCopy()
     const cur = state.current
     if (!saved) return cur.teams.length > 0 || !!cur.fixtures || !!cur.playoffs || !!cur.manual
-    return JSON.stringify(saved) !== JSON.stringify(cur)
+    return !sameData(saved, cur)
   }
 
   /* ---------- UI utilities ---------- */
@@ -1447,36 +1559,6 @@ window.Hub = (() => {
     views[id] = def
   }
 
-  function invalidateDerived() {
-    teamRecordsCache = null
-    statSeasonsCache = null
-    // Replacing the WeakMap is the cheapest way to drop every cached season at
-    // once; the old entries are collected with the mutated season objects.
-    seasonStatsCache = new WeakMap()
-  }
-
-  function bumpData() {
-    dataVersion++
-    invalidateDerived()
-  }
-
-  function renderView(id, v, el) {
-    const scrolls = [...el.querySelectorAll('[data-scroll]')].map((s) => [s.dataset.scroll, s.scrollTop, s.scrollLeft])
-    try {
-      v.render(el, state)
-    } catch (err) {
-      console.error(`League Hub: no se pudo dibujar "${id}"`, err)
-    }
-    viewVersions[id] = dataVersion
-    scrolls.forEach(([name, top, left]) => {
-      const s = el.querySelector(`[data-scroll="${name}"]`)
-      if (s) {
-        s.scrollTop = top
-        s.scrollLeft = left
-      }
-    })
-  }
-
   function renderAll() {
     renderQueued = false
     const skip = pendingSkip
@@ -1489,7 +1571,15 @@ window.Hub = (() => {
       const el = document.getElementById(`${id}-body`)
       if (!el) return
       if (el.closest('.section')?.hidden) return
-      renderView(id, v, el)
+      const scrolls = [...el.querySelectorAll('[data-scroll]')].map((s) => [s.dataset.scroll, s.scrollTop, s.scrollLeft])
+      v.render(el, state)
+      scrolls.forEach(([name, top, left]) => {
+        const s = el.querySelector(`[data-scroll="${name}"]`)
+        if (s) {
+          s.scrollTop = top
+          s.scrollLeft = left
+        }
+      })
     })
     renderBrand()
     saveUi()
@@ -1502,29 +1592,15 @@ window.Hub = (() => {
     }
   }
 
-  // Called when a section becomes visible. If the view already drew the current
-  // data version nothing is rebuilt, which makes returning to History,
-  // Performance or Menu instant even with many saved seasons.
-  function renderVisible() {
-    if (!state || document.visibilityState === 'hidden') return
-    const section = [...document.querySelectorAll('.section')].find((s) => !s.hidden)
-    if (!section) return
-    const id = section.id
-    const v = views[id]
-    if (!v) return
-    if (viewVersions[id] === dataVersion) return
-    const el = document.getElementById(`${id}-body`)
-    if (!el) return
-    renderView(id, v, el)
-    renderBrand()
-    saveUi()
-  }
-
   function renderBrand() {
     const custom = state.brandLogo
+    const bg = custom ? `url("${imgSrc(custom).replace(/"/g, '%22')}")` : ''
     document.querySelectorAll('.logo, .nav-menu-icon').forEach((brand) => {
       brand.classList.toggle('is-custom', !!custom)
-      brand.style.backgroundImage = custom ? `url("${custom.replace(/"/g, '%22')}")` : ''
+      if (brand.dataset.brandBg !== bg) {
+        brand.dataset.brandBg = bg
+        brand.style.backgroundImage = bg
+      }
     })
   }
 
@@ -1535,12 +1611,12 @@ window.Hub = (() => {
     }
     pendingSkip = skip
     renderQueued = true
-    requestAnimationFrame(renderAll)
+    setTimeout(renderAll, 0)
   }
 
   function update(mutator, { skip = null } = {}) {
     mutator(state)
-    bumpData()
+    teamRecordsCache = null
     persist()
     scheduleRender(skip)
   }
@@ -1617,9 +1693,8 @@ window.Hub = (() => {
       )
     }
     state.seasons = next
-    invalidateDerived()
+    teamRecordsCache = null
     if (logosChanged || previous !== JSON.stringify(state.seasons) || previousCurrent !== JSON.stringify(state.current)) {
-      bumpData()
       persist()
       scheduleRender()
     }
@@ -1628,19 +1703,11 @@ window.Hub = (() => {
   const PERFORMANCE_TITLE_FLAGS = ['cupChampion', 'leagueChampion', 'seriesChampion', 'runnerUp', 'third', 'fourth', 'seasonScorer', 'seasonCleanSheetAward']
 
   function titleCount(rec) {
-    if (!rec) return 0
-    const cached = titleCountCache.get(rec)
-    if (cached != null) return cached
-    const total = (rec.seasons || []).reduce((sum, season) =>
-      sum + PERFORMANCE_TITLE_FLAGS.reduce((count, flag) => count + Number(!!season[flag]), 0), 0)
-    titleCountCache.set(rec, total)
-    return total
+    return (rec?.seasons || []).reduce((total, season) =>
+      total + PERFORMANCE_TITLE_FLAGS.reduce((count, flag) => count + Number(!!season[flag]), 0), 0)
   }
 
   function teamTotals(rec) {
-    if (!rec) return null
-    const cached = totalsCache.get(rec)
-    if (cached) return cached
     const t = { cups: 0, leagues: 0, series: 0, runnerUp: 0, third: 0, fourth: 0, leagueScorer: 0, cupScorer: 0, league: zero(), cup: zero() }
     rec.seasons.forEach((s) => {
       if (s.cupChampion) t.cups++
@@ -1662,46 +1729,57 @@ window.Hub = (() => {
     t.points = t.league.pts
     t.titles = titleCount(rec)
     t.achievements = rec.seasons.reduce((n, season) => n + ['cupScorer', 'leagueScorer', 'seriesScorer', 'perfectSeason', 'invincibleLeague', 'invincibleSeries', 'legendarySeason', 'groupChampion'].reduce((sum, flag) => sum + Number(!!season[flag]), 0), 0)
-    totalsCache.set(rec, t)
     return t
   }
 
   async function init() {
     loadUi()
-    let fromDb = null
+    const candidates = []
     let dbOk = true
+    let tableRec = null
     try {
-      fromDb = await loadState()
+      const [legacy, v2, tbl] = await idbGetMany([KEY, KEY2, KEY_TABLE])
+      tableRec = tbl || null
+      if (legacy) candidates.push(legacy)
+      if (v2?.json) {
+        try {
+          const unpacked = unpackState(v2.json, tbl?.table)
+          unpacked.updatedAt = v2.updatedAt || unpacked.updatedAt
+          candidates.push(unpacked)
+        } catch { /* registro v2 dañado: se ignora y se usa otro */ }
+      }
     } catch {
       dbOk = false
     }
-    // Read the legacy mirror once after the storage change. Parsing a large base64
-    // logo library on every launch was a noticeable source of startup delay.
-    let mirrorChecked = false
-    try { mirrorChecked = localStorage.getItem(LS_MIRROR_CHECKED) === '1' } catch {}
-    const fromLocal = mirrorChecked && dbOk && fromDb ? null : readLocal()
-    const localIsNewer = (fromLocal?.updatedAt || 0) > (fromDb?.updatedAt || 0)
-    const newest = localIsNewer ? fromLocal : fromDb || fromLocal
-    const oldLogoLibrary = Array.isArray(newest?.logos) ? newest.logos : []
+    const fromLocal = readLocal()
+    if (fromLocal) candidates.push(fromLocal)
+    const light = readLocalLight()
+    if (light?.json && tableRec && light.tableId === tableRec.id) {
+      try {
+        const unpacked = unpackState(light.json, tableRec.table)
+        unpacked.updatedAt = light.updatedAt || unpacked.updatedAt
+        candidates.push(unpacked)
+      } catch { /* espejo ligero dañado: se ignora */ }
+    }
+    if (tableRec) {
+      lastTable = tableRec.table
+      tableId = tableRec.id
+    }
+    dbBroken = !dbOk
+    const newest = candidates.reduce((best, item) => ((item?.updatedAt || 0) > (best?.updatedAt || 0) ? item : best), null) || candidates[0] || null
+    const oldLogoLibrary = JSON.stringify(newest?.logos || [])
     state = sanitizeState(newest)
-    invalidateDerived()
-    const migratedLogoLibrary = oldLogoLibrary.length !== state.logos.length
-      || state.logos.some((logo, index) => {
-        const old = oldLogoLibrary[index]
-        return old?.id !== index || old?.data !== logo.data || (old?.category || 'custom') !== logo.category
-      })
+    teamRecordsCache = null
+    const migratedLogoLibrary = JSON.stringify(state.logos) !== oldLogoLibrary
     if (newest?.updatedAt) state.updatedAt = newest.updatedAt
     if (!dbOk && !writeLocal()) toast('Almacenamiento no disponible: los datos no se guardarán', 'error')
-    if (dbOk && fromDb && !localIsNewer) {
-      try { localStorage.setItem(LS_MIRROR_CHECKED, '1') } catch {}
-    }
     navigator.storage?.persist?.().catch(() => {})
     Object.entries(views).forEach(([id, v]) => {
       const el = document.getElementById(`${id}-body`)
       if (el && v.bind) v.bind(el)
     })
     renderAll()
-    if (migratedLogoLibrary || localIsNewer) persist()
+    if (migratedLogoLibrary) persist()
     void syncPublishedSeasons()
   }
 
@@ -1715,15 +1793,12 @@ window.Hub = (() => {
     init,
     update,
     render: scheduleRender,
-    renderVisible,
-    rafThrottle,
-    debounce,
-    reducedMotion,
     uid,
     norm,
     esc,
     clone,
     crest,
+    imgSrc,
     played,
     parseScore,
     emptySeason,

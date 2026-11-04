@@ -582,6 +582,37 @@ select.input option {
   object-fit: contain;
 }
 
+.logo-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  color: #fff;
+  background: #2a1030;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.logo-tile-wrap:hover .logo-remove,
+.logo-remove:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .logo-remove {
+    opacity: 1;
+  }
+}
+
 .team-list,
 .season-list,
 .match-list {
@@ -4779,23 +4810,20 @@ select.input option {
 .music-current-kicker { color: var(--accent); font: 700 9px var(--font-display); letter-spacing: .14em; text-transform: uppercase; }
 .music-current-info strong { overflow: hidden; color: #fff; font: 700 16px/1.2 var(--font-display); text-overflow: ellipsis; }
 .music-current-info small { color: var(--muted); font-size: 11px; }
-.music-equalizer { display: flex; align-items: flex-end; gap: 4px; height: 26px; padding: 0 5px; color: var(--accent); transition: color .18s ease, filter .18s ease; }
-/* The bars need a real base height: scaling a 12%-tall bar from .4 to 1.28 looked
-   almost frozen. 24% at rest, 78% while playing, then the analyser/fallback
-   animation only moves the visible part. */
-.music-equalizer i { display: block; flex: 0 0 3px; align-self: flex-end; width: 3px; height: 24%; min-height: 3px; margin: 0; transform-origin: bottom center; background: currentColor; opacity: .42; transition: height .28s ease, opacity .18s ease, background-color .18s ease; }
+/* En celular la interfaz se reduce con zoom (--ui-zoom ≈ .35): las barras se compensan para verse del mismo tamaño que en PC. */
+.music-equalizer { --eq-w: clamp(3px, calc(2.6px / var(--ui-zoom, 1)), 9px); display: flex; align-items: flex-end; gap: clamp(4px, calc(3px / var(--ui-zoom, 1)), 9px); height: clamp(36px, calc(30px / var(--ui-zoom, 1)), 88px); padding: 0 5px; color: var(--accent); transition: color .18s ease, filter .18s ease; }
+.music-equalizer i { display: block; flex: 0 0 var(--eq-w); align-self: flex-end; width: var(--eq-w); height: var(--eq-w); margin: 0; transform-origin: bottom center; background: currentColor; opacity: .42; transition: opacity .18s ease, background-color .18s ease; }
+.music-current.is-playing:not(.has-audio-meter) .music-equalizer i { opacity: 1; animation: music-equalize .72s ease-in-out infinite alternate; }
 .music-current.is-playing .music-equalizer { color: color-mix(in srgb, var(--accent) 42%, white); filter: drop-shadow(0 0 5px color-mix(in srgb, var(--accent) 75%, white)); }
-.music-current.is-playing .music-equalizer i { height: 78%; opacity: 1; }
-.music-current.is-playing.has-audio-meter .music-equalizer i { transition: height .08s linear, opacity .18s ease; }
-.music-current.is-playing:not(.has-audio-meter) .music-equalizer i { animation: music-equalize .78s ease-in-out infinite alternate; }
+.music-current.is-playing.has-audio-meter .music-equalizer i { height: 100%; opacity: 1; transform: scaleY(.08); will-change: transform; }
+/* Pantallas táctiles: barras más gruesas y altas para que se note que funcionan (PC no cambia). */
+@media (pointer: coarse) {
+  .music-equalizer { --eq-w: clamp(5px, calc(4.8px / var(--ui-zoom, 1)), 11px); gap: clamp(5px, calc(4px / var(--ui-zoom, 1)), 11px); height: clamp(44px, calc(42px / var(--ui-zoom, 1)), 64px); }
+}
 .music-current.is-playing:not(.has-audio-meter) .music-equalizer i:nth-child(2) { animation-delay: -.48s; }
 .music-current.is-playing:not(.has-audio-meter) .music-equalizer i:nth-child(3) { animation-delay: -.24s; }
 .music-current.is-playing:not(.has-audio-meter) .music-equalizer i:nth-child(4) { animation-delay: -.58s; }
-@keyframes music-equalize { from { transform: scaleY(.22); } 55% { transform: scaleY(.62); } to { transform: scaleY(1.12); } }
-@media (prefers-reduced-motion: reduce) {
-  .music-equalizer i { transition: none; }
-  .music-current.is-playing:not(.has-audio-meter) .music-equalizer i { animation: none; transform: scaleY(.55); }
-}
+@keyframes music-equalize { from { transform: scaleY(.4); } to { transform: scaleY(1.28); } }
 .set-music .audio-controls { gap: 14px; margin-bottom: 0; }
 .set-music .music-transport { margin-top: 0; }
 .set-music .music-autoplay-setting { padding: 9px 11px; border: 1px solid var(--line); background: rgb(255 255 255 / .025); }
@@ -4898,3 +4926,49 @@ select.input option {
   :root:not(.ui-desktop) #settings .music-transport .btn { min-height: 42px; }
 }
 
+.settings-mobile #settings .set-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.settings-mobile #settings .set-grid > .set-card,
+.settings-mobile #settings .set-grid > .set-card.card--wide { grid-column: 1 / -1; }
+.settings-mobile #settings .audio-controls,
+.settings-mobile #settings .bg-controls { grid-template-columns: minmax(0, 1fr); }
+.settings-mobile #settings .music-transport { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* Mover escudos entre categorías (mover.js): sin controles sobre los escudos; la barra solo aparece mientras se mueve uno. */
+.logo-tile-wrap[data-logo-id] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.logo-tile-wrap[data-logo-id] img { -webkit-user-drag: none; pointer-events: none; }
+.logo-tile-wrap.is-grabbed .logo-tile {
+  z-index: 2;
+  transform: scale(1.1);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 12px 28px rgb(0 0 0 / .55), 0 0 22px rgb(var(--accent-rgb) / .4);
+}
+.mover-bar {
+  position: fixed;
+  left: 50%;
+  bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 60;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: max-content;
+  max-width: calc(100% - 24px);
+  padding: 10px 12px;
+  background: #1c0d24;
+  border: 1px solid var(--line-strong);
+  border-radius: 14px;
+  box-shadow: 0 14px 40px rgb(0 0 0 / .6);
+  transform: translateX(-50%);
+  animation: mover-in .18s var(--ease-pop);
+}
+.mover-bar[hidden] { display: none; }
+.mover-bar-title { display: inline-flex; align-items: center; gap: 8px; margin-right: 4px; font: 400 11px var(--font-display); letter-spacing: .07em; text-transform: uppercase; color: var(--accent); }
+.mover-bar-thumb { display: grid; place-items: center; width: 30px; height: 30px; padding: 3px; background: rgb(0 0 0 / .4); border: 1px solid var(--line); border-radius: 8px; }
+.mover-bar-thumb img { width: 100%; height: 100%; object-fit: contain; }
+.mover-chip { transition: border-color .15s, background .15s, transform .15s; }
+.mover-chip.is-over { color: #fff; border-color: var(--accent); background: rgb(var(--accent-rgb) / .24); transform: translateY(-2px); }
+.mover-chip.is-current { opacity: .4; }
+.mover-cancel { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; font-size: 18px; line-height: 1; color: #fff; background: transparent; border: 1px solid var(--line-strong); border-radius: 50%; cursor: pointer; }
+@keyframes mover-in { from { opacity: 0; transform: translate(-50%, 10px); } }
+.hint + .logo-category-groups { margin-top: 14px; }

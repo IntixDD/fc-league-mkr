@@ -1,30 +1,31 @@
-const CACHE = 'league-hub-v172'
+const CACHE = 'league-hub-v162'
 
 const BASE = new URL('./', self.location.href)
 
 const SHELL = [
   './',
   'index.html',
-  'styles.css?v=21',
-  'components.css?v=133',
-  'prefs.js?v=21',
-  'core.js?v=51',
+  'styles.css?v=20',
+  'components.css?v=105',
+  'prefs.js?v=19',
+  'core.js?v=48',
+  'mover.js?v=1',
   'views/teams.js?v=26',
-  'views/table.js?v=27',
+  'views/table.js?v=24',
   'views/fixtures.js?v=18',
   'views/tournament.js?v=31',
   'icon-tournament.svg?v=5',
   'views/seasons.js?v=45',
   'season-library/catalog.json',
   'season-library/seasons.json',
-  'views/history.js?v=23',
+  'views/history.js?v=21',
   'views/performance.js?v=29',
-  'views/badges.js?v=26',
-  'views/settings.js?v=41',
+  'views/badges.js?v=25',
+  'views/settings.js?v=29',
   'views/menu.js?v=26',
-  'app.js?v=37',
-  'media/music/tracks.js?v=3',
-  'audio.js?v=1',
+  'app.js?v=35',
+  'media/music/tracks.js?v=4',
+  'media/music/bars.js?v=1',
   'icon-teams.svg?v=4',
   'icon-table.svg?v=4',
   'icon-fixtures.svg?v=4',
@@ -72,6 +73,9 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url)
   if (url.origin !== self.location.origin || !url.href.startsWith(BASE.href)) return
+  // El audio/video lo gestiona el navegador directamente (peticiones Range): pasarlo por el SW
+  // clonaba y cacheaba MP3 enteros y provocaba cortes en el celular.
+  if (request.headers.has('range') || request.destination === 'audio' || request.destination === 'video' || /\.mp3$/i.test(url.pathname)) return
 
   event.respondWith(
     fetch(request)

@@ -39,14 +39,7 @@
     return `<svg class="stat-icon badge-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${art}</svg>`
   }
 
-  // Catalogs are rebuilt only when the record object changes (i.e. after a data
-  // edit), so History/Menu can ask for badge counts on every render for free.
-  const catalogCache = new WeakMap()
-  const countCache = new WeakMap()
-
   function badgeCatalog(record) {
-    const cached = catalogCache.get(record)
-    if (cached) return cached
     const totals = H.teamTotals(record)
     const TITLE_FLAGS = ['cupChampion', 'leagueChampion', 'seriesChampion', 'runnerUp', 'third', 'fourth', 'seasonScorer', 'seasonCleanSheetAward']
     const titles = record.seasons.reduce((sum, season) => sum + TITLE_FLAGS.reduce((count, flag) => count + Number(!!season[flag]), 0), 0)
@@ -108,7 +101,7 @@
       progress: `${value}/${target}`,
     }))
 
-    const catalog = [
+    return [
       ...thresholdBadges('Goles', 'ball', 'blue', totals.goals, [[10, 'Primer rugido', 'Marca 10 goles en cualquier competición.'], [50, 'Cazagoles', 'Acumula 50 goles entre Liga/Serie y Tournament.'], [100, 'Centurión del gol', 'Llega a 100 goles totales.'], [200, 'Doble artillería', 'Alcanza 200 goles en tu historial.'], [500, 'Leyenda goleadora', 'Anota 500 goles totales con el equipo.']]),
       ...thresholdBadges('Títulos', 'trophy', 'gold', titles, [[1, 'Primera corona', 'Gana tu primer título oficial.'], [5, 'Coleccionista de copas', 'Acumula 5 títulos oficiales.'], [10, 'Palmarés de élite', 'Acumula 10 títulos oficiales.'], [20, 'Dinastía campeona', 'Llega a 20 títulos oficiales.'], [50, 'Leyenda del palmarés', 'Consigue 50 títulos oficiales.'], [100, 'Inmortal de los títulos', 'Alcanza 100 títulos oficiales.']]),
       { category: 'Títulos', name: 'Reyes del Tournament', description: 'Conquista Tournament al menos una vez.', icon: 'cup', tone: 'gold', value: totals.cups, target: 1, earned: totals.cups > 0, progress: `${totals.cups}/1` },
@@ -134,17 +127,9 @@
       { category: 'Especiales', name: 'Puntuación Perfecta', description: 'Gana una Liga o Serie consiguiendo todos los puntos posibles: 3 por cada partido jugado.', icon: 'star', tone: 'gold', earned: perfectPoints, progress: perfectPoints ? 'Obtenida' : 'Pendiente' },
       { category: 'Especiales', name: 'El milagro del siglo', description: 'Avanza en Tournament tras perder 0–4 en la Ida y remontar en la Vuelta. También cuenta si empatas el global y clasificas por penales.', icon: 'achievement', tone: 'gold', earned: centuryComeback, progress: centuryComeback ? 'Obtenida' : 'Pendiente' },
     ]
-    catalogCache.set(record, catalog)
-    return catalog
   }
 
   H.badgeCatalog = badgeCatalog
-  H.badgeCount = (record) => {
-    const cached = countCache.get(record)
-    if (cached != null) return cached
-    const count = badgeCatalog(record).filter((badge) => badge.earned).length
-    countCache.set(record, count)
-    return count
-  }
+  H.badgeCount = (record) => badgeCatalog(record).filter((badge) => badge.earned).length
   H.badgeIcon = badgeIcon
 })()
