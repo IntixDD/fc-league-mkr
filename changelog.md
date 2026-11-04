@@ -161,7 +161,7 @@
 
 
 
-**\[Big update] Beta 3.0:** 
+**\[Big update] Beta 3.0:**
 
 * Nuevo apartado: Menú (Se ingresa desde el icono de liga).
 * Settings: Añadido el recuadro Logo de la liga.
@@ -179,33 +179,17 @@
 * Arreglos visuales en todos los apartados para ambas escalas.
 * Teams/Galería de escudos: Ahora se respetan los formatos cargados (En lugar de convertirlos)
 * Seasons/Temporadas guardadas/Botón desplegable Títulos y Logros: Ahora se muestran a los ganadores de los títulos y logros correctamente.
-
-
-
-**Beta 3.1:**
-
 * Seasons/Importar / Exportar: Arreglado el botón Importar .json en celular (el archivo elegido se perdía al volver del selector).
 * Teams/Galería de escudos: Arreglados los botones Importar JSON, Importar imágenes y Subir escudo en celular (mismo problema).
 * Menú/Hall of fame: Recuadro más corto, ahora se ajusta a su contenido.
 
 
+
 **Beta 3.2:**
 
-* Settings/Escala -1 en celular: Arreglada la interfaz rota. Las reglas responsive de Settings medían el ancho físico de la pantalla en lugar del lienzo reducido de la Vista PC, por lo que en horizontal las tarjetas se aplastaban y se encimaban.
-* Settings/Escala -1: En vertical usa el diseño de celular (barra inferior); en horizontal usa el mismo diseño reducido que el resto de apartados, sin que la barra de navegación cambie de lugar.
-* Settings/Escala -1: Dentro de Settings ya no se fuerza la orientación horizontal, se puede girar el celular libremente.
-* Settings/Música y sonidos: Los botones Anterior / Reproducir / Siguiente ya no se cortan en pantallas de hasta 400px (solo icono).
-* Al cambiar de apartado, el contenido vuelve al inicio (antes heredaba el scroll del apartado anterior).
+* General/Rendimiento: La app va mucho más fluida. Los escudos ya no se incrustan completos en el HTML (el Menú pasó de 7.5 MB a 44 KB) y los cambios se guardan sin reescribir todo (de \~200 ms por edición a \~2 ms en un celular medio).
+* General/Guardado: Nuevo formato de guardado más ligero (ahorra \~2.7 MB por escritura). Tus datos anteriores se migran solos al abrir la app.
+* Teams/Galería de escudos: Cambiar la categoría de un escudo ya no usa un selector dentro de cada escudo. Mantén presionado (o arrastra) un escudo, elige la categoría en la barra que aparece y listo (con teclado: tecla M).
+* Seasons: Comprobar si hay cambios sin guardar ya no recalcula toda la temporada en cada pantalla.
+* Desarrollo: Nueva guía ARQUITECTURA.md, script `dev/bump-versions.mjs` (sube las versiones de caché solo) y prueba de humo `dev/smoke-test.cjs`.
 
-
-**Beta 3.3:**
-
-* Inicio: la animación de bienvenida se reproduce siempre, incluso en equipos que tienen activado "Reducir movimiento" en el sistema (antes se omitía por completo).
-* Rendimiento: los apartados History, Performance y Menú ya no se vuelven a dibujar al entrar si sus datos no cambiaron; volver a ellos es instantáneo.
-* Rendimiento: los totales por club, las estadísticas de temporada y las insignias se calculan una sola vez y se reutilizan (antes se recalculaban varias veces por dibujado).
-* Rendimiento: la animación de inicio crea menos triángulos en celulares y se puede saltar tocando la pantalla.
-* Rendimiento: el guardado automático espera 400 ms en lugar de escribir todo el estado en cada tecla, sin perder datos al cerrar la app.
-* Settings: al abrir el apartado la interfaz ya no gira ni cambia de orientación por sí sola, en ninguna escala y en cualquier orientación del celular.
-* Settings/Música y sonidos: el ecualizador ahora se mueve de verdad en cualquier dispositivo; usa el audio real cuando el navegador lo permite y una animación fluida cuando no.
-* Música/SFX en celular: un solo contexto de audio compartido, creación diferida, límite de sonidos simultáneos y ecualizador a 30 fps solo mientras Settings está visible. Ya no se satura ni consume batería en segundo plano.
-* Música: controles de la barra del sistema (Media Session), portada y aviso de canción actualizados.
