@@ -1832,6 +1832,11 @@ select.input option {
 .group-assignment-list .team-series-row { grid-template-columns: minmax(0,1fr) minmax(140px,190px); }
 .group-assignment-list .team-series-row .field { margin: 0; }
 .group-assignment-list .input { min-height: 34px; }
+.music-current-track { display: flex; align-items: center; gap: 12px; min-width: 0; margin-bottom: 14px; padding: 10px; background: rgb(var(--accent-rgb) / .07); border: 1px solid var(--line); border-radius: 12px; }
+.music-current-cover { display: grid; place-items: center; width: 64px; height: 64px; flex: none; object-fit: cover; color: var(--accent); background: rgb(var(--accent-rgb) / .12); border: 1px solid var(--line); border-radius: 9px; }
+.music-current-meta { display: grid; gap: 5px; min-width: 0; }
+.music-current-meta small { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+.music-current-meta strong { overflow: hidden; font-size: 12px; line-height: 1.4; text-overflow: ellipsis; }
 .audio-controls { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; width: 100%; margin-bottom: 12px; }
 .music-transport { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; width: 100%; margin-top: 14px; }
 .music-transport .btn { min-width: 0; white-space: nowrap; }
