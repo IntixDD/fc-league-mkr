@@ -1,4 +1,4 @@
-const CACHE = 'league-hub-v160'
+const CACHE = 'league-hub-v161'
 
 const BASE = new URL('./', self.location.href)
 
@@ -7,7 +7,7 @@ const SHELL = [
   'index.html',
   'styles.css?v=19',
   'components.css?v=103',
-  'prefs.js?v=18',
+  'prefs.js?v=28',
   'core.js?v=47',
   'views/teams.js?v=24',
   'views/table.js?v=23',

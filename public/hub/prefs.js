@@ -35,6 +35,17 @@
   let prefs = read()
   const root = document.documentElement
   let landscapeLockRequested = false
+  let stableViewport = { width: window.innerWidth, height: window.innerHeight }
+  let editorPointerUntil = 0
+  let keyboardAppHeight = null
+
+  function editorHasFocus() {
+    return document.activeElement?.matches('input, textarea, select, [contenteditable="true"]') || false
+  }
+
+  function viewportShrunkBelowBaseline() {
+    return stableViewport.height - window.innerHeight > 30 || stableViewport.width - window.innerWidth > 30
+  }
 
   function syncLandscapeLock(desktop) {
     const mobile = matchMedia('(pointer: coarse)').matches
@@ -50,7 +61,9 @@
     }
   }
 
-  function applyScale() {
+  function applyScale({ force = false } = {}) {
+    if (editorHasFocus() || (!force && viewportShrunkBelowBaseline())) return
+    stableViewport = { width: window.innerWidth, height: window.innerHeight }
     const mobile = matchMedia('(pointer: coarse)').matches
     const forceLandscape = prefs.scale === -1 && mobile && matchMedia('(orientation: portrait)').matches
     const appWidth = forceLandscape ? window.innerHeight : window.innerWidth
@@ -103,9 +116,41 @@
     applyScale()
   }
 
-  window.addEventListener('resize', applyScale)
-  window.addEventListener('orientationchange', applyScale)
-  document.addEventListener('pointerdown', () => {
+  window.addEventListener('resize', () => {
+    if (editorHasFocus() || performance.now() < editorPointerUntil) return
+    applyScale()
+  })
+  window.addEventListener('orientationchange', () => {
+    if (!editorHasFocus()) applyScale({ force: true })
+  })
+  document.addEventListener('focusin', (event) => {
+    if (!event.target.matches?.('input, textarea, select, [contenteditable="true"]')) return
+    root.classList.add('keyboard-editing')
+    editorPointerUntil = performance.now() + 1200
+    if (keyboardAppHeight === null && !root.style.getPropertyValue('--app-h')) {
+      const shell = document.querySelector('.shell')
+      keyboardAppHeight = (shell && Number.parseFloat(getComputedStyle(shell).height)) || window.innerHeight
+      root.style.setProperty('--app-h', `${keyboardAppHeight}px`)
+    }
+  })
+  document.addEventListener('focusout', (event) => {
+    if (!event.target.matches?.('input, textarea, select, [contenteditable="true"]')) return
+    window.setTimeout(() => {
+      if (editorHasFocus()) return
+      root.classList.remove('keyboard-editing')
+      if (keyboardAppHeight !== null) {
+        root.style.removeProperty('--app-h')
+        keyboardAppHeight = null
+      }
+      applyScale()
+    }, 300)
+  })
+  document.addEventListener('pointerdown', (event) => {
+    const editing = event.target.closest?.('input, textarea, select, [contenteditable="true"]')
+    if (editing) {
+      editorPointerUntil = performance.now() + 1200
+      return
+    }
     if (prefs.scale === -1) syncLandscapeLock(true)
   }, { passive: true })
 
