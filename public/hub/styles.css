@@ -535,6 +535,12 @@ body {
   }
 }
 
+/* Counter-pan (see prefs.js). Uses the separate `translate` property so the rotation in
+   `transform` above is never touched. Only active while the visual viewport is panned. */
+:root.kb-pan body {
+  translate: var(--vv-x, 0px) var(--vv-y, 0px);
+}
+
 /* Touch devices: backdrop blurs over a rotated/zoomed full-screen layer are re-composited
    every frame while the keyboard animates, which shows up as a black flash in the installed app.
    The blur is imperceptible over the smooth glow, so drop it on touch screens. */
