@@ -2237,6 +2237,8 @@ select.input option {
 .menu-hero-button { display:inline-flex; align-items:center; justify-content:space-between; gap:18px; min-height:42px; padding:0 15px; color:#fff; border:1px solid var(--line); background:#ffffff08; text-decoration:none; font:700 11px var(--font-display); text-transform:uppercase; letter-spacing:.04em; transition:transform .2s,border-color .2s,background .2s; }
 .menu-hero-button:hover { transform:translateY(-2px); border-color:var(--accent); background:#ffffff12; }
 .menu-hero-button span { color:var(--accent); font-size:17px; }
+.menu-hero-button .menu-arrow-icon { display:grid; place-items:center; flex:none; }
+.menu-arrow-icon svg { display:block; width:16px; height:16px; }
 .menu-hero-button--primary { color:#111; border-color:var(--accent); background:var(--accent); }
 .menu-hero-button--primary:hover { color:#111; background:color-mix(in srgb,var(--accent) 86%,white); }
 .menu-hero-button--primary span { color:inherit; }
@@ -2291,6 +2293,7 @@ select.input option {
 .menu-quick-copy strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 11px var(--font-display); text-transform:uppercase; }
 .menu-quick-copy small { overflow:hidden; color:var(--muted); text-overflow:ellipsis; white-space:nowrap; font-size:9px; }
 .menu-quick-arrow { color:var(--accent); font-size:17px; }
+.menu-quick-arrow svg { display:block; width:16px; height:16px; }
 .menu-first-season { display:flex; align-items:center; gap:16px; padding:19px; border:1px solid color-mix(in srgb,var(--accent) 28%,var(--line)); background:linear-gradient(110deg,color-mix(in srgb,var(--surface) 90%,var(--accent)),var(--surface)); }
 .menu-first-season-icon { display:grid; place-items:center; flex:none; width:46px; height:46px; color:var(--accent); border:1px solid color-mix(in srgb,var(--accent) 42%,var(--line)); }
 .menu-first-season-icon svg { width:23px; height:23px; }
@@ -3487,6 +3490,17 @@ select.input option {
   bottom: 8px;
 }
 
+.bg-tile--preset .bg-tile-label {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 16px 7px 7px;
+  color: #fff;
+  text-align: left;
+  background: linear-gradient(transparent, rgb(0 0 0 / .8));
+}
+
 .bg-tile-del {
   position: absolute;
   top: 6px;
@@ -3986,3 +4000,48 @@ select.input option {
 }
 .menu-feature-card--records .menu-slide ol { gap: 6px; }
 .menu-feature-card--records .menu-slide li { padding-top: 5px; padding-bottom: 5px; }
+
+/* Menú: tablas compactas para series, grupos y temporadas regulares. */
+.menu-layout .menu-feature-card--season .season-standing-groups {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+.menu-layout .menu-feature-card--season .season-standing-group,
+.menu-layout .menu-feature-card--season .season-award-group {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin-inline: 0;
+}
+.menu-layout .menu-feature-card--season .season-standing-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  margin-inline: 0;
+  overflow-x: auto;
+}
+.menu-layout .menu-feature-card--season .season-standing-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+.menu-layout .menu-feature-card--season .season-standing-table th,
+.menu-layout .menu-feature-card--season .season-standing-table td {
+  padding-inline: 2px;
+  font-size: 9px;
+}
+.menu-layout .menu-feature-card--season .season-standing-table .num { width: 7%; }
+.menu-layout .menu-feature-card--season .season-standing-table .club { width: 25%; min-width: 0; }
+.menu-layout .menu-feature-card--season .season-standing-table .pts { width: 10%; }
+.menu-layout .menu-slide .season-mini-bracket { gap: 8px; }
+.menu-layout .menu-slide .season-mini-col { flex-basis: 124px; }
+.menu-layout .menu-slide .season-mini-col--final { flex-basis: 138px; }
+@media (max-width: 767px) {
+  .menu-layout .menu-feature-card--season .season-standing-table th,
+  .menu-layout .menu-feature-card--season .season-standing-table td {
+    padding-inline: 1px;
+    font-size: 8px;
+  }
+  .menu-layout .menu-feature-card--season .season-standing-table .num { width: 20px; }
+  .menu-layout .menu-feature-card--season .season-standing-table .club { width: 72px; }
+  .menu-layout .menu-feature-card--season .season-standing-table .pts { width: 38px; }
+}

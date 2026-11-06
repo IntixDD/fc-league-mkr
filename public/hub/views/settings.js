@@ -6,6 +6,10 @@
   const MAX_RAW_BYTES = 6 * 1024 * 1024
   const MAX_SIDE = 2560
   const MAX_BACKGROUNDS = 12
+  const PRELOADED_BACKGROUNDS = [
+    { id: 'preset-estadio-atardecer', label: 'Estadio al atardecer', src: 'backgrounds/estadio0.jpg' },
+    { id: 'preset-estadio-cielo-abierto', label: 'Estadio a cielo abierto', src: 'backgrounds/estadio1.jpg' },
+  ]
   const MUSIC_ICONS = {
     previous: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M19 5 9 12l10 7z"/></svg>',
     pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM15 5h4v14h-4z"/></svg>',
@@ -294,9 +298,11 @@
   document.addEventListener('click', playControlSfx)
 
   const urlFor = (item) => {
+    if (item.src) return item.src
     if (!urls.has(item.id)) urls.set(item.id, URL.createObjectURL(item.blob))
     return urls.get(item.id)
   }
+  const backgroundById = (id) => PRELOADED_BACKGROUNDS.find((item) => item.id === id) || library.find((item) => item.id === id)
   const forgetUrl = (id) => {
     const u = urls.get(id)
     if (u) URL.revokeObjectURL(u)
@@ -306,7 +312,7 @@
 
   function paintBackground() {
     const layer = document.querySelector('.bg-custom')
-    const active = library.find((b) => b.id === P.get().activeBg)
+    const active = backgroundById(P.get().activeBg)
     if (layer) layer.style.backgroundImage = active ? `url("${urlFor(active)}")` : ''
     if (!!active !== !!P.get().hasBg) P.set({ hasBg: !!active })
   }
@@ -372,7 +378,7 @@
       await idbDel(LEGACY_BG_KEY).catch(() => {})
       if (P.get().hasBg) P.set({ activeBg: id })
     }
-    if (P.get().activeBg && !library.some((b) => b.id === P.get().activeBg)) P.set({ activeBg: null })
+    if (P.get().activeBg && !backgroundById(P.get().activeBg)) P.set({ activeBg: null })
     paintBackground()
   }
 
@@ -451,6 +457,7 @@
       `<li><button class="bg-tile bg-tile--default" data-action="bg-select" data-id="" aria-pressed="${!p.activeBg}">
           <span class="bg-tile-label">Original</span>
         </button></li>`,
+      ...PRELOADED_BACKGROUNDS.map((background) => `<li><button class="bg-tile bg-tile--preset" data-action="bg-select" data-id="${background.id}" aria-pressed="${p.activeBg === background.id}" style="background-image:url('${urlFor(background)}')"><span class="bg-tile-label">${background.label}</span></button></li>`),
       ...library.map(
         (b, i) => `<li class="bg-tile-wrap">
           <button class="bg-tile" data-action="bg-select" data-id="${b.id}" aria-pressed="${p.activeBg === b.id}" style="background-image:url('${urlFor(b)}')">
@@ -520,7 +527,7 @@
 
         ${card({
           title: 'Fondos',
-          sub: `${library.length} de ${MAX_BACKGROUNDS} guardados · ${p.activeBg ? 'Imagen personalizada activa' : 'Fondo predeterminado activo'}`,
+          sub: `${library.length} de ${MAX_BACKGROUNDS} fondos propios guardados · ${p.activeBg ? 'Fondo elegido activo' : 'Fondo original activo'}`,
           wide: true,
           body: `<ul class="bg-gallery" role="list">${galleryTiles(p)}</ul>
             <div class="bg-controls">

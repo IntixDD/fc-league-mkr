@@ -31,6 +31,10 @@
   box-sizing: border-box;
 }
 
+:where(button, a, [role='button'], summary) {
+  -webkit-tap-highlight-color: transparent;
+}
+
 html,
 body {
   margin: 0;
@@ -338,6 +342,16 @@ body {
   overflow: visible;
   -webkit-tap-highlight-color: transparent;
   transition: color 0.3s ease;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.logo,
+.menu-hero-button,
+.menu-quick-card {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .nav-button::before {
@@ -365,6 +379,20 @@ body {
   box-shadow:
     0 0 0 2px #000,
     0 0 0 4px var(--accent);
+}
+
+@media (hover: none) {
+  .nav-button:focus,
+  .logo:focus,
+  .menu-hero-button:focus,
+  .menu-quick-card:focus {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  .nav-button:hover { color: var(--icon-idle); }
+  .nav-button:hover:not([aria-current='page'])::before { background: transparent; transform: scale(.85); }
+  .nav-button:hover .nav-icon { transform: none; }
 }
 
 .nav-button[aria-current='page'] {

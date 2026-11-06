@@ -5,6 +5,8 @@
   const resumeTimers = { summary: 0, records: 0 }
   const brandImageCache = new Map()
   const POINTS_BADGE_ICON = '<svg class="stat-icon badge-icon-svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 30.38 12 43l12-6 12 6-3-12.62"/><circle cx="24" cy="19" r="14"/><path d="m24 11 2.4 5 5.6.8-4 3.9.9 5.6-4.9-2.7-4.9 2.7.9-5.6-4-3.9 5.6-.8z"/></svg>'
+  const ARROW_UP_RIGHT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg>'
+  const ARROW_RIGHT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-7-7 7 7-7 7"/></svg>'
   let restartVisibleTimers = () => {}
   let heroLogoTimer = 0
   let heroLogoIndex = 0
@@ -163,7 +165,7 @@
       : season?.tableConfig?.type === 'two-series'
         ? honorsTeamsTile('Campeones de serie', seriesWinners)
         : honorsTile('Campeón de liga', leagueWinner)
-    return `<section class="menu-hero"><div class="menu-hero-copy"><p class="menu-hero-kicker">LEAGUE HUB</p><h2>La temporada<br><em>inicia</em></h2><div class="menu-hero-meta"><span class="menu-season-chip">TEMPORADA ${esc(String(current.number || season?.number || '—'))}</span><span>${currentTeams.length} equipos registrados</span></div><div class="menu-hero-actions"><a class="menu-hero-button menu-hero-button--primary" href="#teams">Continuar temporada <span>↗</span></a><a class="menu-hero-button" href="#table">Ver clasificación <span>→</span></a></div></div><div class="menu-hero-showcase" aria-hidden="true"><div class="menu-emblem-orbit">${logoMarkup}</div></div><div class="menu-honors"><span class="menu-honors-heading">ÚLTIMA GLORIA <i>${season ? `TEMPORADA ${esc(String(season.number))}` : 'SIN TEMPORADAS'}</i></span>${honorsTile('Campeón de Tournament', stats.find((team) => team.cupChampion))}${leagueHonors}</div></section>`
+    return `<section class="menu-hero"><div class="menu-hero-copy"><p class="menu-hero-kicker">LEAGUE HUB</p><h2>La temporada<br><em>inicia</em></h2><div class="menu-hero-meta"><span class="menu-season-chip">TEMPORADA ${esc(String(current.number || season?.number || '—'))}</span><span>${currentTeams.length} equipos registrados</span></div><div class="menu-hero-actions"><a class="menu-hero-button menu-hero-button--primary" href="#teams">Continuar temporada <span class="menu-arrow-icon">${ARROW_UP_RIGHT}</span></a><a class="menu-hero-button" href="#table">Ver clasificación <span class="menu-arrow-icon">${ARROW_RIGHT}</span></a></div></div><div class="menu-hero-showcase" aria-hidden="true"><div class="menu-emblem-orbit">${logoMarkup}</div></div><div class="menu-honors"><span class="menu-honors-heading">ÚLTIMA GLORIA <i>${season ? `TEMPORADA ${esc(String(season.number))}` : 'SIN TEMPORADAS'}</i></span>${honorsTile('Campeón de Tournament', stats.find((team) => team.cupChampion))}${leagueHonors}</div></section>`
   }
 
   function metricsMarkup(state, records) {
@@ -187,7 +189,7 @@
       ['performance', 'Performance', 'Números de cada club'],
       ['settings', 'Settings', 'Ajustes de la app'],
     ]
-    return `<section class="menu-command"><header class="menu-section-head"><div><span class="menu-section-kicker">PUNTO DE PARTIDA</span><h2>Acceso rápido</h2></div><span class="menu-command-hint">ELIGE TU PRÓXIMA JUGADA</span></header><nav class="menu-quick">${links.map(([href, label, sub], index) => `<a class="menu-quick-card" href="#${href}"><span class="menu-quick-number">0${index + 1}</span><span class="menu-quick-copy"><strong>${label}</strong><small>${sub}</small></span><span class="menu-quick-arrow">↗</span></a>`).join('')}</nav></section>`
+    return `<section class="menu-command"><header class="menu-section-head"><div><span class="menu-section-kicker">PUNTO DE PARTIDA</span><h2>Acceso rápido</h2></div><span class="menu-command-hint">ELIGE TU PRÓXIMA JUGADA</span></header><nav class="menu-quick">${links.map(([href, label, sub], index) => `<a class="menu-quick-card" href="#${href}"><span class="menu-quick-number">0${index + 1}</span><span class="menu-quick-copy"><strong>${label}</strong><small>${sub}</small></span><span class="menu-quick-arrow" aria-hidden="true">${ARROW_UP_RIGHT}</span></a>`).join('')}</nav></section>`
   }
 
   function matchPanel(label, match, season) {
