@@ -66,54 +66,12 @@
       }
     })
   }
-  // Freeze the scroll position of every scrollable ancestor of the editor the user taps. The
-  // browser otherwise scrolls the section (e.g. Fixtures) by itself when the keyboard opens.
-  // The freeze ends as soon as the user scrolls/touches again, or when the editor loses focus.
-  let scrollLock = null
-  function lockScrollFor(editor) {
-    const entries = []
-    for (let n = editor?.parentElement; n && n !== document.documentElement; n = n.parentElement) {
-      if (n.scrollHeight > n.clientHeight || n.scrollWidth > n.clientWidth) entries.push([n, n.scrollTop, n.scrollLeft])
-    }
-    scrollLock = entries.length ? { entries, at: performance.now() } : null
-  }
-  function releaseScrollLock() { scrollLock = null }
-  document.addEventListener('scroll', (event) => {
-    if (!scrollLock) return
-    const hit = scrollLock.entries.find((entry) => entry[0] === event.target)
-    const node = hit?.[0]
-    if (node && (node.scrollTop !== hit[1] || node.scrollLeft !== hit[2])) {
-      node.scrollTo({ top: hit[1], left: hit[2], behavior: 'instant' })
-    }
-  }, { capture: true, passive: true })
-  ;['touchmove', 'wheel'].forEach((type) => document.addEventListener(type, releaseScrollLock, { capture: true, passive: true }))
-  document.addEventListener('touchstart', (event) => {
-    if (!event.target.closest?.('input, textarea, select, [contenteditable="true"]')) releaseScrollLock()
-  }, { capture: true, passive: true })
-
-  // If the browser pans the visual viewport instead (keyboard resizes only the visual viewport),
-  // counter-translate the app by the same amount so it stays visually still.
-  function counterPan() {
-    const vv = window.visualViewport
-    if (!vv) return
-    const x = editorHasFocus() ? vv.offsetLeft : 0
-    const y = editorHasFocus() ? vv.offsetTop : 0
-    const panned = Number.isFinite(x) && Number.isFinite(y) && (Math.abs(x) > 0.5 || Math.abs(y) > 0.5)
-    const z = Number.parseFloat(root.style.zoom) || 1
-    root.style.setProperty('--vv-x', panned ? `${x / z}px` : '0px')
-    root.style.setProperty('--vv-y', panned ? `${y / z}px` : '0px')
-    root.classList.toggle('kb-pan', panned)
-  }
-  window.visualViewport?.addEventListener('scroll', counterPan, { passive: true })
-  window.visualViewport?.addEventListener('resize', counterPan, { passive: true })
-
   let pinFrame = 0
   function pinForAWhile(ms = 900) {
     const until = performance.now() + ms
     cancelAnimationFrame(pinFrame)
     const tick = () => {
       pinRoot()
-      counterPan()
       pinFrame = performance.now() < until ? requestAnimationFrame(tick) : 0
     }
     tick()
@@ -137,7 +95,7 @@
     const viewport = viewportSize()
     stableViewport = viewport
     const mobile = matchMedia('(pointer: coarse)').matches
-    const forceLandscape = prefs.scale === -1 && mobile && matchMedia('(orientation: portrait)').matches
+    const forceLandscape = prefs.scale === -1 && mobile && viewport.height > viewport.width
     const appWidth = forceLandscape ? viewport.height : viewport.width
     const desktop = prefs.scale === -1 && appWidth < DESKTOP_WIDTH
     root.classList.toggle('ui-desktop', desktop)
@@ -154,12 +112,14 @@
       }
     } else {
       root.style.zoom = ''
-      root.style.removeProperty('--app-h')
       if (forceLandscape) {
+        // The transformed body is laid out in landscape coordinates even when the
+        // physical viewport is portrait, so its content height must use portrait width.
+        root.style.setProperty('--app-h', `${viewport.width}px`)
         root.style.setProperty('--force-landscape-width', `${viewport.height}px`)
         root.style.setProperty('--force-landscape-height', `${viewport.width}px`)
         root.style.setProperty('--force-landscape-left', `${viewport.width}px`)
-      }
+      } else root.style.removeProperty('--app-h')
     }
     if (!forceLandscape) {
       root.style.removeProperty('--force-landscape-width')
@@ -190,7 +150,6 @@
   document.addEventListener('pointerdown', (event) => {
     if (event.target.closest?.('input, textarea, select, [contenteditable="true"]')) {
       editorPointerUntil = performance.now() + 1200
-      lockScrollFor(event.target.closest('input, textarea, select, [contenteditable="true"]'))
     }
   }, { capture: true, passive: true })
   window.addEventListener('resize', () => {
@@ -210,7 +169,6 @@
     if (!event.target.matches?.('input, textarea, select, [contenteditable="true"]')) return
     root.classList.add('keyboard-editing')
     editorPointerUntil = performance.now() + 1200
-    if (!scrollLock || performance.now() - scrollLock.at > 1500) lockScrollFor(event.target)
     pinForAWhile()
     if (keyboardAppHeight === null && !root.style.getPropertyValue('--app-h')) {
       keyboardAppHeight = document.querySelector('.shell')?.getBoundingClientRect().height || window.innerHeight
@@ -221,8 +179,6 @@
     if (!event.target.matches?.('input, textarea, select, [contenteditable="true"]')) return
     window.setTimeout(() => {
       if (editorHasFocus()) return
-      releaseScrollLock()
-      counterPan()
       root.classList.remove('keyboard-editing')
       if (keyboardAppHeight !== null) {
         root.style.removeProperty('--app-h')
