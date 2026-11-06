@@ -36,15 +36,22 @@
   const root = document.documentElement
   function viewportSize() {
     const immersive = standalone || !!document.fullscreenElement || window.matchMedia('(display-mode: fullscreen)').matches
+    let width = (immersive && screen.width) || window.innerWidth
+    let height = (immersive && screen.height) || window.innerHeight
+    const orientationType = screen.orientation?.type
+    if (orientationType?.startsWith('landscape') && height > width) [width, height] = [height, width]
+    else if (orientationType?.startsWith('portrait') && width > height) [width, height] = [height, width]
     return {
-      width: (immersive && screen.width) || window.innerWidth,
-      height: (immersive && screen.height) || window.innerHeight,
+      width,
+      height,
     }
   }
   let stableViewport = viewportSize()
   let keyboardAppHeight = null
   let editorPointerUntil = 0
   let resizeTimer = null
+  let landscapeLockRequested = false
+  let landscapeLockDenied = false
 
   // Keep the installed PWA's layout viewport steady while the mobile keyboard overlays it.
   try {
@@ -55,35 +62,25 @@
     return document.activeElement?.matches('input, textarea, select, [contenteditable="true"]') || false
   }
 
-  // While an editor is focused only the content scroller may move. Browsers scroll or pan the
-  // document/ancestors to reveal the caret when the keyboard opens; undo that so the app never shifts.
-  function pinRoot() {
-    if (window.scrollX || window.scrollY) window.scrollTo(0, 0)
-    ;[document.scrollingElement, document.documentElement, document.body, document.querySelector('.shell')].forEach((node) => {
-      if (node && (node.scrollTop || node.scrollLeft)) {
-        node.scrollTop = 0
-        node.scrollLeft = 0
-      }
-    })
-  }
-  let pinFrame = 0
-  function pinForAWhile(ms = 900) {
-    const until = performance.now() + ms
-    cancelAnimationFrame(pinFrame)
-    const tick = () => {
-      pinRoot()
-      pinFrame = performance.now() < until ? requestAnimationFrame(tick) : 0
+  function syncLandscapeLock(enabled) {
+    const orientation = screen.orientation
+    if (enabled && orientation?.lock) {
+      if (landscapeLockRequested || landscapeLockDenied) return
+      landscapeLockRequested = true
+      orientation.lock('landscape').then(() => {
+        if (prefs.scale !== -1) orientation.unlock?.()
+      }).catch(() => {
+        landscapeLockRequested = false
+        landscapeLockDenied = true
+      })
+      return
     }
-    tick()
+    if (!enabled) {
+      landscapeLockDenied = false
+      if (landscapeLockRequested) orientation?.unlock?.()
+      landscapeLockRequested = false
+    }
   }
-  document.addEventListener('scroll', (event) => {
-    if (!editorHasFocus()) return
-    const t = event.target
-    if (t === document || t === document.documentElement || t === document.body || t?.classList?.contains('shell')) pinRoot()
-  }, { capture: true, passive: true })
-  window.addEventListener('scroll', () => { if (editorHasFocus()) pinRoot() }, { passive: true })
-  window.visualViewport?.addEventListener('scroll', () => { if (editorHasFocus()) pinForAWhile(400) }, { passive: true })
-  window.visualViewport?.addEventListener('resize', () => { if (editorHasFocus()) pinForAWhile(600) }, { passive: true })
 
   function viewportShrunkBelowBaseline() {
     const viewport = viewportSize()
@@ -95,7 +92,11 @@
     const viewport = viewportSize()
     stableViewport = viewport
     const mobile = matchMedia('(pointer: coarse)').matches
-    const forceLandscape = prefs.scale === -1 && mobile && viewport.height > viewport.width
+    const landscapeMode = prefs.scale === -1 && mobile
+    syncLandscapeLock(landscapeMode)
+    const orientationType = screen.orientation?.type
+    const portrait = orientationType ? orientationType.startsWith('portrait') : viewport.height > viewport.width
+    const forceLandscape = landscapeMode && portrait
     const appWidth = forceLandscape ? viewport.height : viewport.width
     const desktop = prefs.scale === -1 && appWidth < DESKTOP_WIDTH
     root.classList.toggle('ui-desktop', desktop)
@@ -163,13 +164,13 @@
     if (!editorHasFocus()) applyScale({ force: true })
   })
   document.addEventListener('fullscreenchange', () => {
+    landscapeLockDenied = false
     if (!editorHasFocus()) applyScale({ force: true })
   })
   document.addEventListener('focusin', (event) => {
     if (!event.target.matches?.('input, textarea, select, [contenteditable="true"]')) return
     root.classList.add('keyboard-editing')
     editorPointerUntil = performance.now() + 1200
-    pinForAWhile()
     if (keyboardAppHeight === null && !root.style.getPropertyValue('--app-h')) {
       keyboardAppHeight = document.querySelector('.shell')?.getBoundingClientRect().height || window.innerHeight
       root.style.setProperty('--app-h', `${keyboardAppHeight}px`)

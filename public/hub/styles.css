@@ -40,10 +40,6 @@ body {
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
-  /* `clip` (unlike `hidden`) is not a scroll container, so when the mobile keyboard opens the
-     browser cannot scroll/pan the whole app to reveal the focused input. */
-  overflow: clip;
-  overscroll-behavior: none;
 }
 
 :root.force-landscape body {
@@ -66,10 +62,7 @@ body {
 /* ---------- Background ---------- */
 .background {
   position: fixed;
-  inset: 0 0 auto 0;
-  /* Pinned to the app frame (not the window) so the keyboard resizing the window never
-     re-rasterizes the gradient layer (black flash). */
-  height: var(--app-h, 100%);
+  inset: 0;
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
