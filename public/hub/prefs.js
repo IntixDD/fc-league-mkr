@@ -35,7 +35,16 @@
   let prefs = read()
   const root = document.documentElement
   let landscapeLockRequested = false
-  let stableViewport = { width: window.innerWidth, height: window.innerHeight }
+  function viewportSize() {
+    const immersive = standalone || !!document.fullscreenElement || matchMedia('(display-mode: fullscreen)').matches
+    let width = (immersive && screen.width) || window.innerWidth
+    let height = (immersive && screen.height) || window.innerHeight
+    const type = screen.orientation?.type
+    if (type?.startsWith('landscape') && height > width) [width, height] = [height, width]
+    else if (type?.startsWith('portrait') && width > height) [width, height] = [height, width]
+    return { width, height }
+  }
+  let stableViewport = viewportSize()
   let editorPointerUntil = 0
   let keyboardAppHeight = null
 
@@ -44,7 +53,8 @@
   }
 
   function viewportShrunkBelowBaseline() {
-    return stableViewport.height - window.innerHeight > 30 || stableViewport.width - window.innerWidth > 30
+    const viewport = viewportSize()
+    return stableViewport.height - viewport.height > 30 || stableViewport.width - viewport.width > 30
   }
 
   function syncLandscapeLock(desktop) {
@@ -63,10 +73,13 @@
 
   function applyScale({ force = false } = {}) {
     if (editorHasFocus() || (!force && viewportShrunkBelowBaseline())) return
-    stableViewport = { width: window.innerWidth, height: window.innerHeight }
+    const viewport = viewportSize()
+    stableViewport = viewport
     const mobile = matchMedia('(pointer: coarse)').matches
-    const forceLandscape = prefs.scale === -1 && mobile && matchMedia('(orientation: portrait)').matches
-    const appWidth = forceLandscape ? window.innerHeight : window.innerWidth
+    const orientationType = screen.orientation?.type
+    const portrait = orientationType ? orientationType.startsWith('portrait') : viewport.height > viewport.width
+    const forceLandscape = prefs.scale === -1 && mobile && portrait
+    const appWidth = forceLandscape ? viewport.height : viewport.width
     const desktop = prefs.scale === -1 && appWidth < DESKTOP_WIDTH
     root.classList.toggle('ui-desktop', desktop)
     root.classList.toggle('ui-scale-minus-one', prefs.scale === -1)
@@ -75,20 +88,20 @@
     if (desktop) {
       const z = appWidth / DESKTOP_WIDTH
       root.style.zoom = String(z)
-      root.style.setProperty('--app-h', `${(forceLandscape ? window.innerWidth : window.innerHeight) / z}px`)
+      root.style.setProperty('--app-h', `${(forceLandscape ? viewport.width : viewport.height) / z}px`)
       if (forceLandscape) {
-        root.style.setProperty('--force-landscape-width', `${window.innerHeight / z}px`)
-        root.style.setProperty('--force-landscape-height', `${window.innerWidth / z}px`)
-        root.style.setProperty('--force-landscape-left', `${window.innerWidth / z}px`)
+        root.style.setProperty('--force-landscape-width', `${viewport.height / z}px`)
+        root.style.setProperty('--force-landscape-height', `${viewport.width / z}px`)
+        root.style.setProperty('--force-landscape-left', `${viewport.width / z}px`)
       }
     } else {
       root.style.zoom = ''
-      root.style.removeProperty('--app-h')
       if (forceLandscape) {
-        root.style.setProperty('--force-landscape-width', `${window.innerHeight}px`)
-        root.style.setProperty('--force-landscape-height', `${window.innerWidth}px`)
-        root.style.setProperty('--force-landscape-left', `${window.innerWidth}px`)
-      }
+        root.style.setProperty('--app-h', `${viewport.width}px`)
+        root.style.setProperty('--force-landscape-width', `${viewport.height}px`)
+        root.style.setProperty('--force-landscape-height', `${viewport.width}px`)
+        root.style.setProperty('--force-landscape-left', `${viewport.width}px`)
+      } else root.style.removeProperty('--app-h')
     }
     if (!forceLandscape) {
       root.style.removeProperty('--force-landscape-width')
