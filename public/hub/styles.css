@@ -52,7 +52,7 @@ body {
   left: var(--force-landscape-left);
   width: var(--force-landscape-width);
   height: var(--force-landscape-height);
-  transform: translate(var(--vv-x, 0px), var(--vv-y, 0px)) rotate(90deg);
+  transform: rotate(90deg);
   transform-origin: top left;
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
@@ -533,10 +533,6 @@ body {
     opacity: 0;
     transform: translateX(-12px);
   }
-}
-
-:root.kb-pan:not(.force-landscape) body {
-  transform: translate(var(--vv-x, 0px), var(--vv-y, 0px));
 }
 
 /* Touch devices: backdrop blurs over a rotated/zoomed full-screen layer are re-composited
