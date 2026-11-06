@@ -160,18 +160,19 @@
   function tournamentSummary(season, lazy = false) {
     const playoffs = season.playoffs
     const bracket = lazy ? null : H.computeBracket(season)
+    const repechageMatches = bracket ? H.computeRepechage(season) : []
     const teams = new Map(season.teams.map((team) => [team.id, team]))
-    const allMatches = bracket ? [...bracket.rounds.flat(), bracket.third] : []
+    const allMatches = bracket ? [...repechageMatches, ...bracket.rounds.flat(), bracket.third] : []
     const played = allMatches.reduce((count, match) => count + (match.twoLegged ? Number(match.leg1Played) + Number(match.leg2Played) : Number(match.played)), 0)
     const totalMatches = allMatches.reduce((count, match) => count + (match.twoLegged ? 2 : 1), 0)
-    const miniMatch = (match, final = false) => `<article class="season-mini-match${final ? ' is-final season-mini-final-match' : ''}" data-bk="${esc(match.key)}">
+    const miniMatch = (match, final = false, extraAttrs = '') => `<article class="season-mini-match${final ? ' is-final season-mini-final-match' : ''}${match.stage === 'Repechaje' ? ' is-repechage' : ''}" data-bk="${esc(match.key)}" ${extraAttrs}>
       ${['home', 'away'].map((side) => {
         const id = match[side]
         const team = id ? teams.get(id) : null
         const score = side === 'home' ? match.hg : match.ag
         return `<div class="season-mini-team${match.winner === id && id ? ' is-winner' : ''}">${team ? crest(team.logo, 'xs', team.name) : '<span class="crest crest--xs crest--tbd"></span>'}<span>${team ? esc(team.name) : 'Por definir'}</span><strong>${score ?? '–'}</strong></div>`
       }).join('')}
-      ${match.twoLegged ? `<div class="season-mini-leg-columns"><div class="season-mini-leg"><span>Ida · Cancha ${match.leg1Field || '–'}</span><strong>${match.leg1?.hg ?? '–'}–${match.leg1?.ag ?? '–'}</strong></div><div class="season-mini-leg"><span>Vuelta · Cancha ${match.leg2Field || '–'}</span><strong>${match.leg2?.hg ?? '–'}–${match.leg2?.ag ?? '–'}</strong></div></div>` : ''}
+      ${match.twoLegged ? `<div class="season-mini-leg-columns"><div class="season-mini-leg"><span>Ida</span><strong>${match.leg1?.hg ?? '–'}–${match.leg1?.ag ?? '–'}</strong></div><div class="season-mini-leg"><span>Vuelta</span><strong>${match.leg2?.hg ?? '–'}–${match.leg2?.ag ?? '–'}</strong></div></div>` : ''}
       ${match.tied && match.decided ? `<span class="season-mini-pens">Pen. ${match.hp}–${match.ap}</span>` : ''}
     </article>`
     const miniSlot = (match) => `<div class="season-mini-slot">${miniMatch(match)}</div>`
@@ -181,10 +182,27 @@
         : matches.map(miniSlot).join('')
       return `<section class="season-mini-col season-mini-col--${side}"><h4>${esc(matches[0]?.stage || 'Ronda')}</h4><div class="season-mini-slots">${body}</div></section>`
     }
+    const repechageBySeed = new Map((playoffs?.repechage?.seedSlots || []).map((seed, index) => [seed, repechageMatches[index]]).filter(([, match]) => match))
+    const feedsForMatch = (match) => match.key.startsWith('r0-')
+      ? [repechageBySeed.get(match.homeSeed), repechageBySeed.get(match.awaySeed)].filter(Boolean)
+      : []
+    const repechageSideColumn = (matches, side) => {
+      if (!matches.some((match) => feedsForMatch(match).length)) return ''
+      const slot = (match) => {
+        const feeds = feedsForMatch(match)
+        return `<div class="season-mini-slot">${feeds.map((feed) => miniMatch(feed, false, `data-feed-to="${esc(match.key)}" data-feed-side="${side}"`)).join('')}</div>`
+      }
+      const body = matches.length > 1
+        ? Array.from({ length: matches.length / 2 }, (_, i) => `<div class="season-mini-pair">${slot(matches[2 * i])}${slot(matches[2 * i + 1])}</div>`).join('')
+        : matches.map(slot).join('')
+      return `<section class="season-mini-col season-mini-col--${side} season-mini-col--repechage"><h4>Repechaje</h4><div class="season-mini-slots">${body}</div></section>`
+    }
     const miniMap = !lazy && bracket ? (() => {
       const sideRounds = bracket.rounds.slice(0, -1)
-      const left = sideRounds.map((round) => sideColumn(round.slice(0, round.length / 2), 'left')).join('')
-      const right = sideRounds.map((round) => sideColumn(round.slice(round.length / 2), 'right')).reverse().join('')
+      const leftRoundOne = bracket.rounds[0].slice(0, bracket.rounds[0].length / 2)
+      const rightRoundOne = bracket.rounds[0].slice(bracket.rounds[0].length / 2)
+      const left = `${repechageSideColumn(leftRoundOne, 'left')}${sideRounds.map((round) => sideColumn(round.slice(0, round.length / 2), 'left')).join('')}`
+      const right = `${sideRounds.map((round) => sideColumn(round.slice(round.length / 2), 'right')).reverse().join('')}${repechageSideColumn(rightRoundOne, 'right')}`
       const champion = bracket.champion ? teams.get(bracket.champion) : null
       return `<div class="season-mini-bracket" data-rounds="${bracket.rounds.length}" role="region" tabindex="0" aria-label="Mapa de llaves de Tournament; desliza horizontalmente para ver todas las rondas">${left}
         <section class="season-mini-col season-mini-col--final"><h4>Final</h4><div class="season-mini-final-top">${champion ? `${crest(champion.logo, 'xs', champion.name)}<span>${esc(champion.name)}</span>` : '<span>Campeón por definir</span>'}</div>${miniMatch(bracket.final, true)}<div class="season-mini-third"><h5>Tercer Puesto</h5>${miniMatch(bracket.third)}</div></section>
@@ -267,6 +285,22 @@
         svg.appendChild(path)
       })
     }
+    map.querySelectorAll('.season-mini-match[data-feed-to]').forEach((from) => {
+      const to = map.querySelector(`[data-bk="${from.dataset.feedTo}"]`)
+      if (!to) return
+      const a = offsetWithin(from, map)
+      const b = offsetWithin(to, map)
+      const leftSide = from.dataset.feedSide === 'left'
+      const x1 = leftSide ? a.x + a.w : a.x
+      const x2 = leftSide ? b.x : b.x + b.w
+      const y1 = a.y + a.h / 2
+      const y2 = b.y + b.h / 2
+      const mid = (x1 + x2) / 2
+      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+      path.setAttribute('d', `M${x1} ${y1}H${mid}V${y2}H${x2}`)
+      path.setAttribute('class', `season-mini-line${from.querySelector('.is-winner') ? ' is-live' : ''}`)
+      svg.appendChild(path)
+    })
     map.prepend(svg)
   }
 
@@ -572,6 +606,11 @@
         if (detail.matches('.season-tournament-details')) watchMiniBrackets(el)
       }, true)
       el.addEventListener('click', (e) => {
+        const keepCard = e.target.closest('[data-toggle-card="keep-teams"]')
+        if (keepCard && !e.target.closest('input, label')) {
+          keepCard.querySelector('input[type="checkbox"]')?.click()
+          return
+        }
         const btn = e.target.closest('[data-action]')
         if (!btn) return
         const { action, id } = btn.dataset
@@ -647,10 +686,12 @@
             <button class="btn btn--primary" data-action="save" ${cur.readOnly ? 'disabled title="Edición bloqueada al importar"' : ''}>${cur.id ? 'Guardar cambios' : 'Guardar temporada'}</button>
             <button class="btn btn--ghost" data-action="new">Nueva temporada</button>
           </div>
-          <label class="check">
-            <input type="checkbox" name="keep-teams" ${H.ui.newKeepTeams ? 'checked' : ''}>
-            <span>Conservar los clubes en la nueva temporada</span>
-          </label>
+          <div class="tournament-option-card tournament-toggle-card season-keep-teams-card" data-toggle-card="keep-teams">
+            <label class="series-choice season-keep-teams-choice">
+              <input type="checkbox" name="keep-teams" ${H.ui.newKeepTeams ? 'checked' : ''}>
+              <span><strong>Conservar clubes</strong><small>Incluirlos al crear la próxima temporada</small></span>
+            </label>
+          </div>
         </article>`
 
       const io = `

@@ -161,7 +161,7 @@
 
 
 
-**\[Big update] Beta 3.0:** 
+**\[Big update] Beta 3.0:**
 
 * Nuevo apartado: Menú (Se ingresa desde el icono de liga).
 * Settings: Añadido el recuadro Logo de la liga.
@@ -186,4 +186,16 @@
 
 * Seasons/Importar / Exportar: Arreglado el botón Importar .json en celular (el archivo elegido se perdía al volver del selector).
 * Teams/Galería de escudos: Arreglados los botones Importar JSON, Importar imágenes y Subir escudo en celular (mismo problema).
-* Menú/Hall of fame: Recuadro más corto, ahora se ajusta a su contenido.
+* Settings/Música y Sonidos: Recuadro rediseñado.
+* Añadida más música, ahora se reproducen en orden aleatorio.
+* Menú: se reacomodaron algunos recuadros.
+* Menú/Hall of fame: Añadido el Top 5 en puntos.
+* Menú/Última temporada/Tournament: Ahora se muestran las llaves de repechaje.
+* Menú/Última temporada/Tabla: Ahora las tablas/series/grupos muestran todo su contenido.
+* Performance/Badges: Ahora las insignias muestran en qué temporada fueron obtenidas.
+* Tournament/Podio: Recuadro rediseñado.
+* El formato Fase de grupos no afecta a ciertas insignias.
+* Algunos botones fueron rediseñados.
+* Arreglo de fluidez en las animaciones.
+* Bugs solucionados.
+

@@ -64,8 +64,33 @@
     if (bar) bar.style.width = `${rows.length ? Math.round((done / rows.length) * 100) : 0}%`
   }
 
+  const randomGoals = () => Math.floor(Math.random() * 6)
+  const isMobileDevice = () => /android.*mobile|iphone|ipod|ipad|windows phone/i.test(navigator.userAgent)
+    || window.matchMedia('(pointer: coarse) and (max-width: 767px)').matches
+
+  function randomizeFixtureResults() {
+    const rounds = H.state.current.fixtures?.rounds
+    if (!rounds?.some((round) => round.length)) return H.toast('Primero genera un calendario de Fixtures', 'error')
+    H.update((s) => {
+      s.current.fixtures.rounds.forEach((round) => round.forEach((match) => {
+        match.hg = randomGoals()
+        match.ag = randomGoals()
+      }))
+    })
+    H.toast('Resultados de Fixtures aleatorizados')
+  }
+
   H.view('fixtures', {
     bind(el) {
+      window.addEventListener('keydown', (e) => {
+        if (!e.shiftKey || e.key.toLowerCase() !== 'r' || e.altKey || e.ctrlKey || e.metaKey || e.repeat || e.isComposing) return
+        const section = el.closest('.section')
+        if (!section || section.hidden || isMobileDevice()) return
+        const editing = e.target.closest?.('input, textarea, select, [contenteditable="true"]')
+        if (editing && !editing.matches('[data-match], [data-po]')) return
+        e.preventDefault()
+        randomizeFixtureResults()
+      })
       el.addEventListener('click', (e) => {
         const btn = e.target.closest('[data-action]')
         if (!btn) return

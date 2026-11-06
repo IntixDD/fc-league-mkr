@@ -99,6 +99,58 @@
     return sides.flat()
   }
 
+  const randomGoals = () => Math.floor(Math.random() * 6)
+  const isMobileDevice = () => /android.*mobile|iphone|ipod|ipad|windows phone/i.test(navigator.userAgent)
+    || window.matchMedia('(pointer: coarse) and (max-width: 767px)').matches
+
+  function randomPenaltyResult(result) {
+    result.hp = 3 + Math.floor(Math.random() * 4)
+    do { result.ap = 3 + Math.floor(Math.random() * 4) } while (result.hp === result.ap)
+  }
+
+  function randomMatchResult(match) {
+    const result = { pair: match.pair }
+    if (match.twoLegged) {
+      result.leg1hg = randomGoals()
+      result.leg1ag = randomGoals()
+      result.leg2hg = randomGoals()
+      result.leg2ag = randomGoals()
+      const homeGoals = result.leg1hg + result.leg2ag
+      const awayGoals = result.leg1ag + result.leg2hg
+      if (homeGoals === awayGoals) randomPenaltyResult(result)
+    } else {
+      result.hg = randomGoals()
+      result.ag = randomGoals()
+      if (result.hg === result.ag) randomPenaltyResult(result)
+    }
+    return result
+  }
+
+  function randomizeTournamentResults() {
+    if (!H.state.current.playoffs) return H.toast('Primero crea un cuadro Tournament', 'error')
+    H.update((s) => {
+      const season = s.current
+      const playoffs = season.playoffs
+      playoffs.results = {}
+      if (playoffs.repechage?.enabled) {
+        playoffs.repechage.results = {}
+        H.computeRepechage(season).forEach((match) => {
+          if (match.pair) playoffs.repechage.results[match.key] = randomMatchResult(match)
+        })
+      }
+      const roundsCount = Math.log2(playoffs.size)
+      for (let round = 0; round < roundsCount; round += 1) {
+        const bracket = H.computeBracket(season)
+        bracket.rounds[round].forEach((match) => {
+          if (match.pair) playoffs.results[match.key] = randomMatchResult(match)
+        })
+      }
+      const bracket = H.computeBracket(season)
+      if (bracket?.third?.pair) playoffs.results.third = randomMatchResult(bracket.third)
+    })
+    H.toast('Resultados de Tournament aleatorizados')
+  }
+
   async function generate() {
     const season = H.state.current
     const size = H.ui.poSize
@@ -251,6 +303,15 @@
 
   H.view('tournament', {
     bind(el) {
+      window.addEventListener('keydown', (e) => {
+        if (!e.shiftKey || e.key.toLowerCase() !== 'r' || e.altKey || e.ctrlKey || e.metaKey || e.repeat || e.isComposing) return
+        const section = el.closest('.section')
+        if (!section || section.hidden || isMobileDevice()) return
+        const editing = e.target.closest?.('input, textarea, select, [contenteditable="true"]')
+        if (editing && !editing.matches('[data-match], [data-po]')) return
+        e.preventDefault()
+        randomizeTournamentResults()
+      })
       el.addEventListener('click', (e) => {
         const toggleCard = e.target.closest('[data-toggle-card]')
         if (toggleCard && !e.target.closest('input, label')) {
@@ -467,13 +528,14 @@
           </div>
         </div>`
 
-      const place = (id, label, cls) => {
+      const place = (id, label, cls, icon) => {
         const t = id ? teams.get(id) : null
         return `
           <li class="podium-item ${cls}">
+            ${t ? `<img class="podium-watermark" src="${esc(t.logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
             ${t ? crest(t.logo, 'md', t.name) : '<span class="crest crest--md crest--tbd"></span>'}
             <span class="podium-text">
-              <span class="podium-label">${label}</span>
+              <span class="podium-label">${H.ICONS[icon]}<span>${label}</span></span>
               <span class="podium-name">${t ? esc(t.name) : 'Por definir'}</span>
             </span>
           </li>`
@@ -485,10 +547,10 @@
           <article class="card">
             <header class="card-head"><h2 class="card-title">Podio · Temporada ${season.number}</h2></header>
             <ol class="podium">
-              ${place(bracket.champion, 'Campeón', 'is-gold')}
-              ${place(bracket.runnerUp, 'Subcampeón', 'is-silver')}
-              ${place(bracket.thirdPlace, '3er lugar', 'is-bronze')}
-              ${place(bracket.fourth, '4to lugar', '')}
+              ${place(bracket.champion, 'Campeón', 'is-gold', 'trophy')}
+              ${place(bracket.runnerUp, 'Subcampeón', 'is-silver', 'medal2')}
+              ${place(bracket.thirdPlace, '3er lugar', 'is-bronze', 'medal3')}
+              ${place(bracket.fourth, '4to lugar', '', 'medal4')}
             </ol>
           </article>
           <article class="card card--wide" id="tournament-export">

@@ -39,7 +39,7 @@
     return `<svg class="stat-icon badge-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${art}</svg>`
   }
 
-  function badgeCatalog(record) {
+  function badgeCatalog(record, includeFirstSeasons = false) {
     const totals = H.teamTotals(record)
     const TITLE_FLAGS = ['cupChampion', 'leagueChampion', 'seriesChampion', 'runnerUp', 'third', 'fourth', 'seasonScorer', 'seasonCleanSheetAward']
     const titles = record.seasons.reduce((sum, season) => sum + TITLE_FLAGS.reduce((count, flag) => count + Number(!!season[flag]), 0), 0)
@@ -60,15 +60,26 @@
     const threeTournamentStreak = [...tournamentWins].some((season) =>
       Number.isFinite(season) && tournamentWins.has(season + 1) && tournamentWins.has(season + 2),
     )
-    const leagueSeriesEligible = record.seasons.filter((season) => season.tableConfig?.type !== 'groups')
-    const leagueSeriesWins = new Set(leagueSeriesEligible.filter((season) => season.leagueChampion || season.seriesChampion).map((season) => Number(season.number)))
-    const fourLeagueSeriesStreak = [...leagueSeriesWins].some((season) =>
-      Number.isFinite(season) && leagueSeriesWins.has(season + 1) && leagueSeriesWins.has(season + 2) && leagueSeriesWins.has(season + 3),
-    )
-    const leagueRunnerUps = new Set(leagueSeriesEligible.filter((season) => season.leaguePosition === 2).map((season) => Number(season.number)))
-    const threeLeagueRunnerUpStreak = [...leagueRunnerUps].some((season) =>
-      Number.isFinite(season) && leagueRunnerUps.has(season + 1) && leagueRunnerUps.has(season + 2),
-    )
+    const leagueSeriesNumbers = new Set(H.statSeasons()
+      .filter((season) => season.tableConfig?.type !== 'groups')
+      .map((season) => Number(season.number))
+      .filter(Number.isFinite))
+    const leagueSeriesOrder = [...leagueSeriesNumbers].sort((a, b) => a - b)
+    const leagueSeriesEligible = record.seasons.filter((season) => leagueSeriesNumbers.has(Number(season.number)))
+    const seasonsByNumber = new Map(leagueSeriesEligible.map((season) => [Number(season.number), season]))
+    const hasLeagueSeriesStreak = (predicate, target) => {
+      let streak = 0
+      for (const number of leagueSeriesOrder) {
+        const season = seasonsByNumber.get(number)
+        if (season && predicate(season)) {
+          streak += 1
+          if (streak >= target) return true
+        } else streak = 0
+      }
+      return false
+    }
+    const fourLeagueSeriesStreak = hasLeagueSeriesStreak((season) => season.leagueChampion || season.seriesChampion, 4)
+    const threeLeagueRunnerUpStreak = hasLeagueSeriesStreak((season) => season.leaguePosition === 2, 3)
     const aguerooooo = leagueSeriesEligible.some((season) => season.wonTitleOnGoalDifference)
     const campeonIncomprendido = record.seasons.some((season) => season.wonTitleWithNonPositiveGoalDifference)
     const repescaAnarquica = record.seasons.some((season) => season.repechageSevenGoals)
@@ -102,7 +113,7 @@
       progress: `${value}/${target}`,
     }))
 
-    return [
+    const badges = [
       ...thresholdBadges('Goles', 'ball', 'blue', totals.goals, [[10, 'Primer rugido', 'Marca 10 goles en cualquier competición.'], [50, 'Cazagoles', 'Acumula 50 goles entre Liga/Serie y Tournament.'], [100, 'Centurión del gol', 'Llega a 100 goles totales.'], [200, 'Doble artillería', 'Alcanza 200 goles en tu historial.'], [500, 'Leyenda goleadora', 'Anota 500 goles totales con el equipo.']]),
       ...thresholdBadges('Títulos', 'trophy', 'gold', titles, [[1, 'Primera corona', 'Gana tu primer título oficial.'], [5, 'Coleccionista de copas', 'Acumula 5 títulos oficiales.'], [10, 'Palmarés de élite', 'Acumula 10 títulos oficiales.'], [20, 'Dinastía campeona', 'Llega a 20 títulos oficiales.'], [50, 'Leyenda del palmarés', 'Consigue 50 títulos oficiales.'], [100, 'Inmortal de los títulos', 'Alcanza 100 títulos oficiales.']]),
       { category: 'Títulos', name: 'Reyes del Tournament', description: 'Conquista Tournament al menos una vez.', icon: 'cup', tone: 'gold', value: totals.cups, target: 1, earned: totals.cups > 0, progress: `${totals.cups}/1` },
@@ -128,6 +139,23 @@
       { category: 'Especiales', name: 'Puntuación Perfecta', description: 'Gana una Liga o Serie consiguiendo todos los puntos posibles: 3 por cada partido jugado.', icon: 'star', tone: 'gold', earned: perfectPoints, progress: perfectPoints ? 'Obtenida' : 'Pendiente' },
       { category: 'Especiales', name: 'El milagro del siglo', description: 'Avanza en Tournament tras perder 0–4 en la Ida y remontar en la Vuelta. También cuenta si empatas el global y clasificas por penales.', icon: 'achievement', tone: 'gold', earned: centuryComeback, progress: centuryComeback ? 'Obtenida' : 'Pendiente' },
     ]
+
+    if (!includeFirstSeasons || !record.seasons.length) return badges
+    const history = [...record.seasons].sort((a, b) => Number(a.number) - Number(b.number))
+    const badgeKey = (badge) => `${badge.category}\u0000${badge.name}`
+    const firstSeasonByBadge = new Map()
+    const remaining = new Set(badges.map(badgeKey))
+    for (let index = 0; index < history.length && remaining.size; index += 1) {
+      const earned = badgeCatalog({ ...record, seasons: history.slice(0, index + 1) })
+      earned.forEach((badge) => {
+        const key = badgeKey(badge)
+        if (badge.earned && remaining.has(key)) {
+          firstSeasonByBadge.set(key, Number(history[index].number))
+          remaining.delete(key)
+        }
+      })
+    }
+    return badges.map((badge) => ({ ...badge, firstSeason: firstSeasonByBadge.get(badgeKey(badge)) ?? null }))
   }
 
   H.badgeCatalog = badgeCatalog

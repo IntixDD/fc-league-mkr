@@ -1452,14 +1452,46 @@ select.input option {
 }
 
 .podium-item {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
-  padding: 10px;
+  min-height: 88px;
+  overflow: hidden;
+  padding: 13px;
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: 12px;
+}
+
+.podium-item::after {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  content: '';
+  background: linear-gradient(100deg, rgb(8 5 11 / .34), rgb(8 5 11 / .1) 55%, rgb(8 5 11 / .42));
+}
+
+.podium-watermark {
+  position: absolute;
+  z-index: -2;
+  top: 50%;
+  right: -2%;
+  width: 62%;
+  height: 140%;
+  object-fit: contain;
+  opacity: .28;
+  filter: blur(.35px);
+  transform: translateY(-48%);
+  pointer-events: none;
+}
+
+.podium-item > .crest,
+.podium-item > .podium-text {
+  position: relative;
+  z-index: 1;
 }
 
 .podium-text {
@@ -1500,12 +1532,17 @@ select.input option {
 }
 
 .podium-label {
-  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
 }
+
+.podium-label .stat-icon { width: 16px; height: 16px; flex: none; }
 
 .podium-name {
   max-width: 100%;
@@ -2090,7 +2127,7 @@ select.input option {
 .badge-category-head h3 { margin: 0; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .badge-category-head > span { color: var(--muted); font-size: 10px; text-align: right; font-variant-numeric: tabular-nums; }
 .badge-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 158px), 1fr)); gap: 8px; }
-.badge-item { position: relative; display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 62px; padding: 9px; border: 1px solid rgb(255 255 255 / .08); border-radius: 11px; background: rgb(255 255 255 / .025); }
+.badge-item { position: relative; display: flex; align-items: center; gap: 9px; min-width: 0; min-height: 68px; padding: 9px; border: 1px solid rgb(255 255 255 / .08); border-radius: 11px; background: rgb(255 255 255 / .025); }
 .badge-item.is-earned { border-color: color-mix(in srgb, var(--badge-tone) 38%, transparent); background: color-mix(in srgb, var(--badge-tone) 8%, transparent); }
 .badge-item.is-locked { opacity: .56; }
 .badge-tone-gold { --badge-tone: #ffd166; }
@@ -2101,8 +2138,10 @@ select.input option {
 .badge-tone-cyan { --badge-tone: #22d3ee; }
 .badge-tone-slate { --badge-tone: #94a3b8; }
 .badge-tone-silver { --badge-tone: #cbd5e1; }
+.badge-item-medal { display: grid; justify-items: center; align-content: center; gap: 3px; width: 40px; flex: none; }
 .badge-item-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; color: var(--badge-tone); background: color-mix(in srgb, var(--badge-tone) 13%, transparent); }
 .badge-item-icon .stat-icon { width: 22px; height: 22px; flex: none; }
+.badge-item-season { min-height: 9px; color: var(--muted); font-size: 8px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
 .badge-item-info { display: grid; gap: 4px; min-width: 0; }
 .badge-item-info strong { font-size: 10.5px; line-height: 1.25; overflow-wrap: anywhere; }
 .badge-item-info > span { color: var(--muted); font-size: 10px; }
@@ -2610,6 +2649,18 @@ select.input option {
 }
 .tournament-option-card .series-choice { width: 100%; gap: 8px; color: #fff; font-size: 12px; font-weight: 700; white-space: normal; cursor: pointer; }
 .tournament-option-card .series-choice input { width: 16px; height: 16px; flex: none; }
+.season-keep-teams-card { width: 100%; min-height: 58px; margin-top: 10px; padding: 10px 14px; }
+.season-keep-teams-card .season-keep-teams-choice { align-items: center; gap: 12px; font-size: 13px; }
+.season-keep-teams-card .season-keep-teams-choice input { width: 19px; height: 19px; flex: none; }
+.season-keep-teams-choice > span { display: grid; gap: 3px; }
+.season-keep-teams-choice strong { color: #fff; font-size: 13px; }
+.season-keep-teams-choice small { color: var(--muted); font-size: 10px; font-weight: 500; }
+.music-autoplay-card { width: 100%; min-height: 58px; margin: 12px 0 0; padding: 10px 14px; }
+.music-autoplay-card .music-autoplay-choice { align-items: center; gap: 12px; font-size: 13px; }
+.music-autoplay-card .music-autoplay-choice input { width: 19px; height: 19px; flex: none; }
+.music-autoplay-choice > span { display: grid; gap: 3px; }
+.music-autoplay-choice strong { color: #fff; font-size: 13px; }
+.music-autoplay-choice small { color: var(--muted); font-size: 10px; font-weight: 500; }
 .tournament-option-card .tournament-repechage-toggle .hint { margin: 0 0 0 4px; font-size: 10px; }
 .tournament-repechage-toggle { margin: 0; }
 .tournament-repechage-toggle .hint { margin: 0; }

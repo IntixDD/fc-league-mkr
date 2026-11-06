@@ -7,8 +7,8 @@
   const MAX_SIDE = 2560
   const MAX_BACKGROUNDS = 12
   const PRELOADED_BACKGROUNDS = [
-    { id: 'preset-estadio-atardecer', label: 'Estadio al atardecer', src: 'backgrounds/estadio0.jpg' },
-    { id: 'preset-estadio-cielo-abierto', label: 'Estadio a cielo abierto', src: 'backgrounds/estadio1.jpg' },
+    { id: 'preset-estadio-atardecer', label: 'Stadio Diego Armando Maradona', src: 'backgrounds/estadio0.jpg' },
+    { id: 'preset-estadio-cielo-abierto', label: 'Etihad Stadium', src: 'backgrounds/estadio1.jpg' },
   ]
   const MUSIC_ICONS = {
     previous: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M19 5 9 12l10 7z"/></svg>',
@@ -18,7 +18,9 @@
   }
   let library = []
   let musicLibrary = []
-  let currentTrack = 0
+  let currentTrack = -1
+  let trackHistory = []
+  let trackHistoryPosition = -1
   let musicStarted = false
   let musicDelayElapsed = false
   let musicPausedByUser = false
@@ -77,6 +79,24 @@
     return new URL(`media/music/${safePath}`, document.baseURI).href
   }
 
+  function randomTrackIndex(exclude = currentTrack) {
+    if (musicLibrary.length < 2) return musicLibrary.length ? 0 : -1
+    const choices = musicLibrary.map((_, index) => index).filter((index) => index !== exclude)
+    return choices[Math.floor(Math.random() * choices.length)]
+  }
+
+  function playRandomTrack() {
+    if (!musicLibrary.length) return
+    playTrack(randomTrackIndex())
+  }
+
+  function playPreviousTrack() {
+    if (trackHistoryPosition > 0) {
+      trackHistoryPosition -= 1
+      playTrack(trackHistory[trackHistoryPosition], false)
+    } else playRandomTrack()
+  }
+
   function updateMusicControls() {
     updateCurrentTrack()
     const button = document.querySelector('[data-action="music-toggle"]')
@@ -112,20 +132,25 @@
       clearTimeout(musicAdvanceTimer)
       musicAdvanceTimer = window.setTimeout(() => {
         waitingForNext = false
-        playTrack(currentTrack + 1)
+        playRandomTrack()
       }, 2000)
     })
     audio.addEventListener('play', updateMusicControls)
     audio.addEventListener('pause', updateMusicControls)
   }
 
-  function playTrack(index) {
+  function playTrack(index, remember = true) {
     if (!musicLibrary.length) return
     ensureAudio()
     clearTimeout(musicAdvanceTimer)
     waitingForNext = false
     finishedCurrentTrack = false
     currentTrack = (index + musicLibrary.length) % musicLibrary.length
+    if (remember && trackHistory[trackHistoryPosition] !== currentTrack) {
+      trackHistory = trackHistory.slice(0, trackHistoryPosition + 1)
+      trackHistory.push(currentTrack)
+      trackHistoryPosition = trackHistory.length - 1
+    }
     musicPausedByUser = false
     const track = musicLibrary[currentTrack]
     updateCurrentTrack(track)
@@ -143,7 +168,7 @@
 
   function playMusic() {
     if (!musicLibrary.length || musicStarted) return
-    playTrack(currentTrack)
+    playTrack(currentTrack < 0 ? randomTrackIndex(-1) : currentTrack)
   }
 
   function scheduleInitialMusic() {
@@ -167,9 +192,11 @@
           cover: item.cover || '',
         }
       }).filter(Boolean) : []
+    currentTrack = randomTrackIndex(-1)
+    trackHistory = []
+    trackHistoryPosition = -1
     updateMusicControls()
     if (musicLibrary.length && P.get().musicAutoplay !== false) {
-      currentTrack = 0
       scheduleInitialMusic()
     }
   }
@@ -193,7 +220,7 @@
       musicAdvanceTimer = window.setTimeout(() => {
         musicAdvanceTimer = 0
         waitingForNext = false
-        playTrack(currentTrack + 1)
+          playRandomTrack()
       }, 2000)
     } else if (resumeMusicOnVisible && audio && !musicPausedByUser) {
       resumeMusicOnVisible = false
@@ -506,7 +533,7 @@
         ${card({
           title: 'Música y sonidos',
           sub: `${musicLibrary.length} canción(es) disponibles en la app`,
-          body: `<div class="music-current-track" id="music-current-track" aria-live="polite"></div><div class="audio-controls"><label class="field range-field"><span class="field-label">Música <output>${Math.round((p.musicVolume ?? .15) * 100)}%</output></span><input type="range" name="music-volume" min="0" max="1" step="0.05" value="${p.musicVolume ?? .15}"></label><label class="field range-field"><span class="field-label">SFX <output>${Math.round((p.sfxVolume ?? 1) * 100)}%</output></span><input type="range" name="sfx-volume" min="0" max="1" step="0.05" value="${p.sfxVolume ?? 1}"></label></div><label class="check music-autoplay-setting"><input type="checkbox" name="music-autoplay" ${p.musicAutoplay !== false ? 'checked' : ''}> Reproducir música al iniciar la app</label><div class="music-transport" role="group" aria-label="Controles de música"><button class="btn btn--ghost" type="button" data-action="music-previous" aria-label="Canción anterior">${MUSIC_ICONS.previous}<span>Anterior</span></button><button class="btn btn--primary music-toggle" type="button" data-action="music-toggle" aria-label="Pausar música">${MUSIC_ICONS.pause}<span>Pausar</span></button><button class="btn btn--ghost" type="button" data-action="music-next" aria-label="Siguiente canción">${MUSIC_ICONS.next}<span>Siguiente</span></button></div>`,
+          body: `<div class="music-current-track" id="music-current-track" aria-live="polite"></div><div class="audio-controls"><label class="field range-field"><span class="field-label">Música <output>${Math.round((p.musicVolume ?? .15) * 100)}%</output></span><input type="range" name="music-volume" min="0" max="1" step="0.05" value="${p.musicVolume ?? .15}"></label><label class="field range-field"><span class="field-label">SFX <output>${Math.round((p.sfxVolume ?? 1) * 100)}%</output></span><input type="range" name="sfx-volume" min="0" max="1" step="0.05" value="${p.sfxVolume ?? 1}"></label></div><div class="tournament-option-card tournament-toggle-card music-autoplay-card" data-toggle-card="music-autoplay"><label class="series-choice music-autoplay-choice"><input type="checkbox" name="music-autoplay" ${p.musicAutoplay !== false ? 'checked' : ''}><span><strong>Reproducir música al iniciar la app</strong><small>La app elegirá una canción al azar</small></span></label></div><div class="music-transport" role="group" aria-label="Controles de música"><button class="btn btn--ghost" type="button" data-action="music-previous" aria-label="Canción anterior">${MUSIC_ICONS.previous}<span>Anterior</span></button><button class="btn btn--primary music-toggle" type="button" data-action="music-toggle" aria-label="Pausar música">${MUSIC_ICONS.pause}<span>Pausar</span></button><button class="btn btn--ghost" type="button" data-action="music-next" aria-label="Siguiente canción">${MUSIC_ICONS.next}<span>Siguiente</span></button></div>`,
         })}
 
         ${card({
@@ -557,7 +584,7 @@
           sub: 'League Hub',
           wide: true,
           extraClass: 'set-about',
-          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-3.0</strong><span class="about-build">Beta Build</span></div>',
+          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-3.1</strong><span class="about-build">Beta Build</span></div>',
         })}
       </div>`
     updateMusicControls()
@@ -568,13 +595,18 @@
     if (!el) return
     document.addEventListener('league:brandlogochange', () => render())
     el.addEventListener('click', async (e) => {
+      const autoplayCard = e.target.closest('[data-toggle-card="music-autoplay"]')
+      if (autoplayCard && !e.target.closest('input, label')) {
+        autoplayCard.querySelector('input[type="checkbox"]')?.click()
+        return
+      }
       const btn = e.target.closest('[data-action]')
       if (!btn) return
       const { action } = btn.dataset
       if (action === 'pick-brand') H.pickBrand?.()
       else if (action === 'music-toggle') {
         if (!musicLibrary.length) return H.toast('No hay canciones cargadas en la app')
-        if (!audio || !audio.src) playTrack(currentTrack < 0 ? 0 : currentTrack)
+        if (!audio || !audio.src) playTrack(currentTrack < 0 ? randomTrackIndex(-1) : currentTrack)
         else if (waitingForNext) {
           clearTimeout(musicAdvanceTimer)
           waitingForNext = false
@@ -585,14 +617,13 @@
           audio.pause()
           musicStarted = false
           musicPausedByUser = true
-        } else if (finishedCurrentTrack) playTrack(currentTrack + 1)
+        } else if (finishedCurrentTrack) playRandomTrack()
         else audio.play().then(() => { musicStarted = true; musicPausedByUser = false; updateMusicControls() }).catch(() => {})
         updateMusicControls()
       } else if (action === 'music-next' || action === 'music-previous') {
         if (!musicLibrary.length) return H.toast('No hay canciones cargadas en la app')
-        const direction = action === 'music-next' ? 1 : -1
-        const nextTrack = currentTrack < 0 ? (direction < 0 ? musicLibrary.length - 1 : 0) : currentTrack + direction
-        playTrack(nextTrack)
+        if (action === 'music-next') playRandomTrack()
+        else playPreviousTrack()
       }
       else if (action === 'scale') {
         P.set({ scale: Number(btn.dataset.scale) })

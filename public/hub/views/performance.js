@@ -249,7 +249,7 @@
           ${trophySection('Logros', achievements)}
         </article>`
 
-      const badgeList = H.badgeCatalog ? H.badgeCatalog(rec) : []
+      const badgeList = H.badgeCatalog ? H.badgeCatalog(rec, true) : []
       const earnedBadges = badgeList.filter((badge) => badge.earned).length
       const badgeGroups = [...new Set(badgeList.map((badge) => badge.category))].map((category) => ({
         category,
@@ -262,7 +262,7 @@
             ? `<div class="badge-categories">${badgeGroups.map(({ category, items }) => `<section class="badge-category">
                 <header class="badge-category-head"><h3>${esc(category)}</h3><span>${category === 'Títulos' ? `${items[0]?.value || 0} títulos · ` : ''}${items.filter((badge) => badge.earned).length}/${items.length} insignias</span></header>
                 <div class="badge-grid">${items.map((badge) => `<div class="badge-item${badge.earned ? ' is-earned' : ' is-locked'} badge-tone-${badge.tone}">
-                  <span class="badge-item-icon">${H.badgeIcon(badge)}</span>
+                  <span class="badge-item-medal"><span class="badge-item-icon">${H.badgeIcon(badge)}</span><span class="badge-item-season">${badge.firstSeason ? `T ${esc(String(badge.firstSeason))}` : '—'}</span></span>
                   <span class="badge-item-info"><strong>${esc(badge.name)}</strong><span class="badge-item-description">${esc(badge.description || '')}</span><span class="badge-item-progress">${esc(badge.progress)}</span></span>
                   ${badge.earned ? '<span class="badge-item-check" aria-label="Obtenida">✓</span>' : ''}
                 </div>`).join('')}</div>
