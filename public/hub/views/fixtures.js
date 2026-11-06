@@ -117,8 +117,23 @@
         const block = input.closest('.fx-round')
         if (block) refreshBlock(block)
       })
+      // Re-rendering on `change` replaced the score input the user had just tapped (change fires on
+      // blur, i.e. while focus is moving to the next input), which dismissed/reopened the mobile
+      // keyboard and flashed the screen. Only re-render once focus has really left the score inputs.
+      let settleTimer = 0
+      const settle = () => {
+        clearTimeout(settleTimer)
+        settleTimer = setTimeout(() => {
+          const active = document.activeElement
+          if (active && el.contains(active) && active.matches('input, textarea, select')) return
+          H.render()
+        }, 150)
+      }
       el.addEventListener('change', (e) => {
-        if (e.target.closest('[data-match]')) H.render()
+        if (e.target.closest('[data-match]')) settle()
+      })
+      el.addEventListener('focusout', (e) => {
+        if (e.target.closest?.('[data-match]')) settle()
       })
     },
 

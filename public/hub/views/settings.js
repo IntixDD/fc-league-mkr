@@ -74,6 +74,7 @@
   }
 
   function updateMusicControls() {
+    updateCurrentTrack()
     const button = document.querySelector('[data-action="music-toggle"]')
     if (!button) return
     const active = (!!audio && !audio.paused) || waitingForNext
@@ -82,6 +83,18 @@
     button.setAttribute('aria-label', active ? 'Pausar música' : 'Reproducir música')
     button.disabled = !available
     document.querySelectorAll('.music-transport [data-action="music-next"], .music-transport [data-action="music-previous"]').forEach((control) => { control.disabled = !available })
+  }
+
+  function updateCurrentTrack(track = musicLibrary[currentTrack]) {
+    const display = document.getElementById('music-current-track')
+    if (!display) return
+    if (!track) {
+      display.innerHTML = '<span class="music-current-cover music-cover-placeholder" aria-hidden="true">♫</span><span class="music-current-meta"><strong>Sin canción seleccionada</strong><small>La biblioteca está vacía</small></span>'
+      return
+    }
+    const coverUrl = track.cover ? musicAssetUrl(track.cover) : ''
+    const status = waitingForNext ? 'Siguiente canción…' : audio?.src && !audio.paused ? 'Reproduciendo ahora' : audio?.src ? 'En pausa' : 'Lista para reproducir'
+    display.innerHTML = `${coverUrl ? `<img class="music-current-cover" src="${H.esc(coverUrl)}" alt="Portada de ${H.esc(track.title)}">` : '<span class="music-current-cover music-cover-placeholder" aria-hidden="true">♫</span>'}<span class="music-current-meta"><small>${status}</small><strong title="${H.esc(track.title)}">${H.esc(track.title)}</strong></span>`
   }
 
   function ensureAudio() {
@@ -111,6 +124,7 @@
     currentTrack = (index + musicLibrary.length) % musicLibrary.length
     musicPausedByUser = false
     const track = musicLibrary[currentTrack]
+    updateCurrentTrack(track)
     audio.src = track.src
     audio.currentTime = 0
     audio.play().then(() => {
@@ -149,6 +163,7 @@
           cover: item.cover || '',
         }
       }).filter(Boolean) : []
+    updateMusicControls()
     if (musicLibrary.length && P.get().musicAutoplay !== false) {
       currentTrack = 0
       scheduleInitialMusic()
@@ -261,16 +276,22 @@
   ensureSfxContext()
   let lastSfxControl = null
   let lastSfxAt = 0
-  document.addEventListener('click', (event) => {
-    const target = event.target.closest('.nav-button, button, a[href], [role="button"], .file-btn, [data-action], [data-open-menu], .logo')
+  const SFX_CONTROL_SELECTOR = '.nav-button, button, a[href], [role="button"], .file-btn, [data-action], [data-open-menu], [data-toggle-card], .logo, summary'
+  function playControlSfx(event) {
+    const origin = event.target instanceof Element ? event.target : event.target?.parentElement
+    const target = origin?.closest(SFX_CONTROL_SELECTOR)
     if (!target) return
     const now = performance.now()
-    if (target === lastSfxControl && now - lastSfxAt < 120) return
+    if (target === lastSfxControl && now - lastSfxAt < 450) return
     lastSfxControl = target
     lastSfxAt = now
     if (target.closest('.nav-button')) playSfx('nav.wav')
     else playSfx()
-  })
+  }
+  document.addEventListener('pointerup', (event) => {
+    if (event.pointerType === 'touch') playControlSfx(event)
+  }, { capture: true, passive: true })
+  document.addEventListener('click', playControlSfx)
 
   const urlFor = (item) => {
     if (!urls.has(item.id)) urls.set(item.id, URL.createObjectURL(item.blob))
@@ -478,8 +499,7 @@
         ${card({
           title: 'Música y sonidos',
           sub: `${musicLibrary.length} canción(es) disponibles en la app`,
-          wide: true,
-          body: `<div class="audio-controls"><label class="field range-field"><span class="field-label">Volumen de la música <output>${Math.round((p.musicVolume ?? .15) * 100)}%</output></span><input type="range" name="music-volume" min="0" max="1" step="0.05" value="${p.musicVolume ?? .15}"></label><label class="field range-field"><span class="field-label">Volumen de los SFX <output>${Math.round((p.sfxVolume ?? 1) * 100)}%</output></span><input type="range" name="sfx-volume" min="0" max="1" step="0.05" value="${p.sfxVolume ?? 1}"></label></div><label class="check music-autoplay-setting"><input type="checkbox" name="music-autoplay" ${p.musicAutoplay !== false ? 'checked' : ''}> Reproducir música al iniciar la app</label><div class="music-transport" role="group" aria-label="Controles de música"><button class="btn btn--ghost" type="button" data-action="music-previous" aria-label="Canción anterior">${MUSIC_ICONS.previous}<span>Anterior</span></button><button class="btn btn--primary music-toggle" type="button" data-action="music-toggle" aria-label="Pausar música">${MUSIC_ICONS.pause}<span>Pausar</span></button><button class="btn btn--ghost" type="button" data-action="music-next" aria-label="Siguiente canción">${MUSIC_ICONS.next}<span>Siguiente</span></button></div>`,
+          body: `<div class="music-current-track" id="music-current-track" aria-live="polite"></div><div class="audio-controls"><label class="field range-field"><span class="field-label">Música <output>${Math.round((p.musicVolume ?? .15) * 100)}%</output></span><input type="range" name="music-volume" min="0" max="1" step="0.05" value="${p.musicVolume ?? .15}"></label><label class="field range-field"><span class="field-label">SFX <output>${Math.round((p.sfxVolume ?? 1) * 100)}%</output></span><input type="range" name="sfx-volume" min="0" max="1" step="0.05" value="${p.sfxVolume ?? 1}"></label></div><label class="check music-autoplay-setting"><input type="checkbox" name="music-autoplay" ${p.musicAutoplay !== false ? 'checked' : ''}> Reproducir música al iniciar la app</label><div class="music-transport" role="group" aria-label="Controles de música"><button class="btn btn--ghost" type="button" data-action="music-previous" aria-label="Canción anterior">${MUSIC_ICONS.previous}<span>Anterior</span></button><button class="btn btn--primary music-toggle" type="button" data-action="music-toggle" aria-label="Pausar música">${MUSIC_ICONS.pause}<span>Pausar</span></button><button class="btn btn--ghost" type="button" data-action="music-next" aria-label="Siguiente canción">${MUSIC_ICONS.next}<span>Siguiente</span></button></div>`,
         })}
 
         ${card({
