@@ -4,7 +4,6 @@
   const timers = { summary: 0, records: 0 }
   const resumeTimers = { summary: 0, records: 0 }
   const brandImageCache = new Map()
-  const POINTS_BADGE_ICON = '<svg class="stat-icon badge-icon-svg" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 30.38 12 43l12-6 12 6-3-12.62"/><circle cx="24" cy="19" r="14"/><path d="m24 11 2.4 5 5.6.8-4 3.9.9 5.6-4.9-2.7-4.9 2.7.9-5.6-4-3.9 5.6-.8z"/></svg>'
   let restartVisibleTimers = () => {}
   let heroLogoTimer = 0
   let heroLogoIndex = 0
@@ -103,7 +102,7 @@
   })
 
   const lastLogo = (record) => record.seasons.at(-1)?.logo || record.logos.at(-1) || ''
-  const rankSlide = (title, icon, records, value) => `<article class="menu-slide"><h3 class="menu-slide-title">${icon === 'points25' ? POINTS_BADGE_ICON : H.ICONS[icon]}<span>${title}</span></h3>${records.length ? `<ol>${records.map((record) => `<li>${crest(lastLogo(record), 'xs', record.name)}<span>${esc(record.name)}</span><strong>${value(record)}</strong></li>`).join('')}</ol>` : '<p class="empty">Aún no hay datos.</p>'}</article>`
+  const rankSlide = (title, icon, records, value) => `<article class="menu-slide"><h3 class="menu-slide-title">${H.ICONS[icon]}<span>${title}</span></h3>${records.length ? `<ol>${records.map((record) => `<li>${crest(lastLogo(record), 'xs', record.name)}<span>${esc(record.name)}</span><strong>${value(record)}</strong></li>`).join('')}</ol>` : '<p class="empty">Aún no hay datos.</p>'}</article>`
 
   function sharpenBrandImage(el, source) {
     if (!source || source.startsWith('data:image/svg+xml') || /\.svg(?:[?#]|$)/i.test(source)) return
@@ -219,7 +218,6 @@
     const topAchievements = [...records].sort((a, b) => b.total.achievements - a.total.achievements).slice(0, 5)
     const topBadges = [...records].map((record) => ({ ...record, badgeTotal: H.badgeCount?.(record) || 0 })).sort((a, b) => b.badgeTotal - a.badgeTotal).slice(0, 5)
     const topScorers = [...records].sort((a, b) => b.total.goals - a.total.goals).slice(0, 5)
-    const topPoints = [...records].sort((a, b) => b.total.points - a.total.points).slice(0, 5)
     const finalSlides = [
       `<article class="menu-slide"><h3>Tabla · Temporada ${season.number}</h3>${parts?.table || `<ol>${H.computeTable(season).slice(0, 5).map((row) => `<li>${crest(row.team.logo, 'xs', row.team.name)}<span>${esc(row.team.name)}</span><strong>${row.pts} pts</strong></li>`).join('')}</ol>`}</article>`,
       `<article class="menu-slide"><h3>Fixtures · Temporada ${season.number}</h3>${parts?.fixtures || '<p class="empty">No hay Fixtures guardados.</p>'}</article>`,
@@ -231,7 +229,6 @@
       rankSlide('Top 5 · Logros', 'star', topAchievements, (record) => record.total.achievements),
       rankSlide('Top 5 · Insignias', 'medal1', topBadges, (record) => record.badgeTotal),
       rankSlide('Top 5 · Goleadores', 'ball', topScorers, (record) => record.total.goals),
-      rankSlide('Top 5 · Puntos', 'points25', topPoints, (record) => `${record.total.points} pts`),
     ]
     el.innerHTML = `<div class="menu-stage">${heroMarkup(state, season, stats)}${metricsMarkup(state, records)}<div class="panel-grid menu-layout"><article class="card menu-feature-card menu-feature-card--season"><header class="card-head"><div><span class="menu-section-kicker">ARCHIVO DE CAMPAÑA</span><h2 class="card-title">Última temporada</h2><p class="card-sub">Temporada ${season.number} · ${season.teams.length} equipos</p></div><div class="menu-dots" data-dots="summary" role="group" aria-label="Apartados de Última temporada"></div></header><div class="menu-carousel" data-carousel="summary">${finalSlides.join('')}</div></article><div class="menu-side-stack"><article class="card menu-feature-card menu-feature-card--records"><header class="card-head"><div><span class="menu-section-kicker">HALL OF FAME</span><h2 class="card-title">Récords de la liga</h2></div><div class="menu-dots" data-dots="records" role="group" aria-label="Récords de la liga"></div></header><div class="menu-carousel" data-carousel="records">${recordSlides.join('')}</div></article>${quickDeck()}</div></div></div>`
     sharpenBrandImage(el, state.brandLogo)

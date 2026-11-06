@@ -4,7 +4,6 @@
   const sections = Array.from(document.querySelectorAll('.section'))
   const indicator = document.querySelector('.nav-indicator')
   const list = document.querySelector('.nav-list')
-  const menuNav = document.querySelector('[data-menu-nav]')
   const ids = buttons.map((b) => b.dataset.section)
   let current = null
 
@@ -100,26 +99,14 @@
   function moveIndicator(button) {
     indicator.style.width = `${button.offsetWidth}px`
     indicator.style.height = `${button.offsetHeight}px`
-    indicator.style.transform = `translate3d(${button.offsetLeft}px, ${button.offsetTop}px, 0)`
+    indicator.style.transform = `translate(${button.offsetLeft}px, ${button.offsetTop}px)`
     indicator.style.opacity = '1'
-  }
-
-  function navigateFromButton(button, event) {
-    spawnRipple(button, event)
-    const id = button.dataset.section
-    if (location.hash !== `#${id}`) history.pushState(null, '', `#${id}`)
-    activate(id)
   }
 
   function replay(el, className) {
     el.classList.remove(className)
     void el.offsetWidth
     el.classList.add(className)
-  }
-
-  function activeNavButton() {
-    if (ids.includes(current)) return buttons[ids.indexOf(current)]
-    return current === 'menu' && menuNav?.getClientRects().length ? menuNav : null
   }
 
   function activate(id, { animate = true } = {}) {
@@ -129,14 +116,9 @@
     current = id
 
     const button = ids.includes(id) ? buttons[ids.indexOf(id)] : null
-    buttons.forEach((b) => {
-      if (b === button) b.setAttribute('aria-current', 'page')
-      else b.removeAttribute('aria-current')
-    })
-    if (menuNav) {
-      if (id === 'menu') menuNav.setAttribute('aria-current', 'page')
-      else menuNav.removeAttribute('aria-current')
-    }
+    buttons.forEach((b) => b.toggleAttribute('aria-current', b === button))
+    if (button) button.setAttribute('aria-current', 'page')
+    document.querySelector('[data-menu-nav]')?.toggleAttribute('aria-current', id === 'menu')
 
     sections.forEach((section) => {
       const active = section.id === id
@@ -152,20 +134,13 @@
     document.dispatchEvent(new CustomEvent('app:sectionchange', { detail: { id } }))
     window.Hub?.render?.()
 
-    const navButton = activeNavButton()
-    if (navButton) {
-      moveIndicator(navButton)
-      const nav = navButton.closest('.nav')
-      const navRect = nav.getBoundingClientRect()
-      const buttonRect = navButton.getBoundingClientRect()
-      const behavior = animate ? 'smooth' : 'auto'
-      if (buttonRect.left < navRect.left) nav.scrollBy({ left: buttonRect.left - navRect.left - 8, behavior })
-      else if (buttonRect.right > navRect.right) nav.scrollBy({ left: buttonRect.right - navRect.right + 8, behavior })
-      if (buttonRect.top < navRect.top) nav.scrollBy({ top: buttonRect.top - navRect.top - 8, behavior })
-      else if (buttonRect.bottom > navRect.bottom) nav.scrollBy({ top: buttonRect.bottom - navRect.bottom + 8, behavior })
+    if (button) {
+      moveIndicator(button)
+      button.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: animate ? 'smooth' : 'auto' })
     } else indicator.style.opacity = '0'
-    if (animate && navButton) {
-      replay(navButton, 'is-popping')
+    if (animate && button) {
+      replay(indicator, 'is-moving')
+      replay(button, 'is-popping')
     }
 
     document.title = `${button?.getAttribute('aria-label') || 'Menú'} · League Hub`
@@ -184,26 +159,12 @@
   }
 
   buttons.forEach((button, index) => {
-    let touchStart = null
-    let suppressTouchClickUntil = 0
-    button.addEventListener('pointerdown', (event) => {
-      if (event.pointerType !== 'touch') return
-      touchStart = { x: event.clientX, y: event.clientY, id: event.pointerId }
-    }, { passive: true })
-    button.addEventListener('pointercancel', () => { touchStart = null })
-    button.addEventListener('pointerup', (event) => {
-      if (event.pointerType !== 'touch' || !touchStart || touchStart.id !== event.pointerId) return
-      const moved = Math.hypot(event.clientX - touchStart.x, event.clientY - touchStart.y)
-      touchStart = null
-      if (moved > 12 || !button.contains(event.target)) return
-      event.preventDefault()
-      suppressTouchClickUntil = Date.now() + 700
-      navigateFromButton(button, event)
-    })
     button.addEventListener('click', (event) => {
       event.preventDefault()
-      if (event.detail > 0 && Date.now() < suppressTouchClickUntil) return
-      navigateFromButton(button, event)
+      spawnRipple(button, event)
+      const id = button.dataset.section
+      if (location.hash !== `#${id}`) history.pushState(null, '', `#${id}`)
+      activate(id)
     })
 
     button.addEventListener('keydown', (event) => {
@@ -288,9 +249,8 @@
   window.addEventListener('hashchange', () => activate(location.hash.slice(1)))
 
   new ResizeObserver(() => {
-    const button = activeNavButton()
+    const button = buttons[ids.indexOf(current)]
     if (button) moveIndicator(button)
-    else indicator.style.opacity = '0'
   }).observe(list)
 
   if (location.hash !== '#menu') {

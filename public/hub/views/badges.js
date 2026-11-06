@@ -60,16 +60,15 @@
     const threeTournamentStreak = [...tournamentWins].some((season) =>
       Number.isFinite(season) && tournamentWins.has(season + 1) && tournamentWins.has(season + 2),
     )
-    const leagueSeriesEligible = record.seasons.filter((season) => season.tableConfig?.type !== 'groups')
-    const leagueSeriesWins = new Set(leagueSeriesEligible.filter((season) => season.leagueChampion || season.seriesChampion).map((season) => Number(season.number)))
+    const leagueSeriesWins = new Set(record.seasons.filter((season) => season.leagueChampion || season.seriesChampion).map((season) => Number(season.number)))
     const fourLeagueSeriesStreak = [...leagueSeriesWins].some((season) =>
       Number.isFinite(season) && leagueSeriesWins.has(season + 1) && leagueSeriesWins.has(season + 2) && leagueSeriesWins.has(season + 3),
     )
-    const leagueRunnerUps = new Set(leagueSeriesEligible.filter((season) => season.leaguePosition === 2).map((season) => Number(season.number)))
+    const leagueRunnerUps = new Set(record.seasons.filter((season) => season.leaguePosition === 2).map((season) => Number(season.number)))
     const threeLeagueRunnerUpStreak = [...leagueRunnerUps].some((season) =>
       Number.isFinite(season) && leagueRunnerUps.has(season + 1) && leagueRunnerUps.has(season + 2),
     )
-    const aguerooooo = leagueSeriesEligible.some((season) => season.wonTitleOnGoalDifference)
+    const aguerooooo = record.seasons.some((season) => season.wonTitleOnGoalDifference)
     const campeonIncomprendido = record.seasons.some((season) => season.wonTitleWithNonPositiveGoalDifference)
     const repescaAnarquica = record.seasons.some((season) => season.repechageSevenGoals)
     const cineAbsoluto = record.seasons.some((season) => season.cupChampion && season.tournamentQualifiedByRepechage)

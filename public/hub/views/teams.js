@@ -314,8 +314,8 @@
         addTeam()
       })
       el.addEventListener('change', (e) => {
-        if (e.target.matches('[data-selected-logo-category]')) {
-          const id = e.target.dataset.selectedLogoCategory
+        if (e.target.matches('[data-logo-category]')) {
+          const id = e.target.dataset.logoCategory
           const category = e.target.value
           H.update((state) => { const logo = state.logos.find((item) => String(item.id) === id); if (logo) logo.category = category })
           return
@@ -330,14 +330,6 @@
         if (action === 'select-logo') {
           H.ui.selectedLogo = String(H.ui.selectedLogo) === id ? null : id
           H.render()
-        } else if (action === 'change-selected-category') {
-          const picker = btn.parentElement.querySelector('[data-selected-logo-category]')
-          if (picker) {
-            btn.hidden = true
-            picker.hidden = false
-            picker.focus()
-            picker.showPicker?.()
-          }
         } else if (action === 'pick-logo') {
           const logo = await pickLogo()
           if (logo) {
@@ -477,7 +469,6 @@
                 ? `<div class="row-actions row-actions--tight">
                     <button class="btn btn--ghost btn--sm" data-action="export-json-logos">Descargar JSON</button>
                     ${s.logos.length ? '<button class="btn btn--ghost btn--sm" data-action="clear-logos">Vaciar</button>' : ''}
-                    ${selected ? `<span class="gallery-category-action"><button class="btn btn--ghost btn--sm" data-action="change-selected-category">Cambiar categoría</button><select class="input gallery-category-picker" data-selected-logo-category="${esc(selected.id)}" aria-label="Nueva categoría para el escudo seleccionado" hidden>${Object.entries(categoryName).map(([value, label]) => `<option value="${value}" ${(selected.category || 'custom') === value ? 'selected' : ''}>${label}</option>`).join('')}</select></span>` : ''}
                   </div>`
                 : ''
             }
@@ -494,6 +485,7 @@
               ? `<div class="logo-category-groups">${['custom', 'selections', 'premier', 'laliga', 'other'].map((category) => { const logos = s.logos.filter((logo) => (logo.category || 'custom') === category); return logos.length ? `<section class="logo-category"><h3>${categoryName[category]}</h3><div class="logo-grid">${logos.map((l) => `
                 <div class="logo-tile-wrap">
                   <button class="logo-tile${String(l.id) === String(H.ui.selectedLogo) ? ' is-selected' : ''}" data-action="select-logo" data-id="${esc(l.id)}" aria-pressed="${String(l.id) === String(H.ui.selectedLogo)}" aria-label="Seleccionar escudo"><img src="${esc(l.data)}" alt="" loading="lazy"></button>
+                  <select class="input logo-category-select" data-logo-category="${esc(l.id)}" aria-label="Categoría de escudo">${Object.entries(categoryName).map(([value, label]) => `<option value="${value}" ${(l.category || 'custom') === value ? 'selected' : ''}>${label}</option>`).join('')}</select>
                   <button class="logo-remove" data-action="delete-logo" data-id="${esc(l.id)}" aria-label="Quitar escudo de la galería">&times;</button>
                 </div>`).join('')}</div></section>` : '' }).join('')}</div>`
               : '<p class="empty">Aún no hay escudos. Importa PNG, JPG, SVG o WEBP, un JSON de escudos o arrastra un ZIP antiguo.</p>'

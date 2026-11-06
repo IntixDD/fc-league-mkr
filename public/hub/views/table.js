@@ -62,12 +62,6 @@
   H.view('table', {
     bind(el) {
       el.addEventListener('click', async (e) => {
-        const toggleCard = e.target.closest('[data-toggle-card]')
-        if (toggleCard && !e.target.closest('input, label')) {
-          const checkbox = toggleCard.querySelector('input[type="checkbox"]:not(:disabled)')
-          checkbox?.click()
-          return
-        }
         const btn = e.target.closest('[data-action]')
         if (!btn) return
         if (btn.dataset.action === 'toggle-edit') {
@@ -281,8 +275,7 @@
       const tableSetup = `<article class="card card--wide table-setup-card" data-export-hide>
         <header class="card-head"><h2 class="card-title">Crear tabla</h2></header>
         <div class="row-actions table-options"><label class="field"><span class="field-label">Modo de temporada</span><select class="input" name="season-mode">${modes.map(([value, label]) => `<option value="${value}" ${(season.seasonMode || 'clubs') === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="field"><span class="field-label">Formato</span><select class="input table-format" id="table-format" name="table-format"><option value="regular" ${!twoSeries ? 'selected' : ''}>Tabla regular</option><option value="two-series" ${season.tableConfig?.type === 'two-series' ? 'selected' : ''}>2 Series</option><option value="groups" ${groupStage ? 'selected' : ''}>Fase de grupos</option></select></label><label class="field${groupStage ? '' : ' groups-count-field'}"><span class="field-label">Cantidad de grupos</span><select class="input" name="group-count"><option value="4" ${(season.tableConfig?.count || 4) === 4 ? 'selected' : ''}>4 grupos</option><option value="8" ${season.tableConfig?.count === 8 ? 'selected' : ''}>8 grupos</option></select></label><button class="btn btn--primary" data-action="create-table" ${(!groupStage && !twoSeries) ? 'disabled' : ''}>${groupStage ? `${season.tableConfig.count} grupos activos` : twoSeries ? 'Tabla de 2 series activa' : 'Tabla regular activa'}</button></div>
-        <div class="table-repechage-setting table-toggle-card" data-toggle-card="table-repechage"><label class="series-choice"><input type="checkbox" name="table-repechage" ${repechageEnabled ? 'checked' : ''} ${!repechageEligible || season.playoffs ? 'disabled' : ''}> <span>Repechajes</span></label><p class="hint">${repechageHelp}</p></div>
-        ${manual ? `<div class="table-finalized-setting table-toggle-card" data-toggle-card="manual-finished"><label class="series-choice"><input type="checkbox" name="manual-finished" ${season.manual?.finished ? 'checked' : ''}> <span>Liga finalizada</span></label><p class="hint">El primer lugar será el campeón de liga.</p></div>` : ''}
+        <div class="table-repechage-setting"><label class="series-choice"><input type="checkbox" name="table-repechage" ${repechageEnabled ? 'checked' : ''} ${!repechageEligible || season.playoffs ? 'disabled' : ''}> <span>Usar repechajes en Tournament</span></label><p class="hint">${repechageHelp}</p></div>
         ${twoSeries && !groupStage ? `<p class="hint">Asigna cada equipo a una serie. Los partidos de liga se jugarán solo entre equipos de la misma serie.</p><div class="team-series-list">${season.teams.map((t) => `<div class="team-series-row"><span class="club-cell">${crest(t.logo, 'xs', t.name)}<span>${esc(t.name)}</span></span><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="1" ${season.tableConfig.series1.includes(t.id) ? 'checked' : ''}> Serie 1</label><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="2" ${season.tableConfig.series2.includes(t.id) ? 'checked' : ''}> Serie 2</label></div>`).join('')}</div><div class="row-actions"><button class="btn btn--ghost" data-action="random-series">Randomizar equipos</button><button class="btn btn--primary" data-action="save-series">Guardar series</button></div><p class="hint">Las series pueden tener tamaños distintos.${seriesReady ? '' : ' Asigna al menos 2 equipos a cada serie y guarda antes de generar el calendario.'}</p>` : ''}
         ${groupStage ? `<p class="hint">Asigna cada equipo a un grupo. Los dos primeros de cada grupo clasifican a Tournament.</p><div class="team-series-list group-assignment-list">${season.teams.map((team) => { const selectedGroup = competitionGroups.findIndex((group) => group.includes(team.id)); return `<div class="team-series-row"><span class="club-cell">${crest(team.logo, 'xs', team.name)}<span>${esc(team.name)}</span></span><label class="field field--inline"><span class="field-label">Grupo</span><select class="input" data-team-group data-team="${esc(team.id)}">${competitionGroups.map((_, index) => `<option value="${index}" ${index === selectedGroup ? 'selected' : ''}>Grupo ${String.fromCharCode(65 + index)}</option>`).join('')}</select></label></div>` }).join('')}</div><div class="row-actions"><button class="btn btn--primary" data-action="save-groups">Guardar grupos</button></div>` : ''}
       </article>`
@@ -315,6 +308,10 @@
             manual
               ? `<div class="manual-bar" data-export-hide>
                   <p class="hint">No generaste un calendario: puedes cargar los datos de cada equipo a mano. Los puntos se calculan solos (3 por victoria, 1 por empate) salvo que escribas otro valor.</p>
+                  <label class="check check--inline">
+                    <input type="checkbox" name="manual-finished" ${season.manual?.finished ? 'checked' : ''}>
+                    Liga finalizada (el 1.º es campeón)
+                  </label>
                 </div>`
               : ''
           }

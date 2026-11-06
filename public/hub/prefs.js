@@ -34,93 +34,48 @@
 
   let prefs = read()
   const root = document.documentElement
-  function viewportSize() {
-    const immersive = standalone || !!document.fullscreenElement || window.matchMedia('(display-mode: fullscreen)').matches
-    let width = (immersive && screen.width) || window.innerWidth
-    let height = (immersive && screen.height) || window.innerHeight
-    const orientationType = screen.orientation?.type
-    if (orientationType?.startsWith('landscape') && height > width) [width, height] = [height, width]
-    else if (orientationType?.startsWith('portrait') && width > height) [width, height] = [height, width]
-    return {
-      width,
-      height,
-    }
-  }
-  let stableViewport = viewportSize()
-  let keyboardAppHeight = null
-  let editorPointerUntil = 0
-  let resizeTimer = null
   let landscapeLockRequested = false
-  let landscapeLockDenied = false
 
-  // Keep the installed PWA's layout viewport steady while the mobile keyboard overlays it.
-  try {
-    if (navigator.virtualKeyboard) navigator.virtualKeyboard.overlaysContent = true
-  } catch {}
-
-  function editorHasFocus() {
-    return document.activeElement?.matches('input, textarea, select, [contenteditable="true"]') || false
-  }
-
-  function syncLandscapeLock(enabled) {
-    const orientation = screen.orientation
-    if (enabled && orientation?.lock) {
-      if (landscapeLockRequested || landscapeLockDenied) return
-      landscapeLockRequested = true
-      orientation.lock('landscape').then(() => {
-        if (prefs.scale !== -1) orientation.unlock?.()
-      }).catch(() => {
-        landscapeLockRequested = false
-        landscapeLockDenied = true
-      })
-      return
-    }
-    if (!enabled) {
-      landscapeLockDenied = false
-      if (landscapeLockRequested) orientation?.unlock?.()
-      landscapeLockRequested = false
-    }
-  }
-
-  function viewportShrunkBelowBaseline() {
-    const viewport = viewportSize()
-    return stableViewport.height - viewport.height > 30 || stableViewport.width - viewport.width > 30
-  }
-
-  function applyScale({ force = false } = {}) {
-    if (editorHasFocus() || (!force && viewportShrunkBelowBaseline())) return
-    const viewport = viewportSize()
-    stableViewport = viewport
+  function syncLandscapeLock(desktop) {
     const mobile = matchMedia('(pointer: coarse)').matches
-    const landscapeMode = prefs.scale === -1 && mobile
-    syncLandscapeLock(landscapeMode)
-    const orientationType = screen.orientation?.type
-    const portrait = orientationType ? orientationType.startsWith('portrait') : viewport.height > viewport.width
-    const forceLandscape = landscapeMode && portrait
-    const appWidth = forceLandscape ? viewport.height : viewport.width
+    const orientation = screen.orientation
+    if (desktop && mobile) {
+      if (!landscapeLockRequested && orientation?.lock) {
+        landscapeLockRequested = true
+        orientation.lock('landscape').catch(() => { landscapeLockRequested = false })
+      }
+    } else if (landscapeLockRequested) {
+      landscapeLockRequested = false
+      orientation?.unlock?.()
+    }
+  }
+
+  function applyScale() {
+    const mobile = matchMedia('(pointer: coarse)').matches
+    const forceLandscape = prefs.scale === -1 && mobile && matchMedia('(orientation: portrait)').matches
+    const appWidth = forceLandscape ? window.innerHeight : window.innerWidth
     const desktop = prefs.scale === -1 && appWidth < DESKTOP_WIDTH
     root.classList.toggle('ui-desktop', desktop)
     root.classList.toggle('ui-scale-minus-one', prefs.scale === -1)
     root.classList.toggle('force-landscape', forceLandscape)
+    syncLandscapeLock(prefs.scale === -1)
     if (desktop) {
       const z = appWidth / DESKTOP_WIDTH
       root.style.zoom = String(z)
-      root.style.setProperty('--app-h', `${(forceLandscape ? viewport.width : viewport.height) / z}px`)
+      root.style.setProperty('--app-h', `${(forceLandscape ? window.innerWidth : window.innerHeight) / z}px`)
       if (forceLandscape) {
-        root.style.setProperty('--force-landscape-width', `${viewport.height / z}px`)
-        root.style.setProperty('--force-landscape-height', `${viewport.width / z}px`)
-        root.style.setProperty('--force-landscape-left', `${viewport.width / z}px`)
+        root.style.setProperty('--force-landscape-width', `${window.innerHeight / z}px`)
+        root.style.setProperty('--force-landscape-height', `${window.innerWidth / z}px`)
+        root.style.setProperty('--force-landscape-left', `${window.innerWidth / z}px`)
       }
     } else {
       root.style.zoom = ''
+      root.style.removeProperty('--app-h')
       if (forceLandscape) {
-        // The transformed body is laid out in landscape coordinates even when the
-        // physical viewport is portrait, so its content height must use portrait width.
-        root.style.setProperty('--app-h', `${viewport.width}px`)
-        root.style.setProperty('--force-landscape-width', `${viewport.height}px`)
-        root.style.setProperty('--force-landscape-height', `${viewport.width}px`)
-        root.style.setProperty('--force-landscape-left', `${viewport.width}px`)
-      } else root.style.removeProperty('--app-h')
+        root.style.setProperty('--force-landscape-width', `${window.innerHeight}px`)
+        root.style.setProperty('--force-landscape-height', `${window.innerWidth}px`)
+        root.style.setProperty('--force-landscape-left', `${window.innerWidth}px`)
+      }
     }
     if (!forceLandscape) {
       root.style.removeProperty('--force-landscape-width')
@@ -148,46 +103,11 @@
     applyScale()
   }
 
-  document.addEventListener('pointerdown', (event) => {
-    if (event.target.closest?.('input, textarea, select, [contenteditable="true"]')) {
-      editorPointerUntil = performance.now() + 1200
-    }
-  }, { capture: true, passive: true })
-  window.addEventListener('resize', () => {
-    if (editorHasFocus() || performance.now() < editorPointerUntil) return
-    clearTimeout(resizeTimer)
-    resizeTimer = window.setTimeout(() => {
-      if (!editorHasFocus() && performance.now() >= editorPointerUntil) applyScale()
-    }, 180)
-  })
-  window.addEventListener('orientationchange', () => {
-    if (!editorHasFocus()) applyScale({ force: true })
-  })
-  document.addEventListener('fullscreenchange', () => {
-    landscapeLockDenied = false
-    if (!editorHasFocus()) applyScale({ force: true })
-  })
-  document.addEventListener('focusin', (event) => {
-    if (!event.target.matches?.('input, textarea, select, [contenteditable="true"]')) return
-    root.classList.add('keyboard-editing')
-    editorPointerUntil = performance.now() + 1200
-    if (keyboardAppHeight === null && !root.style.getPropertyValue('--app-h')) {
-      keyboardAppHeight = document.querySelector('.shell')?.getBoundingClientRect().height || window.innerHeight
-      root.style.setProperty('--app-h', `${keyboardAppHeight}px`)
-    }
-  })
-  document.addEventListener('focusout', (event) => {
-    if (!event.target.matches?.('input, textarea, select, [contenteditable="true"]')) return
-    window.setTimeout(() => {
-      if (editorHasFocus()) return
-      root.classList.remove('keyboard-editing')
-      if (keyboardAppHeight !== null) {
-        root.style.removeProperty('--app-h')
-        keyboardAppHeight = null
-      }
-      applyScale()
-    }, 250)
-  })
+  window.addEventListener('resize', applyScale)
+  window.addEventListener('orientationchange', applyScale)
+  document.addEventListener('pointerdown', () => {
+    if (prefs.scale === -1) syncLandscapeLock(true)
+  }, { passive: true })
 
   window.HubPrefs = {
     THEMES,
