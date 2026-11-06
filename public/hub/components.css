@@ -1640,6 +1640,8 @@ select.input option {
 .season-awards > summary::-webkit-details-marker { display: none; }
 .season-awards > summary:hover { background: rgb(var(--accent-rgb) / 0.09); color: #fff; }
 .season-awards > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.season-awards > summary { -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.season-awards > summary:focus:not(:focus-visible) { outline: none; box-shadow: none; }
 .season-awards[open] > summary { border-bottom: 1px solid var(--line); }
 
 .season-awards-heading {
@@ -1747,6 +1749,12 @@ select.input option {
 .season-standing-table { width: 100%; min-width: 680px; }
 .season-standing-table th, .season-standing-table td { padding: 8px 6px; }
 .season-standing-table .club { min-width: 150px; }
+.menu-layout .menu-feature-card--season .season-standing-table { min-width: 540px; table-layout: fixed; }
+.menu-layout .menu-feature-card--season .season-standing-table th,
+.menu-layout .menu-feature-card--season .season-standing-table td { padding-inline: 3px; font-size: 10px; }
+.menu-layout .menu-feature-card--season .season-standing-table .num { width: 34px; }
+.menu-layout .menu-feature-card--season .season-standing-table .club { width: 124px; min-width: 0; }
+.menu-layout .menu-feature-card--season .season-standing-table .pts { width: 56px; }
 .season-fixture-rounds { display: grid; gap: 10px; }
 .season-fixture-round { min-width: 0; padding: 10px; background: rgb(0 0 0 / 0.12); border: 1px solid rgb(255 255 255 / 0.065); border-radius: 10px; }
 .season-fixture-round > header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
@@ -1820,7 +1828,8 @@ select.input option {
 .menu-welcome { display: grid; justify-items: start; gap: 10px; padding: 22px; }
 .logo-category-groups { display: grid; gap: 18px; }
 .logo-category h3 { margin: 0 0 10px; color: var(--accent); font: 400 12px var(--font-display); letter-spacing: .07em; text-transform: uppercase; }
-.logo-category-select { width: 100%; margin-top: 5px; padding: 4px 5px; font-size: 9px; }
+.gallery-category-action { display: inline-flex; }
+.gallery-category-picker { min-width: 142px; min-height: 30px; padding: 4px 8px; font-size: 10px; }
 .logo-tile-wrap { min-width: 0; }
 .group-team-list { display: grid; align-content: start; gap: 5px; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 9px; }
 .group-team-list h3 { margin: 0 0 3px; color: var(--accent); font: 400 11px var(--font-display); }
@@ -1836,7 +1845,7 @@ select.input option {
 .music-current-cover { display: grid; place-items: center; width: 64px; height: 64px; flex: none; object-fit: cover; color: var(--accent); background: rgb(var(--accent-rgb) / .12); border: 1px solid var(--line); border-radius: 9px; }
 .music-current-meta { display: grid; gap: 5px; min-width: 0; }
 .music-current-meta small { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
-.music-current-meta strong { overflow: hidden; font-size: 12px; line-height: 1.4; text-overflow: ellipsis; }
+.music-current-meta strong { overflow: hidden; font-family: 'Arial Rounded MT Bold', 'Trebuchet MS', system-ui, sans-serif; font-size: 13px; font-weight: 900; letter-spacing: .01em; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
 .audio-controls { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; width: 100%; margin-bottom: 12px; }
 .music-transport { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; width: 100%; margin-top: 14px; }
 .music-transport .btn { min-width: 0; white-space: nowrap; }
@@ -1868,7 +1877,6 @@ select.input option {
   .menu-match-card { min-height: 135px; padding: 10px; }
   .menu-match-score { font-size: 23px; }
   .menu-match-names { gap: 4px; font-size: 9px; }
-  .logo-category-select { font-size: 8px; }
   .table-options { align-items: stretch; }
   .table-options .field { min-width: 0; width: 100%; }
   .group-assignment-list { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
@@ -2579,11 +2587,37 @@ select.input option {
 .compare-matches .feat-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); }
 .compare-card { margin-top: 20px; }
 .repechage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 12px; }
-.tournament-options { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: 16px 0; }
+.tournament-options { display: flex; flex-wrap: wrap; gap: 10px; margin: 14px 0; }
+.tournament-option-card { display: flex; align-items: center; min-height: 40px; width: fit-content; max-width: 100%; padding: 7px 11px; background: rgb(0 0 0 / .24); border: 1px solid var(--line-strong); border-radius: 10px; cursor: pointer; transition: background .16s ease, border-color .16s ease; }
+.tournament-option-card:hover,
+.table-toggle-card:hover { background: rgb(255 255 255 / .08); border-color: var(--accent-line); }
+.tournament-toggle-card,
+.table-toggle-card { -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+.tournament-toggle-card:focus-within,
+.table-toggle-card:focus-within { outline: none; box-shadow: none; }
+.tournament-toggle-card input:focus:not(:focus-visible),
+.table-toggle-card input:focus:not(:focus-visible) { outline: none; box-shadow: none; }
+.tournament-toggle-card input:focus-visible,
+.table-toggle-card input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (hover: none) {
+  .tournament-toggle-card:focus-within,
+  .table-toggle-card:focus-within,
+  .tournament-toggle-card input:focus,
+  .table-toggle-card input:focus { outline: none !important; box-shadow: none !important; }
+}
+.tournament-option-card .series-choice { width: 100%; gap: 8px; color: #fff; font-size: 12px; font-weight: 700; white-space: normal; cursor: pointer; }
+.tournament-option-card .series-choice input { width: 16px; height: 16px; flex: none; }
+.tournament-option-card .tournament-repechage-toggle .hint { margin: 0 0 0 4px; font-size: 10px; }
 .tournament-repechage-toggle { margin: 0; }
 .tournament-repechage-toggle .hint { margin: 0; }
-.table-repechage-setting { display: grid; justify-items: start; gap: 4px; margin-top: 12px; }
+.table-repechage-setting,
+.table-finalized-setting { display: grid; justify-items: start; gap: 4px; width: fit-content; max-width: 100%; margin-top: 10px; padding: 7px 11px; background: rgb(0 0 0 / .24); border: 1px solid var(--line-strong); border-radius: 10px; cursor: pointer; transition: background .16s ease, border-color .16s ease; }
+.table-repechage-setting .series-choice,
+.table-finalized-setting .series-choice { gap: 8px; color: #fff; font-size: 12px; font-weight: 700; white-space: normal; cursor: pointer; }
+.table-repechage-setting .series-choice input,
+.table-finalized-setting .series-choice input { width: 16px; height: 16px; flex: none; }
 .table-repechage-setting .hint { margin: 0; }
+.table-toggle-card .hint { font-size: 10px; }
 
 @media (max-width: 520px) {
   .compare-pickers { grid-template-columns: 1fr; }
@@ -2714,11 +2748,11 @@ select.input option {
 
 .dialog::backdrop {
   background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(4px);
 }
 
 .dialog[open] {
-  animation: dialog-in 0.22s var(--ease-pop);
+  animation: dialog-in 0.14s ease-out;
+  will-change: transform, opacity;
 }
 
 @keyframes dialog-in {
@@ -3849,9 +3883,6 @@ select.input option {
 .table-setup-card .team-series-row { grid-template-columns:minmax(0,1fr) auto auto; gap:8px; }
 .group-assignment-list .team-series-row { grid-template-columns:minmax(0,1fr) minmax(125px,170px); }
 .group-assignment-list .club-cell,.group-assignment-list .club-cell>span:last-child { min-width:0; overflow:hidden; text-overflow:ellipsis; }
-.logo-category-select { position:absolute; z-index:3; right:4px; bottom:4px; width:calc(100% - 8px); min-width:0; min-height:22px; margin:0; padding:2px 4px; overflow:hidden; color:#fff; background:rgb(8 7 10 / .9); border:1px solid var(--line); border-radius:6px; font-size:8px; opacity:0; transition:opacity .16s; }
-.logo-tile-wrap:hover .logo-category-select,.logo-tile-wrap:focus-within .logo-category-select { opacity:1; }
-@media(hover:none) { .logo-category-select { opacity:1; } }
 @media(max-width:900px) {
   .menu-layout { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
   .menu-side-stack { grid-template-rows:330px auto; }

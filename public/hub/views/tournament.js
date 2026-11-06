@@ -252,6 +252,12 @@
   H.view('tournament', {
     bind(el) {
       el.addEventListener('click', (e) => {
+        const toggleCard = e.target.closest('[data-toggle-card]')
+        if (toggleCard && !e.target.closest('input, label')) {
+          const checkbox = toggleCard.querySelector('input[type="checkbox"]:not(:disabled)')
+          checkbox?.click()
+          return
+        }
         const btn = e.target.closest('[data-action]')
         if (!btn) return
         const { action } = btn.dataset
@@ -337,8 +343,8 @@
             ).join('')}
           </div>
           <div class="tournament-options">
-            <label class="series-choice tournament-repechage-toggle"><input type="checkbox" name="repechage-enabled" ${repechageEnabled ? 'checked' : ''} ${canRepechage(H.ui.poSize) ? '' : 'disabled'}> <span>Repechajes</span> <span class="hint">(mínimo ${repechageMinimum(H.ui.poSize, grouped)})</span></label>
-            <label class="series-choice"><input type="checkbox" name="two-legged-enabled" ${twoLeggedDraft ? 'checked' : ''}> Ida y vuelta</label>
+            <div class="tournament-option-card tournament-toggle-card" data-toggle-card="repechage-enabled"><label class="series-choice tournament-repechage-toggle"><input type="checkbox" name="repechage-enabled" ${repechageEnabled ? 'checked' : ''} ${canRepechage(H.ui.poSize) ? '' : 'disabled'}> <span>Repechajes</span> <span class="hint">(mínimo ${repechageMinimum(H.ui.poSize, grouped)})</span></label></div>
+            <div class="tournament-option-card tournament-toggle-card" data-toggle-card="two-legged-enabled"><label class="series-choice"><input type="checkbox" name="two-legged-enabled" ${twoLeggedDraft ? 'checked' : ''}> <span>Ida y vuelta</span></label></div>
           </div>
           ${total && played < total ? `<p class="notice">La liga aún no termina (${played}/${total}). Los clasificados se toman de la tabla actual.</p>` : ''}
           <div class="row-actions">

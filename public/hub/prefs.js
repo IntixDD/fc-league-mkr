@@ -34,47 +34,89 @@
 
   let prefs = read()
   const root = document.documentElement
-  let landscapeLockRequested = false
-
-  function syncLandscapeLock(desktop) {
-    const mobile = matchMedia('(pointer: coarse)').matches
-    const orientation = screen.orientation
-    if (desktop && mobile) {
-      if (!landscapeLockRequested && orientation?.lock) {
-        landscapeLockRequested = true
-        orientation.lock('landscape').catch(() => { landscapeLockRequested = false })
-      }
-    } else if (landscapeLockRequested) {
-      landscapeLockRequested = false
-      orientation?.unlock?.()
+  function viewportSize() {
+    const immersive = standalone || !!document.fullscreenElement || window.matchMedia('(display-mode: fullscreen)').matches
+    return {
+      width: (immersive && screen.width) || window.innerWidth,
+      height: (immersive && screen.height) || window.innerHeight,
     }
   }
+  let stableViewport = viewportSize()
+  let keyboardAppHeight = null
+  let editorPointerUntil = 0
+  let resizeTimer = null
 
-  function applyScale() {
+  // Keep the installed PWA's layout viewport steady while the mobile keyboard overlays it.
+  try {
+    if (navigator.virtualKeyboard) navigator.virtualKeyboard.overlaysContent = true
+  } catch {}
+
+  function editorHasFocus() {
+    return document.activeElement?.matches('input, textarea, select, [contenteditable="true"]') || false
+  }
+
+  // While an editor is focused only the content scroller may move. Browsers scroll or pan the
+  // document/ancestors to reveal the caret when the keyboard opens; undo that so the app never shifts.
+  function pinRoot() {
+    if (window.scrollX || window.scrollY) window.scrollTo(0, 0)
+    ;[document.scrollingElement, document.documentElement, document.body, document.querySelector('.shell')].forEach((node) => {
+      if (node && (node.scrollTop || node.scrollLeft)) {
+        node.scrollTop = 0
+        node.scrollLeft = 0
+      }
+    })
+  }
+  let pinFrame = 0
+  function pinForAWhile(ms = 900) {
+    const until = performance.now() + ms
+    cancelAnimationFrame(pinFrame)
+    const tick = () => {
+      pinRoot()
+      pinFrame = performance.now() < until ? requestAnimationFrame(tick) : 0
+    }
+    tick()
+  }
+  document.addEventListener('scroll', (event) => {
+    if (!editorHasFocus()) return
+    const t = event.target
+    if (t === document || t === document.documentElement || t === document.body || t?.classList?.contains('shell')) pinRoot()
+  }, { capture: true, passive: true })
+  window.addEventListener('scroll', () => { if (editorHasFocus()) pinRoot() }, { passive: true })
+  window.visualViewport?.addEventListener('scroll', () => { if (editorHasFocus()) pinForAWhile(400) }, { passive: true })
+  window.visualViewport?.addEventListener('resize', () => { if (editorHasFocus()) pinForAWhile(600) }, { passive: true })
+
+  function viewportShrunkBelowBaseline() {
+    const viewport = viewportSize()
+    return stableViewport.height - viewport.height > 30 || stableViewport.width - viewport.width > 30
+  }
+
+  function applyScale({ force = false } = {}) {
+    if (editorHasFocus() || (!force && viewportShrunkBelowBaseline())) return
+    const viewport = viewportSize()
+    stableViewport = viewport
     const mobile = matchMedia('(pointer: coarse)').matches
     const forceLandscape = prefs.scale === -1 && mobile && matchMedia('(orientation: portrait)').matches
-    const appWidth = forceLandscape ? window.innerHeight : window.innerWidth
+    const appWidth = forceLandscape ? viewport.height : viewport.width
     const desktop = prefs.scale === -1 && appWidth < DESKTOP_WIDTH
     root.classList.toggle('ui-desktop', desktop)
     root.classList.toggle('ui-scale-minus-one', prefs.scale === -1)
     root.classList.toggle('force-landscape', forceLandscape)
-    syncLandscapeLock(prefs.scale === -1)
     if (desktop) {
       const z = appWidth / DESKTOP_WIDTH
       root.style.zoom = String(z)
-      root.style.setProperty('--app-h', `${(forceLandscape ? window.innerWidth : window.innerHeight) / z}px`)
+      root.style.setProperty('--app-h', `${(forceLandscape ? viewport.width : viewport.height) / z}px`)
       if (forceLandscape) {
-        root.style.setProperty('--force-landscape-width', `${window.innerHeight / z}px`)
-        root.style.setProperty('--force-landscape-height', `${window.innerWidth / z}px`)
-        root.style.setProperty('--force-landscape-left', `${window.innerWidth / z}px`)
+        root.style.setProperty('--force-landscape-width', `${viewport.height / z}px`)
+        root.style.setProperty('--force-landscape-height', `${viewport.width / z}px`)
+        root.style.setProperty('--force-landscape-left', `${viewport.width / z}px`)
       }
     } else {
       root.style.zoom = ''
       root.style.removeProperty('--app-h')
       if (forceLandscape) {
-        root.style.setProperty('--force-landscape-width', `${window.innerHeight}px`)
-        root.style.setProperty('--force-landscape-height', `${window.innerWidth}px`)
-        root.style.setProperty('--force-landscape-left', `${window.innerWidth}px`)
+        root.style.setProperty('--force-landscape-width', `${viewport.height}px`)
+        root.style.setProperty('--force-landscape-height', `${viewport.width}px`)
+        root.style.setProperty('--force-landscape-left', `${viewport.width}px`)
       }
     }
     if (!forceLandscape) {
@@ -103,11 +145,46 @@
     applyScale()
   }
 
-  window.addEventListener('resize', applyScale)
-  window.addEventListener('orientationchange', applyScale)
-  document.addEventListener('pointerdown', () => {
-    if (prefs.scale === -1) syncLandscapeLock(true)
-  }, { passive: true })
+  document.addEventListener('pointerdown', (event) => {
+    if (event.target.closest?.('input, textarea, select, [contenteditable="true"]')) {
+      editorPointerUntil = performance.now() + 1200
+    }
+  }, { capture: true, passive: true })
+  window.addEventListener('resize', () => {
+    if (editorHasFocus() || performance.now() < editorPointerUntil) return
+    clearTimeout(resizeTimer)
+    resizeTimer = window.setTimeout(() => {
+      if (!editorHasFocus() && performance.now() >= editorPointerUntil) applyScale()
+    }, 180)
+  })
+  window.addEventListener('orientationchange', () => {
+    if (!editorHasFocus()) applyScale({ force: true })
+  })
+  document.addEventListener('fullscreenchange', () => {
+    if (!editorHasFocus()) applyScale({ force: true })
+  })
+  document.addEventListener('focusin', (event) => {
+    if (!event.target.matches?.('input, textarea, select, [contenteditable="true"]')) return
+    root.classList.add('keyboard-editing')
+    editorPointerUntil = performance.now() + 1200
+    pinForAWhile()
+    if (keyboardAppHeight === null && !root.style.getPropertyValue('--app-h')) {
+      keyboardAppHeight = document.querySelector('.shell')?.getBoundingClientRect().height || window.innerHeight
+      root.style.setProperty('--app-h', `${keyboardAppHeight}px`)
+    }
+  })
+  document.addEventListener('focusout', (event) => {
+    if (!event.target.matches?.('input, textarea, select, [contenteditable="true"]')) return
+    window.setTimeout(() => {
+      if (editorHasFocus()) return
+      root.classList.remove('keyboard-editing')
+      if (keyboardAppHeight !== null) {
+        root.style.removeProperty('--app-h')
+        keyboardAppHeight = null
+      }
+      applyScale()
+    }, 250)
+  })
 
   window.HubPrefs = {
     THEMES,
