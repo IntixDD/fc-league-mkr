@@ -565,8 +565,14 @@ window.Hub = (() => {
     if (!exporterPromise) {
       exporterPromise = new Promise((resolve, reject) => {
         const s = document.createElement('script')
-        s.src = 'vendor/html-to-image.js'
-        s.onload = () => resolve(window.htmlToImage)
+        s.src = new URL('vendor/html-to-image.js', document.baseURI).href
+        s.onload = () => {
+          if (window.htmlToImage?.toBlob) resolve(window.htmlToImage)
+          else {
+            exporterPromise = null
+            reject(new Error('El exportador PNG no está disponible'))
+          }
+        }
         s.onerror = () => {
           exporterPromise = null
           reject(new Error('No se pudo cargar el exportador'))
@@ -577,6 +583,49 @@ window.Hub = (() => {
     return exporterPromise
   }
 
+  function prepareExportAssets(node) {
+    const images = [...node.querySelectorAll('img')]
+    const originals = images.map((img) => ({
+      img,
+      src: img.getAttribute('src'),
+      dataSrc: img.getAttribute('data-src'),
+      loading: img.getAttribute('loading'),
+    }))
+    images.forEach((img) => {
+      if (img.dataset.src) {
+        img.src = img.dataset.src
+        delete img.dataset.src
+      }
+      img.loading = 'eager'
+    })
+    const ready = Promise.all(images.map((img) => new Promise((resolve) => {
+      if (img.complete) {
+        if (typeof img.decode === 'function') img.decode().catch(() => {}).then(resolve)
+        else resolve()
+        return
+      }
+      let timer = 0
+      const done = () => {
+        clearTimeout(timer)
+        img.removeEventListener('load', done)
+        img.removeEventListener('error', done)
+        resolve()
+      }
+      img.addEventListener('load', done, { once: true })
+      img.addEventListener('error', done, { once: true })
+      timer = setTimeout(done, 5000)
+    })))
+    const restore = () => originals.forEach(({ img, src, dataSrc, loading }) => {
+      if (src == null) img.removeAttribute('src')
+      else img.setAttribute('src', src)
+      if (dataSrc == null) img.removeAttribute('data-src')
+      else img.setAttribute('data-src', dataSrc)
+      if (loading == null) img.removeAttribute('loading')
+      else img.setAttribute('loading', loading)
+    })
+    return { ready, restore }
+  }
+
   async function exportPng(node, filename) {
     const lib = await loadExporter()
     // Widen the node so horizontally scrolled tables/brackets are captured entirely.
@@ -585,26 +634,34 @@ window.Hub = (() => {
     const prevWidth = node.style.width
     node.classList.add('is-exporting')
     node.style.width = `${node.offsetWidth + extra}px`
+    let restoreAssets = () => {}
     try {
       if (document.fonts) await document.fonts.ready
+      const assets = prepareExportAssets(node)
+      restoreAssets = assets.restore
+      await assets.ready
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
       const width = node.scrollWidth
       const height = node.scrollHeight
-      const pixelRatio = Math.max(1, Math.min(2, 16000 / Math.max(width, height)))
-      const url = await lib.toPng(node, {
+      const pixelRatio = Math.max(0.5, Math.min(2, 14000 / Math.max(width, height), Math.sqrt(28000000 / (width * height))))
+      const options = {
         width,
         height,
         pixelRatio,
         backgroundColor: '#0d0612',
         style: { margin: '0', transform: 'none' },
         filter: (n) => !(n.dataset && 'exportHide' in n.dataset),
-      })
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
+      }
+      let blob
+      try {
+        blob = await lib.toBlob(node, options)
+      } catch {
+        blob = await lib.toBlob(node, { ...options, pixelRatio: Math.max(0.5, pixelRatio * 0.65), skipFonts: true })
+      }
+      if (!blob?.size) throw new Error('No se pudo generar la imagen PNG')
+      downloadBlob(filename, blob)
     } finally {
+      restoreAssets()
       node.classList.remove('is-exporting')
       node.style.width = prevWidth
     }
@@ -676,6 +733,7 @@ window.Hub = (() => {
     third: { icon: 'medal3', cls: 'tone tone-bronze' },
     fourth: { icon: 'medal4', cls: 'tone tone-slate' },
     leagueGoals: { icon: 'ball', cls: 'tone tone-lime' },
+    leagueConceded: { icon: 'conceded', cls: 'tone tone-rose' },
     cupGoals: { icon: 'ball', cls: 'tone tone-blue' },
     goals: { icon: 'ball', cls: 'tone tone-cyan' },
     points: { icon: 'star', cls: 'tone tone-accent' },
@@ -1019,6 +1077,7 @@ window.Hub = (() => {
       a.matches.push({ ...base, gf: m.ag, ga: m.hg, opp: h.name, oppLogo: h.logo, pens: pens ? `${m.ap}-${m.hp}` : null })
     }
 
+    // Regular league, two-series and group-stage rounds share this fixture list, so all enter GF/GC LSG here.
     const league = leagueMatches(season)
     league.filter(played).forEach((m) => record(m, 'league', `Jornada ${m.round}`, false))
     const manual = isManualTable(season) && season.manual
@@ -1550,6 +1609,7 @@ window.Hub = (() => {
       })
     })
     t.leagueGoals = t.league.gf
+    t.leagueConceded = t.league.gc
     t.cupGoals = t.cup.gf
     t.goals = t.league.gf + t.cup.gf
     t.points = t.league.pts

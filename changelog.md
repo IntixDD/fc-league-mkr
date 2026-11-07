@@ -199,3 +199,13 @@
 * Arreglo de fluidez en las animaciones.
 * Bugs solucionados.
 
+
+
+**Beta 3.2:**
+
+* Ahora puedes abandonar la app presionando dos veces el botón de volver.
+* Se solucionó la exportación a png en Performance.
+* Se renombraron las columnas de "GF L+S" y "GC L+S" a "GF LSG" y "GC LSG" en los apartados History y Performance.
+* Teams/Equipos registrados: Se añadió el botón de Randomizar Escudos.
+
+

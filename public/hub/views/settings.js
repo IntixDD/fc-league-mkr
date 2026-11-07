@@ -19,8 +19,9 @@
   let library = []
   let musicLibrary = []
   let currentTrack = -1
-  let trackHistory = []
-  let trackHistoryPosition = -1
+  let musicOrder = []
+  let musicOrderPosition = -1
+  let previousMusicOrder = []
   let musicStarted = false
   let musicDelayElapsed = false
   let musicPausedByUser = false
@@ -79,22 +80,67 @@
     return new URL(`media/music/${safePath}`, document.baseURI).href
   }
 
-  function randomTrackIndex(exclude = currentTrack) {
-    if (musicLibrary.length < 2) return musicLibrary.length ? 0 : -1
-    const choices = musicLibrary.map((_, index) => index).filter((index) => index !== exclude)
-    return choices[Math.floor(Math.random() * choices.length)]
+  function shuffleMusicOrder() {
+    const makeOrder = () => {
+      const order = musicLibrary.map((_, index) => index)
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[order[i], order[j]] = [order[j], order[i]]
+      }
+      return order
+    }
+    let order = makeOrder()
+    if (order.length > 1 && previousMusicOrder.length === order.length) {
+      const lastPrevious = previousMusicOrder[previousMusicOrder.length - 1]
+      let attempts = 0
+      while (
+        attempts < 24 &&
+        (order[0] === lastPrevious || order.every((index, i) => index === previousMusicOrder[i]))
+      ) {
+        order = makeOrder()
+        attempts++
+      }
+      if (order[0] === lastPrevious || order.every((index, i) => index === previousMusicOrder[i])) {
+        order = [...previousMusicOrder.slice(1), previousMusicOrder[0]]
+      }
+    }
+    previousMusicOrder = [...order]
+    return order
+  }
+
+  function ensureMusicOrder() {
+    if (!musicOrder.length) musicOrder = shuffleMusicOrder()
+    if (musicOrderPosition >= musicOrder.length - 1) {
+      musicOrder = shuffleMusicOrder()
+      musicOrderPosition = -1
+    }
+  }
+
+  function nextMusicTrack() {
+    if (!musicLibrary.length) return -1
+    ensureMusicOrder()
+    musicOrderPosition += 1
+    return musicOrder[musicOrderPosition]
   }
 
   function playRandomTrack() {
     if (!musicLibrary.length) return
-    playTrack(randomTrackIndex())
+    playTrack(nextMusicTrack())
   }
 
   function playPreviousTrack() {
-    if (trackHistoryPosition > 0) {
-      trackHistoryPosition -= 1
-      playTrack(trackHistory[trackHistoryPosition], false)
-    } else playRandomTrack()
+    if (musicOrderPosition < 0) {
+      playRandomTrack()
+      return
+    }
+    if (!finishedCurrentTrack && currentTrack >= 0 && audio && audio.currentTime > 3) {
+      playTrack(currentTrack)
+      return
+    }
+    if (musicOrderPosition > 0) {
+      musicOrderPosition -= 1
+      playTrack(musicOrder[musicOrderPosition])
+    } else if (currentTrack >= 0) playTrack(currentTrack)
   }
 
   function updateMusicControls() {
@@ -139,18 +185,13 @@
     audio.addEventListener('pause', updateMusicControls)
   }
 
-  function playTrack(index, remember = true) {
+  function playTrack(index) {
     if (!musicLibrary.length) return
     ensureAudio()
     clearTimeout(musicAdvanceTimer)
     waitingForNext = false
     finishedCurrentTrack = false
     currentTrack = (index + musicLibrary.length) % musicLibrary.length
-    if (remember && trackHistory[trackHistoryPosition] !== currentTrack) {
-      trackHistory = trackHistory.slice(0, trackHistoryPosition + 1)
-      trackHistory.push(currentTrack)
-      trackHistoryPosition = trackHistory.length - 1
-    }
     musicPausedByUser = false
     const track = musicLibrary[currentTrack]
     updateCurrentTrack(track)
@@ -168,7 +209,8 @@
 
   function playMusic() {
     if (!musicLibrary.length || musicStarted) return
-    playTrack(currentTrack < 0 ? randomTrackIndex(-1) : currentTrack)
+    if (musicOrderPosition < 0) playRandomTrack()
+    else playTrack(currentTrack)
   }
 
   function scheduleInitialMusic() {
@@ -192,9 +234,11 @@
           cover: item.cover || '',
         }
       }).filter(Boolean) : []
-    currentTrack = randomTrackIndex(-1)
-    trackHistory = []
-    trackHistoryPosition = -1
+    musicOrder = []
+    musicOrderPosition = -1
+    previousMusicOrder = []
+    musicOrder = shuffleMusicOrder()
+    currentTrack = musicOrder[0] ?? -1
     updateMusicControls()
     if (musicLibrary.length && P.get().musicAutoplay !== false) {
       scheduleInitialMusic()
@@ -584,7 +628,7 @@
           sub: 'League Hub',
           wide: true,
           extraClass: 'set-about',
-          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-3.1</strong><span class="about-build">Beta Build</span></div>',
+          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-3.2</strong><span class="about-build">Beta Build</span></div>',
         })}
       </div>`
     updateMusicControls()
@@ -606,7 +650,10 @@
       if (action === 'pick-brand') H.pickBrand?.()
       else if (action === 'music-toggle') {
         if (!musicLibrary.length) return H.toast('No hay canciones cargadas en la app')
-        if (!audio || !audio.src) playTrack(currentTrack < 0 ? randomTrackIndex(-1) : currentTrack)
+        if (!audio || !audio.src) {
+          if (musicOrderPosition < 0) playRandomTrack()
+          else playTrack(currentTrack)
+        }
         else if (waitingForNext) {
           clearTimeout(musicAdvanceTimer)
           waitingForNext = false

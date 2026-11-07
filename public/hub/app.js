@@ -6,7 +6,9 @@
   const list = document.querySelector('.nav-list')
   const menuNav = document.querySelector('[data-menu-nav]')
   const ids = buttons.map((b) => b.dataset.section)
+  const mobileBackExit = window.matchMedia('(pointer: coarse)').matches || /android|iphone|ipad|ipod|windows phone/i.test(navigator.userAgent)
   let current = null
+  let lastBackPress = 0
 
   const intro = document.getElementById('app-intro')
   if (intro) {
@@ -105,6 +107,7 @@
   }
 
   function navigateFromButton(button, event) {
+    lastBackPress = 0
     spawnRipple(button, event)
     const id = button.dataset.section
     if (location.hash !== `#${id}`) history.pushState(null, '', `#${id}`)
@@ -274,18 +277,64 @@
   window.visualViewport?.addEventListener('resize', () => hideTip(), { passive: true })
 
   document.querySelectorAll('[data-open-menu]').forEach((brand) => brand.addEventListener('click', () => {
+    lastBackPress = 0
     if (location.hash !== '#menu') history.pushState(null, '', '#menu')
     activate('menu')
   }))
   document.querySelector('[data-menu-nav]')?.addEventListener('click', (event) => {
     event.preventDefault()
+    lastBackPress = 0
     spawnRipple(event.currentTarget, event)
     if (location.hash !== '#menu') history.pushState(null, '', '#menu')
     activate('menu')
   })
 
-  window.addEventListener('popstate', () => activate(location.hash.slice(1)))
+  function exitApp() {
+    try {
+      if (typeof navigator.app?.exitApp === 'function') {
+        navigator.app.exitApp()
+        return
+      }
+    } catch {}
+    try { window.close() } catch {}
+    window.setTimeout(() => {
+      if (history.length > 1) history.back()
+    }, 80)
+  }
+
+  function requestAppExit() {
+    const now = Date.now()
+    if (lastBackPress && now - lastBackPress <= 2000) {
+      lastBackPress = 0
+      exitApp()
+      return
+    }
+    lastBackPress = now
+    window.Hub?.toast?.('Presiona Atrás otra vez para salir')
+  }
+
+  window.addEventListener('popstate', (event) => {
+    if (mobileBackExit && event.state?.leagueHubRoot) {
+      if (lastBackPress && Date.now() - lastBackPress <= 2000) {
+        lastBackPress = 0
+        exitApp()
+      } else {
+        lastBackPress = Date.now()
+        history.pushState({ leagueHubBackGuard: true }, '', '#menu')
+        window.Hub?.toast?.('Presiona Atrás otra vez para salir')
+      }
+      return
+    }
+    lastBackPress = 0
+    activate(location.hash.slice(1))
+  })
   window.addEventListener('hashchange', () => activate(location.hash.slice(1)))
+  document.addEventListener('backbutton', (event) => {
+    if (!mobileBackExit) return
+    event.preventDefault()
+    if (current && current !== 'menu') history.back()
+    else requestAppExit()
+  })
 
   new ResizeObserver(() => {
     const button = activeNavButton()
@@ -293,7 +342,12 @@
     else indicator.style.opacity = '0'
   }).observe(list)
 
-  if (location.hash !== '#menu') {
+  if (mobileBackExit) {
+    try {
+      history.replaceState({ leagueHubRoot: true }, '', '#menu')
+      history.pushState({ leagueHubBackGuard: true }, '', '#menu')
+    } catch {}
+  } else if (location.hash !== '#menu') {
     try { history.replaceState(null, '', '#menu') } catch {}
   }
   activate('menu', { animate: false })

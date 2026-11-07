@@ -3868,9 +3868,13 @@ select.input option {
 .teams-page-grid { grid-template-columns:minmax(0,1.35fr) minmax(320px,.85fr); }
 .teams-register-card { min-height:100%; }
 .team-roster { margin-top:18px; padding-top:15px; border-top:1px solid var(--line); }
-.team-roster-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:11px; }
+.team-roster-head { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:11px; }
 .team-roster-head h3 { margin:0; font:700 12px var(--font-display); letter-spacing:.04em; text-transform:uppercase; }
 .team-roster-head span { display:block; margin-top:4px; color:var(--muted); font-size:10px; }
+.team-roster-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+.crest-randomize-picker { grid-column:1 / -1; }
+.crest-randomize-prompt { margin:0 0 14px; color:var(--muted); font-size:13px; }
+.crest-randomize-options { display:flex; flex-wrap:wrap; gap:8px; }
 
 /* The archive bracket handles its own horizontal gestures in the WebView. */
 .menu-slide .season-mini-bracket { justify-content:flex-start; scroll-snap-type:none; touch-action:pan-x pan-y pinch-zoom; cursor:grab; }

@@ -68,6 +68,52 @@
   }
   H.pickLogo = pickLogo
 
+  function chooseRandomCrestMode() {
+    const dlg = document.getElementById('logo-dialog')
+    const grid = dlg.querySelector('[data-grid]')
+    const title = dlg.querySelector('[data-title]')
+    title.textContent = 'Randomizar escudos'
+    grid.innerHTML = `
+      <div class="crest-randomize-picker">
+        <p class="crest-randomize-prompt">Elige qué tipo de escudos asignar a los equipos registrados.</p>
+        <div class="crest-randomize-options">
+          <button class="btn btn--ghost" value="custom">Custom</button>
+          <button class="btn btn--ghost" value="selections">Selecciones</button>
+          <button class="btn btn--ghost" value="clubs">Clubes</button>
+        </div>
+      </div>`
+    dlg.returnValue = ''
+    dlg.showModal()
+    return new Promise((resolve) => {
+      dlg.addEventListener('close', () => resolve(dlg.returnValue || null), { once: true })
+    })
+  }
+
+  function randomizeTeamCrests(mode) {
+    const teams = H.state.current.teams
+    const categories = {
+      custom: ['custom'],
+      selections: ['selections'],
+      clubs: ['premier', 'laliga', 'other'],
+    }[mode]
+    if (!categories || !teams.length) return
+    const uniqueCrests = [...new Set(H.state.logos
+      .filter((logo) => categories.includes(logo.category || 'custom'))
+      .map((logo) => logo.data)
+      .filter(Boolean))]
+    if (uniqueCrests.length < teams.length) {
+      const modeName = { custom: 'Custom', selections: 'Selecciones', clubs: 'Clubes' }[mode]
+      H.toast(`Hay ${uniqueCrests.length} escudo(s) de ${modeName}; se necesitan ${teams.length}. No se cambió ningún equipo.`, 'error')
+      return
+    }
+    for (let i = uniqueCrests.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[uniqueCrests[i], uniqueCrests[j]] = [uniqueCrests[j], uniqueCrests[i]]
+    }
+    H.update((state) => state.current.teams.forEach((team, index) => { team.logo = uniqueCrests[index] }))
+    H.toast('Escudos aleatorizados sin repetir')
+  }
+
   function allLoadedLogos(s) {
     const seen = new Set()
     const out = []
@@ -354,6 +400,10 @@
         else if (action === 'move-team-up') moveTeam(id, -1)
         else if (action === 'move-team-down') moveTeam(id, 1)
         else if (action === 'clear-teams') clearTeams()
+        else if (action === 'randomize-team-crests') {
+          const mode = await chooseRandomCrestMode()
+          if (mode) randomizeTeamCrests(mode)
+        }
       })
       let draggedTeamId = null
       el.addEventListener('dragstart', (e) => {
@@ -415,7 +465,7 @@
         <section class="team-roster" aria-label="Equipos registrados">
           <header class="team-roster-head">
             <div><h3>Equipos registrados</h3><span>${teams.length} ${teams.length === 1 ? 'club' : 'clubes'} · arrastra para reordenar</span></div>
-            ${teams.length ? '<button class="btn btn--danger btn--sm" data-action="clear-teams">Eliminar todos</button>' : ''}
+            ${teams.length ? `<div class="team-roster-actions"><button class="btn btn--ghost btn--sm" data-action="randomize-team-crests">Randomizar escudos</button><button class="btn btn--danger btn--sm" data-action="clear-teams">Eliminar todos</button></div>` : ''}
           </header>
           ${teams.length
             ? `<ul class="team-list">${teams.map((t, i) => `
