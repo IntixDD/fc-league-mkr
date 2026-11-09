@@ -29,6 +29,13 @@
     return compareTeams.map((key) => records.find((record) => record.key === key)).filter(Boolean)
   }
 
+  function latestCrest(record) {
+    for (let index = record.seasons.length - 1; index >= 0; index--) {
+      if (record.seasons[index].logo) return record.seasons[index].logo
+    }
+    return ''
+  }
+
   function compareCard(records) {
     if (records.length < 2) {
       return `<article class="card card--wide compare-card"><header class="card-head"><h2 class="card-title">Compare</h2></header><p class="empty">Necesitas al menos dos clubes para compararlos.</p></article>`
@@ -73,9 +80,9 @@
         <div class="compare-pickers">${select(teamA, 0)}${select(teamB, 1)}</div>
         <section class="compare-summary" aria-label="Victorias, empates y victorias">
           <div class="compare-summary-teams">
-            <div class="compare-summary-team">${crest(teamA.logos[0], 'md', teamA.name)}<strong>${esc(teamA.name)}</strong><span>${winsA} victorias</span></div>
+            <div class="compare-summary-team">${crest(latestCrest(teamA), 'md', teamA.name)}<strong>${esc(teamA.name)}</strong><span>${winsA} victorias</span></div>
             <div class="compare-summary-score"><strong>${winsA} - ${draws} - ${winsB}</strong><span>Victorias · Empates · Victorias</span></div>
-            <div class="compare-summary-team">${crest(teamB.logos[0], 'md', teamB.name)}<strong>${esc(teamB.name)}</strong><span>${winsB} victorias</span></div>
+            <div class="compare-summary-team">${crest(latestCrest(teamB), 'md', teamB.name)}<strong>${esc(teamB.name)}</strong><span>${winsB} victorias</span></div>
           </div>
           <div class="compare-bar" role="img" aria-label="${esc(teamA.name)} ${winsA} victorias, ${draws} empates, ${winsB} victorias ${esc(teamB.name)}">
             <span class="compare-bar-a" style="width:${pct(winsA)}"></span>

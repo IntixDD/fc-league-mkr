@@ -5,6 +5,15 @@
   const ZIDANE_BADGE_ICON = '<svg class="stat-icon badge-icon-svg" viewBox="0 0 39 39" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g transform="matrix(1.750339,0,0,1.750339,-22.824292,-22.520363)"><g transform="matrix(1,0,0,1,12.039929,11.866289)"><path d="M6,9L4.5,9C3.129,9 2,7.871 2,6.5C2,5.129 3.129,4 4.5,4L6,4"/><path d="M18,9L19.5,9C20.871,9 22,7.871 22,6.5C22,5.129 20.871,4 19.5,4L18,4"/><path d="M4,22L20,22"/><path d="M10,14.66L10,17C10,17.55 9.53,17.98 9.03,18.21C7.85,18.75 7,20.24 7,22"/><path d="M14,14.66L14,17C14,17.55 14.47,17.98 14.97,18.21C16.15,18.75 17,20.24 17,22"/><path d="M18,2L6,2L6,9C6,12.292 8.708,15 12,15C15.292,15 18,12.292 18,9L18,2Z"/></g><g transform="matrix(1.305921,0,0,1.305921,20.773042,23.622801)"><path d="M4.086,-2.52C4.45,-2.787 4.711,-3.141 4.711,-3.553C4.711,-4.434 3.815,-5.019 2.515,-5.019C1.316,-5.019 0.468,-4.517 0.326,-3.511L1.832,-3.224C1.874,-3.358 2.057,-3.667 2.515,-3.667C2.844,-3.667 3.111,-3.551 3.111,-3.302C3.111,-3.074 2.844,-2.937 2.515,-2.937C2.513,-2.937 1.966,-2.942 1.966,-2.942L1.966,-1.982L2.459,-1.982C2.852,-1.982 3.17,-1.877 3.17,-1.607C3.17,-1.338 2.812,-1.233 2.459,-1.233C2.101,-1.233 1.789,-1.442 1.663,-1.644L0.161,-1.224C0.434,-0.394 1.191,0.119 2.459,0.119C3.651,0.119 4.769,-0.313 4.769,-1.473C4.769,-1.933 4.5,-2.28 4.086,-2.52Z" fill="currentColor" stroke="none"/></g></g></svg>'
   const GUARDIOLA_BADGE_ICON = '<svg class="stat-icon badge-icon-svg" viewBox="0 0 29 29" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g transform="matrix(1.285957,0,0,1.285957,-4.129296,-4.129296)"><g transform="matrix(1,0,0,1,2.439794,2.436716)"><path d="M11.562,3.266C11.65,3.107 11.818,3.007 12,3.007C12.182,3.007 12.35,3.107 12.438,3.266L15.39,8.87C15.565,9.192 15.903,9.393 16.269,9.393C16.501,9.393 16.727,9.312 16.906,9.164L21.183,5.5C21.272,5.428 21.384,5.388 21.498,5.388C21.773,5.388 21.998,5.614 21.998,5.888C21.998,5.932 21.993,5.976 21.981,6.019L19.147,16.265C19.028,16.695 18.637,16.995 18.191,16.999L5.81,16.999C5.364,16.996 4.972,16.695 4.853,16.265L2.02,6.02C2.008,5.977 2.003,5.933 2.003,5.889C2.003,5.615 2.228,5.389 2.503,5.389C2.617,5.389 2.729,5.429 2.818,5.501L7.094,9.165C7.273,9.313 7.499,9.394 7.731,9.394C8.097,9.394 8.435,9.193 8.61,8.871L11.562,3.266Z"/><path d="M5,21L19,21"/></g><g transform="matrix(0.50492,0,0,0.50492,3.301716,10.057809)"><path d="M22.547,3.732L25.57,3.732L25.57,10.67L27.953,10.67L27.953,13.256L25.57,13.256C25.57,13.816 25.336,14.225 24.867,14.482C24.685,14.566 24.515,14.607 24.359,14.607L22.273,14.607L22.273,13.264L14.289,13.264C14.284,13.264 14.281,13.262 14.281,13.26L14.281,13.248L14.273,13.248L14.273,11.325C14.273,10.96 14.364,10.673 14.547,10.464C14.625,10.365 14.742,10.253 14.898,10.128L22.039,3.943C22.2,3.834 22.37,3.764 22.547,3.732ZM18.547,10.67L22.273,10.67L22.273,7.436L18.547,10.67Z" fill="currentColor" stroke="none"/></g></g></svg>'
   const STEAUA_BADGE_ICON = '<svg class="stat-icon badge-icon-svg" viewBox="0 0 39 39" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g transform="matrix(1.697331,0,0,1.697331,-24.559933,-8.971734)"><g transform="matrix(0.542864,0,0,0.542864,19.345527,11.24595)"><path d="M11.562,3.266C11.65,3.107 11.818,3.007 12,3.007C12.182,3.007 12.35,3.107 12.438,3.266L15.39,8.87C15.565,9.192 15.903,9.393 16.269,9.393C16.501,9.393 16.727,9.312 16.906,9.164L21.183,5.5a.5.5 0 0 1 .798.519l-2.834 10.246a1 1 0 0 1-.956.734H5.81a1 1 0 0 1-.957-.734L2.02 6.02a.5.5 0 0 1 .798-.519l4.276 3.664a1 1 0 0 0 1.516-.294z" stroke-width="3.2"/></g><g transform="matrix(1,0,0,1,13.86017,4.676222)"><circle cx="12" cy="12" r="10" stroke-width="2"/></g></g></svg>'
+  const TITLE_BADGE_ICONS = {
+    championsTrophy: 'champions-trophy.svg',
+    worldcup: 'worldcup.svg',
+    laliga: 'laliga.svg',
+    copadelrey: 'copadelrey.svg',
+    premier: 'premier.svg',
+    facup: 'facup.svg',
+    doblete: 'doblete.svg',
+  }
   const BADGE_ART = {
     ball: '<circle cx="12" cy="12" r="9"/><path d="m12 7 4 3-1.5 5h-5L8 10l4-3zM12 7V3m4 7 5-2m-6.5 7.5 3 4M9.5 15.5l-3 4M8 10l-5-2"/>',
     trophy: '<path d="M7 4h10v5a5 5 0 0 1-10 0zM7 6H4v2a4 4 0 0 0 4 4m9-6h3v2a4 4 0 0 1-4 4m-4 2v4m-5 4h10m-8-4h6"/>',
@@ -19,6 +28,8 @@
   }
 
   function badgeIcon(badge) {
+    const titleIcon = TITLE_BADGE_ICONS[badge.icon]
+    if (titleIcon) return `<img class="stat-icon badge-icon-svg badge-icon-image" src="badge-icons/${titleIcon}" alt="" aria-hidden="true">`
     if (badge.icon.startsWith('points')) return POINTS_BADGE_ICON
     if (badge.icon === 'zidane') return ZIDANE_BADGE_ICON
     if (badge.icon === 'guardiola') return GUARDIOLA_BADGE_ICON
@@ -48,8 +59,21 @@
     const legendary = record.seasons.filter((season) => season.legendarySeason).length
     const groupChampions = record.seasons.filter((season) => season.groupChampion).length
     const tournamentByDraws = record.seasons.some((season) => season.tournamentQualifiedByDraws)
+    const wonDomesticLeagueOrSeries = (season) => season.tableType !== 'groups' && (season.leagueChampion || season.seriesChampion)
+    const titleBadges = {
+      worldcup: record.seasons.some((season) => season.seasonMode === 'selections' && season.cupChampion),
+      laliga: record.seasons.some((season) => season.seasonMode === 'laliga' && wonDomesticLeagueOrSeries(season)),
+      copadelrey: record.seasons.some((season) => season.seasonMode === 'laliga' && season.cupChampion),
+      premier: record.seasons.some((season) => season.seasonMode === 'premier' && wonDomesticLeagueOrSeries(season)),
+      facup: record.seasons.some((season) => season.seasonMode === 'premier' && season.cupChampion),
+      doblete: record.seasons.some((season) => season.seasonMode !== 'selections' && wonDomesticLeagueOrSeries(season) && season.cupChampion),
+    }
     const scorelessTournament = record.seasons.some((season) => season.cupChampion && (season.cup?.gf || 0) === 0)
     const centuryComeback = record.seasons.some((season) => season.centuryComeback)
+    const anfieldComeback = record.seasons.some((season) => season.anfieldComeback)
+    const mineirazo = record.seasons.some((season) => season.mineirazo)
+    const twelveGoalMatch = record.seasons.some((season) => season.twelveGoalMatch)
+    const invincibleLeague = record.seasons.some((season) => season.invincibleLeague)
     const perfectPoints = record.seasons.some((season) =>
       (season.leagueChampion || season.seriesChampion) &&
       season.league.pj > 0 &&
@@ -116,13 +140,20 @@
     const badges = [
       ...thresholdBadges('Goles', 'ball', 'blue', totals.goals, [[10, 'Primer rugido', 'Marca 10 goles en cualquier competición.'], [50, 'Cazagoles', 'Acumula 50 goles entre Liga/Serie y Tournament.'], [100, 'Centurión del gol', 'Llega a 100 goles totales.'], [200, 'Doble artillería', 'Alcanza 200 goles en tu historial.'], [500, 'Leyenda goleadora', 'Anota 500 goles totales con el equipo.']]),
       ...thresholdBadges('Títulos', 'trophy', 'gold', titles, [[1, 'Primera corona', 'Gana tu primer título oficial.'], [5, 'Coleccionista de copas', 'Acumula 5 títulos oficiales.'], [10, 'Palmarés de élite', 'Acumula 10 títulos oficiales.'], [20, 'Dinastía campeona', 'Llega a 20 títulos oficiales.'], [50, 'Leyenda del palmarés', 'Consigue 50 títulos oficiales.'], [100, 'Inmortal de los títulos', 'Alcanza 100 títulos oficiales.']]),
-      { category: 'Títulos', name: 'Reyes del Tournament', description: 'Conquista Tournament al menos una vez.', icon: 'cup', tone: 'gold', value: totals.cups, target: 1, earned: totals.cups > 0, progress: `${totals.cups}/1` },
+      { category: 'Títulos', name: 'Rey del Tournament', description: 'Conquista Tournament al menos una vez.', icon: 'legendary', tone: 'gold', value: totals.cups, target: 1, earned: totals.cups > 0, progress: `${totals.cups}/1` },
       { category: 'Títulos', name: 'Corona de Liga', description: 'Termina una liga en el primer lugar.', icon: 'league', tone: 'green', value: totals.leagues, target: 1, earned: totals.leagues > 0, progress: `${totals.leagues}/1` },
-      { category: 'Títulos', name: 'Soberanos de Serie', description: 'Gana el primer lugar de una serie.', icon: 'series', tone: 'green', value: totals.series, target: 1, earned: totals.series > 0, progress: `${totals.series}/1` },
+      { category: 'Títulos', name: 'Soberano de Serie', description: 'Gana el primer lugar de una serie.', icon: 'series', tone: 'green', value: totals.series, target: 1, earned: totals.series > 0, progress: `${totals.series}/1` },
+      { category: 'Títulos', name: 'Campeón del Mundo', description: 'Conságrate campeón de Tournament en modo Selecciones.', icon: 'worldcup', tone: 'gold', earned: titleBadges.worldcup, progress: titleBadges.worldcup ? 'Obtenida' : 'Pendiente' },
+      { category: 'Títulos', name: 'Campeón de España', description: 'Conságrate campeón de Liga/Serie en modo LaLiga.', icon: 'laliga', tone: 'rose', earned: titleBadges.laliga, progress: titleBadges.laliga ? 'Obtenida' : 'Pendiente' },
+      { category: 'Títulos', name: 'Copa del Rey', description: 'Conságrate campeón de Tournament en modo LaLiga.', icon: 'copadelrey', tone: 'rose', earned: titleBadges.copadelrey, progress: titleBadges.copadelrey ? 'Obtenida' : 'Pendiente' },
+      { category: 'Títulos', name: 'Campeón de Inglaterra', description: 'Conságrate campeón de Liga/Serie en modo Premier League.', icon: 'premier', tone: 'sky', earned: titleBadges.premier, progress: titleBadges.premier ? 'Obtenida' : 'Pendiente' },
+      { category: 'Títulos', name: 'FA Cup', description: 'Conságrate campeón de Tournament en modo Premier League.', icon: 'facup', tone: 'sky', earned: titleBadges.facup, progress: titleBadges.facup ? 'Obtenida' : 'Pendiente' },
+      { category: 'Títulos', name: 'Doblete Doméstico', description: 'Conságrate campeón de Liga/Serie y Tournament en la misma temporada.', icon: 'doblete', tone: 'accent', earned: titleBadges.doblete, progress: titleBadges.doblete ? 'Obtenida' : 'Pendiente' },
       ...thresholdBadges('Temporadas perfectas', 'star', 'gold', perfect, [[1, 'La temporada perfecta', 'Completa una temporada perfecta: gana Tournament y Liga/Serie, y lidera sus goleos y porterías a cero.'], [5, 'Quinteto perfecto', 'Consigue 5 temporadas perfectas.'], [10, 'Perfección absoluta', 'Consigue 10 temporadas perfectas.'], [20, 'Veinte veces perfectos', 'Consigue 20 temporadas perfectas.']]),
       ...thresholdBadges('Temporadas legendarias', 'legendary', 'purple', legendary, [[1, 'Nace una leyenda', 'Gana una temporada perfecta sin recibir goles durante el juego en ninguna competición. Los penales de las tandas no cuentan.'], [2, 'Leyenda consagrada', 'Completa 2 temporadas legendarias.'], [5, 'Linaje legendario', 'Completa 5 temporadas legendarias.'], [10, 'Mito del fútbol', 'Completa 10 temporadas legendarias.']]),
       ...thresholdBadges('Logros', 'achievement', 'accent', achievements, [[10, 'Cazador de hazañas', 'Acumula 10 logros de temporada.'], [20, 'Coleccionista de logros', 'Acumula 20 logros de temporada.'], [50, 'Palmarés de proezas', 'Acumula 50 logros de temporada.'], [100, 'Centenario de hazañas', 'Alcanza 100 logros de temporada.']]),
       { category: 'Logros', name: 'Líder del Grupo', description: 'Consigue el logro Campeón de grupo.', icon: 'league', tone: 'purple', value: groupChampions, target: 1, earned: groupChampions > 0, progress: `${groupChampions}/1` },
+      { category: 'Logros', name: 'El invencible', description: 'Consigue el logro Invicto en Liga por primera vez.', icon: 'medal1', tone: 'accent', earned: invincibleLeague, progress: invincibleLeague ? 'Obtenida' : 'Pendiente' },
       ...thresholdBadges('Puntos', 'points25', 'blue', totals.points, [[25, 'Primer botín', 'Suma 25 puntos en Liga/Serie a lo largo de tus temporadas.'], [50, 'Cosecha de puntos', 'Acumula 50 puntos en Liga/Serie.'], [100, 'Centenario de puntos', 'Alcanza 100 puntos en Liga/Serie.'], [200, 'Imperio de puntos', 'Acumula 200 puntos en Liga/Serie.']]).map((badge, index) => ({ ...badge, icon: ['points25', 'points50', 'points100', 'points200'][index] })),
       { category: 'Especiales', name: 'Pase de acero', description: 'Clasifica a Tournament tras empatar todos los partidos de Liga/Serie/Grupos; el empate que se define por penales también cuenta.', icon: 'draw', tone: 'cyan', earned: tournamentByDraws, progress: tournamentByDraws ? 'Obtenida' : 'Pendiente' },
       { category: 'Especiales', name: 'Campeón sin pólvora', description: 'Gana Tournament sin marcar goles durante los partidos; puedes avanzar y ganar mediante tandas de penales.', icon: 'noGoals', tone: 'slate', earned: scorelessTournament, progress: scorelessTournament ? 'Obtenida' : 'Pendiente' },
@@ -137,7 +168,10 @@
       { category: 'Especiales', name: 'Mister Tournament', description: 'Consigue 17 goles en una sola edición de Tournament, sin contar los repechajes.', icon: 'ball', tone: 'gold', value: maxTournamentGoals, target: 17, earned: maxTournamentGoals >= 17, progress: `${maxTournamentGoals}/17` },
       { category: 'Especiales', name: 'Invicto de Bucarest', description: 'Completa 105 partidos consecutivos sin perder en Liga/Serie/Grupos, sumando todas las temporadas.', icon: 'steaua', tone: 'gold', value: longestUnbeaten, target: 105, earned: longestUnbeaten >= 105, progress: `${longestUnbeaten}/105` },
       { category: 'Especiales', name: 'Puntuación Perfecta', description: 'Gana una Liga o Serie consiguiendo todos los puntos posibles: 3 por cada partido jugado.', icon: 'star', tone: 'gold', earned: perfectPoints, progress: perfectPoints ? 'Obtenida' : 'Pendiente' },
-      { category: 'Especiales', name: 'El milagro del siglo', description: 'Avanza en Tournament tras perder 0–4 en la Ida y remontar en la Vuelta. También cuenta si empatas el global y clasificas por penales.', icon: 'achievement', tone: 'gold', earned: centuryComeback, progress: centuryComeback ? 'Obtenida' : 'Pendiente' },
+      { category: 'Especiales', name: 'El milagro del siglo', description: 'Remonta en tiempo regular un 0–4 de la Ida y avanza en Tournament por el marcador global.', icon: 'achievement', tone: 'gold', earned: centuryComeback, progress: centuryComeback ? 'Obtenida' : 'Pendiente' },
+      { category: 'Especiales', name: 'Como en Anfield', description: 'Remonta en tiempo regular un 0–3 de la Ida y avanza en Tournament por el marcador global.', icon: 'achievement', tone: 'silver', earned: anfieldComeback, progress: anfieldComeback ? 'Obtenida' : 'Pendiente' },
+      { category: 'Especiales', name: 'El Mineirazo', description: 'Gana 7–1 en semifinales de Tournament con la opción Ida y Vuelta desactivada.', icon: 'ball', tone: 'accent', earned: mineirazo, progress: mineirazo ? 'Obtenida' : 'Pendiente' },
+      { category: 'Especiales', name: 'Ya... Hagan lo que quieran', description: 'Ambos equipos anotan en un partido que suma 12 o más goles. Los dos equipos obtienen esta insignia.', icon: 'ball', tone: 'cyan', earned: twelveGoalMatch, progress: twelveGoalMatch ? 'Obtenida' : 'Pendiente' },
     ]
 
     if (!includeFirstSeasons || !record.seasons.length) return badges

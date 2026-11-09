@@ -3,13 +3,29 @@
   const { esc, crest } = H
   const MAX_TEAMS = 32
   const MODE_LABEL = { clubs: 'clubes', selections: 'selecciones', premier: 'Premier League', laliga: 'LaLiga' }
-
-  H.logoCategoryAllowed = (category, mode = 'clubs') => ({
+  const MODE_CATEGORIES = {
     clubs: ['custom', 'premier', 'laliga', 'other'],
     selections: ['selections'],
     premier: ['premier'],
     laliga: ['laliga'],
-  }[mode] || []).includes(category || 'custom')
+  }
+  const SEASON_MODE_OPTIONS = [
+    ['clubs', 'Clubes'],
+    ['selections', 'Selecciones'],
+    ['premier', 'Premier League'],
+    ['laliga', 'LaLiga'],
+  ]
+  const RANDOM_CREST_MODES = {
+    clubs: [
+      { value: 'custom', label: 'Custom', categories: ['custom'] },
+      { value: 'clubs', label: 'Clubes', categories: ['premier', 'laliga', 'other'] },
+    ],
+    selections: [{ value: 'selections', label: 'Selecciones', categories: ['selections'] }],
+    premier: [{ value: 'premier', label: 'Premier League', categories: ['premier'] }],
+    laliga: [{ value: 'laliga', label: 'LaLiga', categories: ['laliga'] }],
+  }
+
+  H.logoCategoryAllowed = (category, mode = 'clubs') => (MODE_CATEGORIES[mode] || []).includes(category || 'custom')
 
   H.validateSeasonCrests = (season = H.state?.current) => {
     if (!season) return false
@@ -61,25 +77,24 @@
 
   function pickLogo(title = 'Elegir escudo') {
     const mode = H.state.current.seasonMode || 'clubs'
-    const allowed = { clubs: ['custom', 'premier', 'laliga', 'other'], selections: ['selections'], premier: ['premier'], laliga: ['laliga'] }[mode] || []
-    return openLogoDialog(title, H.state.logos.filter((logo) => allowed.includes(logo.category || 'custom')), {
+    return openLogoDialog(title, H.state.logos.filter((logo) => H.logoCategoryAllowed(logo.category, mode)), {
       empty: 'Tu galería está vacía. Importa escudos desde el recuadro «Galería de escudos».',
     })
   }
   H.pickLogo = pickLogo
 
-  function chooseRandomCrestMode() {
+  function chooseRandomCrestMode(seasonMode) {
     const dlg = document.getElementById('logo-dialog')
     const grid = dlg.querySelector('[data-grid]')
     const title = dlg.querySelector('[data-title]')
+    const modes = RANDOM_CREST_MODES[seasonMode] || []
+    if (!modes.length) return Promise.resolve(null)
     title.textContent = 'Randomizar escudos'
     grid.innerHTML = `
       <div class="crest-randomize-picker">
         <p class="crest-randomize-prompt">Elige qué tipo de escudos asignar a los equipos registrados.</p>
         <div class="crest-randomize-options">
-          <button class="btn btn--ghost" value="custom">Custom</button>
-          <button class="btn btn--ghost" value="selections">Selecciones</button>
-          <button class="btn btn--ghost" value="clubs">Clubes</button>
+          ${modes.map((mode) => `<button class="btn btn--ghost" value="${mode.value}">${mode.label}</button>`).join('')}
         </div>
       </div>`
     dlg.returnValue = ''
@@ -91,19 +106,15 @@
 
   function randomizeTeamCrests(mode) {
     const teams = H.state.current.teams
-    const categories = {
-      custom: ['custom'],
-      selections: ['selections'],
-      clubs: ['premier', 'laliga', 'other'],
-    }[mode]
-    if (!categories || !teams.length) return
+    const seasonMode = H.state.current.seasonMode || 'clubs'
+    const selectedMode = (RANDOM_CREST_MODES[seasonMode] || []).find((item) => item.value === mode)
+    if (!selectedMode || !teams.length) return
     const uniqueCrests = [...new Set(H.state.logos
-      .filter((logo) => categories.includes(logo.category || 'custom'))
+      .filter((logo) => selectedMode.categories.includes(logo.category || 'custom') && H.logoCategoryAllowed(logo.category, seasonMode))
       .map((logo) => logo.data)
       .filter(Boolean))]
     if (uniqueCrests.length < teams.length) {
-      const modeName = { custom: 'Custom', selections: 'Selecciones', clubs: 'Clubes' }[mode]
-      H.toast(`Hay ${uniqueCrests.length} escudo(s) de ${modeName}; se necesitan ${teams.length}. No se cambió ningún equipo.`, 'error')
+      H.toast(`Hay ${uniqueCrests.length} escudo(s) de ${selectedMode.label}; se necesitan ${teams.length}. No se cambió ningún equipo.`, 'error')
       return
     }
     for (let i = uniqueCrests.length - 1; i > 0; i--) {
@@ -232,8 +243,7 @@
       return H.toast('Ya existe un club con ese nombre', 'error')
     const logo = s.logos.find((l) => String(l.id) === String(H.ui.selectedLogo))
     if (!logo) return H.toast('Selecciona un escudo para el club', 'error')
-    const allowed = { clubs: ['custom', 'premier', 'laliga', 'other'], selections: ['selections'], premier: ['premier'], laliga: ['laliga'] }[s.current.seasonMode || 'clubs'] || []
-    if (!allowed.includes(logo.category || 'custom')) return H.toast('El escudo no corresponde al modo de temporada elegido en Table.', 'error')
+    if (!H.logoCategoryAllowed(logo.category, s.current.seasonMode || 'clubs')) return H.toast('El escudo no corresponde al modo de temporada elegido en Teams.', 'error')
     H.ui.teamDraft = ''
     H.ui.selectedLogo = null
     const created = { id: H.uid(), name: name.slice(0, 40), logo: logo.data }
@@ -360,6 +370,13 @@
         addTeam()
       })
       el.addEventListener('change', (e) => {
+        if (e.target.matches('[data-team-season-mode]')) {
+          const mode = e.target.value
+          if (!Object.prototype.hasOwnProperty.call(MODE_CATEGORIES, mode)) return
+          H.update((state) => { state.current.seasonMode = mode })
+          H.toast(`Modo de temporada: ${MODE_LABEL[mode]}`)
+          return
+        }
         if (e.target.matches('[data-selected-logo-category]')) {
           const id = e.target.dataset.selectedLogoCategory
           const category = e.target.value
@@ -401,7 +418,7 @@
         else if (action === 'move-team-down') moveTeam(id, 1)
         else if (action === 'clear-teams') clearTeams()
         else if (action === 'randomize-team-crests') {
-          const mode = await chooseRandomCrestMode()
+          const mode = await chooseRandomCrestMode(H.state.current.seasonMode || 'clubs')
           if (mode) randomizeTeamCrests(mode)
         }
       })
@@ -459,8 +476,8 @@
       const selected = s.logos.find((l) => String(l.id) === String(H.ui.selectedLogo))
       const teams = s.current.teams
       const categoryName = { custom: 'Custom', selections: 'Selecciones', premier: 'Premier League', laliga: 'LaLiga', other: 'Otras ligas' }
-      const allowed = { clubs: ['custom', 'premier', 'laliga', 'other'], selections: ['selections'], premier: ['premier'], laliga: ['laliga'] }[s.current.seasonMode || 'clubs'] || []
-      const filteredLogos = s.logos.filter((logo) => allowed.includes(logo.category || 'custom'))
+      const seasonMode = s.current.seasonMode || 'clubs'
+      const filteredLogos = s.logos.filter((logo) => H.logoCategoryAllowed(logo.category, seasonMode))
       const roster = `
         <section class="team-roster" aria-label="Equipos registrados">
           <header class="team-roster-head">
@@ -493,6 +510,12 @@
               <h2 class="card-title">Registrar club</h2>
               <p class="card-sub">Temporada ${s.current.number} · ${teams.length}/${MAX_TEAMS} equipos</p>
             </div>
+            <label class="field team-season-mode">
+              <span class="field-label">Modo de temporada</span>
+              <select class="input" data-team-season-mode aria-label="Modo de temporada">
+                ${SEASON_MODE_OPTIONS.map(([value, label]) => `<option value="${value}" ${seasonMode === value ? 'selected' : ''}>${label}</option>`).join('')}
+              </select>
+            </label>
           </header>
           <form class="register" data-form="team" novalidate>
             <button type="button" class="crest-picker" data-action="pick-logo" aria-label="Elegir escudo de la galería">

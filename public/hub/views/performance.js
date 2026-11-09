@@ -214,7 +214,7 @@
         { label: '3er lugar', flag: 'third', tone: 'bronze', icon: 'medal3' },
         { label: '4to lugar', flag: 'fourth', tone: 'plain', icon: 'medal4' },
         { label: 'Goleador de la temporada', flag: 'seasonScorer', tone: 'gold', icon: 'ball' },
-        { label: 'Portería imbatible de la temporada', flag: 'seasonCleanSheetAward', tone: 'green', icon: 'conceded' },
+        { label: 'Portería imbatible de la temporada', flag: 'seasonCleanSheetAward', tone: 'accent', icon: 'conceded' },
       ]
       const achievements = [
         { label: 'Goleador de torneo', flag: 'cupScorer', tone: 'accent', icon: 'ball', emptyLabel: 'Sin logros' },

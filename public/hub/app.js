@@ -8,7 +8,7 @@
   const ids = buttons.map((b) => b.dataset.section)
   const mobileBackExit = window.matchMedia('(pointer: coarse)').matches || /android|iphone|ipad|ipod|windows phone/i.test(navigator.userAgent)
   let current = null
-  let lastBackPress = 0
+  let exitDialogOpen = false
 
   const intro = document.getElementById('app-intro')
   if (intro) {
@@ -107,7 +107,6 @@
   }
 
   function navigateFromButton(button, event) {
-    lastBackPress = 0
     spawnRipple(button, event)
     const id = button.dataset.section
     if (location.hash !== `#${id}`) history.pushState(null, '', `#${id}`)
@@ -277,13 +276,11 @@
   window.visualViewport?.addEventListener('resize', () => hideTip(), { passive: true })
 
   document.querySelectorAll('[data-open-menu]').forEach((brand) => brand.addEventListener('click', () => {
-    lastBackPress = 0
     if (location.hash !== '#menu') history.pushState(null, '', '#menu')
     activate('menu')
   }))
   document.querySelector('[data-menu-nav]')?.addEventListener('click', (event) => {
     event.preventDefault()
-    lastBackPress = 0
     spawnRipple(event.currentTarget, event)
     if (location.hash !== '#menu') history.pushState(null, '', '#menu')
     activate('menu')
@@ -298,34 +295,33 @@
     } catch {}
     try { window.close() } catch {}
     window.setTimeout(() => {
-      if (history.length > 1) history.back()
+      if (history.state?.leagueHubBackGuard) history.go(-2)
+      else if (history.length > 1) history.back()
     }, 80)
   }
 
-  function requestAppExit() {
-    const now = Date.now()
-    if (lastBackPress && now - lastBackPress <= 2000) {
-      lastBackPress = 0
-      exitApp()
+  async function requestAppExit() {
+    const activeDialog = document.querySelector('dialog[open]')
+    if (activeDialog) {
+      activeDialog.close('cancel')
       return
     }
-    lastBackPress = now
-    window.Hub?.toast?.('Presiona Atrás otra vez para salir')
+    if (exitDialogOpen) return
+    exitDialogOpen = true
+    try {
+      const confirmed = await window.Hub?.confirm?.('¿Quieres salir de League Hub?', { confirmText: 'Salir' })
+      if (confirmed) exitApp()
+    } finally {
+      exitDialogOpen = false
+    }
   }
 
   window.addEventListener('popstate', (event) => {
     if (mobileBackExit && event.state?.leagueHubRoot) {
-      if (lastBackPress && Date.now() - lastBackPress <= 2000) {
-        lastBackPress = 0
-        exitApp()
-      } else {
-        lastBackPress = Date.now()
-        history.pushState({ leagueHubBackGuard: true }, '', '#menu')
-        window.Hub?.toast?.('Presiona Atrás otra vez para salir')
-      }
+      history.pushState({ leagueHubBackGuard: true }, '', '#menu')
+      void requestAppExit()
       return
     }
-    lastBackPress = 0
     activate(location.hash.slice(1))
   })
   window.addEventListener('hashchange', () => activate(location.hash.slice(1)))

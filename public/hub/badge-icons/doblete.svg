@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 512 512" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:affinity="https://www.affinity.studio/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;">
+    <g transform="matrix(9.470584,0,0,9.470584,256,256)">
+        <g transform="matrix(1,0,0,1,-26,-26)">
+            <g transform="matrix(2.333785,0,0,2.333785,-30.432389,-30.027151)">
+                <g transform="matrix(1,0,0,1,12.039929,11.866289)">
+                    <path d="M6,9L4.5,9C3.129,9 2,7.871 2,6.5C2,5.129 3.129,4 4.5,4L6,4" style="fill:none;fill-rule:nonzero;stroke:#ee8fff;stroke-width:2px;"/>
+                    <path d="M18,9L19.5,9C20.871,9 22,7.871 22,6.5C22,5.129 20.871,4 19.5,4L18,4" style="fill:none;fill-rule:nonzero;stroke:#ee8fff;stroke-width:2px;"/>
+                    <path d="M4,22L20,22" style="fill:none;fill-rule:nonzero;stroke:#ee8fff;stroke-width:2px;"/>
+                    <path d="M10,14.66L10,17C10,17.55 9.53,17.98 9.03,18.21C7.85,18.75 7,20.24 7,22" style="fill:none;fill-rule:nonzero;stroke:#ee8fff;stroke-width:2px;"/>
+                    <path d="M14,14.66L14,17C14,17.55 14.47,17.98 14.97,18.21C16.15,18.75 17,20.24 17,22" style="fill:none;fill-rule:nonzero;stroke:#ee8fff;stroke-width:2px;"/>
+                    <path d="M18,2L6,2L6,9C6,12.292 8.708,15 12,15C15.292,15 18,12.292 18,9L18,2Z" style="fill:none;fill-rule:nonzero;stroke:#ee8fff;stroke-width:2px;"/>
+                </g>
+                <g transform="matrix(0.584887,0,0,0.584887,12.017866,14.956271)">
+                    <path d="M25.412,6.961C25.412,4.825 23.364,3.611 20.392,3.611C17.652,3.611 15.878,4.757 15.555,7.059L18.996,7.714C19.093,7.408 19.396,6.701 20.443,6.701C21.197,6.701 21.756,6.956 21.756,7.492C21.756,8.9 15.475,9.392 15.475,12.908L15.475,15.083L25.471,15.083L25.471,11.993L19.787,11.993C21.201,10.443 25.412,10.67 25.412,6.961Z" style="fill:#ee8fff;fill-rule:nonzero;"/>
+                </g>
+            </g>
+        </g>
+    </g>
+</svg>

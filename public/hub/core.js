@@ -1024,6 +1024,8 @@ window.Hub = (() => {
         name: t.name,
         logo: t.logo,
         number: season.number,
+        seasonMode: season.seasonMode || 'clubs',
+        tableType: season.tableConfig?.type || 'regular',
         position: null,
         leaguePosition: null,
         league: zero(),
@@ -1034,6 +1036,8 @@ window.Hub = (() => {
         cineAbsoluto: false,
         fergusonUnbeatenFinalLoss: false,
         repechageSevenGoals: false,
+        mineirazo: false,
+        twelveGoalMatch: false,
         leagueChampion: false,
         seriesChampion: false,
         groupChampion: false,
@@ -1052,6 +1056,7 @@ window.Hub = (() => {
         invincibleSeries: false,
         perfectSeason: false,
         legendarySeason: false,
+        anfieldComeback: false,
         centuryComeback: false,
         leagueCleanSheets: 0,
         cupCleanSheets: 0,
@@ -1071,6 +1076,10 @@ window.Hub = (() => {
       } else if (type === 'cup') {
         if (m.ag === 0) h.cupCleanSheets++
         if (m.hg === 0) a.cupCleanSheets++
+      }
+      if (m.hg > 0 && m.ag > 0 && m.hg + m.ag >= 12) {
+        h.twelveGoalMatch = true
+        a.twelveGoalMatch = true
       }
       const base = { season: season.number, label: `${label} - Temporada ${season.number}`, type }
       h.matches.push({ ...base, gf: m.hg, ga: m.ag, opp: a.name, oppLogo: a.logo, pens: pens ? `${m.hp}-${m.ap}` : null })
@@ -1159,15 +1168,20 @@ window.Hub = (() => {
       })
       tournamentMatches.forEach((m) => {
         const countsForTournamentScorer = m.stage !== 'Repechaje'
+        if (m.stage === 'Semifinales' && season.playoffs?.twoLegged !== true && m.played) {
+          if (m.hg === 7 && m.ag === 1) byId.get(m.home).mineirazo = true
+          else if (m.hg === 1 && m.ag === 7) byId.get(m.away).mineirazo = true
+        }
         if (m.twoLegged) {
-          if (m.played && m.winner) {
-            const teamThatLostTheFirstLeg = m.leg1.hg === 0 && m.leg1.ag === 4
-              ? m.home
-              : m.leg1.hg === 4 && m.leg1.ag === 0
-                ? m.away
+          if (m.played && m.winner && !m.tied) {
+            const firstLegDeficit = m.leg1.hg === 0 && m.leg1.ag > 0
+              ? { team: m.home, goals: m.leg1.ag }
+              : m.leg1.ag === 0 && m.leg1.hg > 0
+                ? { team: m.away, goals: m.leg1.hg }
                 : null
-            if (teamThatLostTheFirstLeg && m.winner === teamThatLostTheFirstLeg) {
-              byId.get(teamThatLostTheFirstLeg).centuryComeback = true
+            if (firstLegDeficit && m.winner === firstLegDeficit.team) {
+              if (firstLegDeficit.goals === 4) byId.get(firstLegDeficit.team).centuryComeback = true
+              if (firstLegDeficit.goals === 3) byId.get(firstLegDeficit.team).anfieldComeback = true
             }
           }
           if (m.leg1Played) {

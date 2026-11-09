@@ -2131,6 +2131,8 @@ select.input option {
 .badge-item.is-earned { border-color: color-mix(in srgb, var(--badge-tone) 38%, transparent); background: color-mix(in srgb, var(--badge-tone) 8%, transparent); }
 .badge-item.is-locked { opacity: .56; }
 .badge-tone-gold { --badge-tone: #ffd166; }
+.badge-tone-rose { --badge-tone: #fb7185; }
+.badge-tone-sky { --badge-tone: #7dd3fc; }
 .badge-tone-green { --badge-tone: #4ade80; }
 .badge-tone-blue { --badge-tone: #60a5fa; }
 .badge-tone-accent { --badge-tone: var(--accent); }
@@ -2141,7 +2143,8 @@ select.input option {
 .badge-item-medal { display: grid; justify-items: center; align-content: center; gap: 3px; width: 40px; flex: none; }
 .badge-item-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; color: var(--badge-tone); background: color-mix(in srgb, var(--badge-tone) 13%, transparent); }
 .badge-item-icon .stat-icon { width: 22px; height: 22px; flex: none; }
-.badge-item-season { min-height: 9px; color: var(--muted); font-size: 8px; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.badge-item-icon .badge-icon-image { object-fit: contain; }
+.badge-item-season { min-height: 11px; color: var(--badge-tone); font-size: 10px; line-height: 1.1; font-weight: 800; font-variant-numeric: tabular-nums; }
 .badge-item-info { display: grid; gap: 4px; min-width: 0; }
 .badge-item-info strong { font-size: 10.5px; line-height: 1.25; overflow-wrap: anywhere; }
 .badge-item-info > span { color: var(--muted); font-size: 10px; }
@@ -3872,6 +3875,7 @@ select.input option {
 .team-roster-head h3 { margin:0; font:700 12px var(--font-display); letter-spacing:.04em; text-transform:uppercase; }
 .team-roster-head span { display:block; margin-top:4px; color:var(--muted); font-size:10px; }
 .team-roster-actions { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:8px; }
+.team-season-mode { flex:0 1 190px; min-width:160px; }
 .crest-randomize-picker { grid-column:1 / -1; }
 .crest-randomize-prompt { margin:0 0 14px; color:var(--muted); font-size:13px; }
 .crest-randomize-options { display:flex; flex-wrap:wrap; gap:8px; }

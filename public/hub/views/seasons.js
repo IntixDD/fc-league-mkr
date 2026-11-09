@@ -40,7 +40,7 @@
         ['3er lugar', 'third', 'medal3', 'bronze'],
         ['4to lugar', 'fourth', 'medal4', 'plain'],
         ['Goleador de la temporada', 'seasonScorer', 'ball', 'gold'],
-        ['Portería imbatible de la temporada', 'seasonCleanSheetAward', 'conceded', 'green'],
+        ['Portería imbatible de la temporada', 'seasonCleanSheetAward', 'conceded', 'accent'],
       ],
     },
     {
