@@ -210,10 +210,16 @@
           ? H.ui.poSize
           : [16, 8, 4].find((size) => size <= n) || 0
       const stage = STAGE[zone]
-      const availableForTournament = groupStage ? Math.floor(n / season.tableConfig.count) * season.tableConfig.count : twoSeries ? 2 * Math.min(season.tableConfig.series1.length, season.tableConfig.series2.length) : n
-      const configuredTournamentSize = season.playoffs?.size || (twoSeries
-        ? !H.ui.repechageEnabled ? [16, 8, 4].find((size) => size <= availableForTournament) || 0 : H.ui.poSize
-        : zone || H.ui.poSize)
+      const availableForTournament = groupStage ? competitionGroups.reduce((sum, group) => sum + Math.min(2, group.length), 0) : twoSeries ? 2 * Math.min(season.tableConfig.series1.length, season.tableConfig.series2.length) : n
+      const configuredTournamentSize = season.playoffs?.size || (
+        groupStage
+          ? (season.tableConfig.count === 4 && H.ui.poSize === 4 ? 4 : availableForTournament)
+          : twoSeries
+            ? (!H.ui.repechageEnabled ? [16, 8, 4].find((size) => size <= availableForTournament) || 0 : H.ui.poSize)
+            : (zone || H.ui.poSize)
+      )
+      const groupWinnersOnly = groupStage && season.tableConfig.count === 4 && configuredTournamentSize === 4
+      const groupQualifierCount = groupWinnersOnly ? 1 : 2
       const repechageMatches = configuredTournamentSize ? (configuredTournamentSize === 4 ? 2 : configuredTournamentSize / 4) : 0
       const directPerSeries = twoSeries ? configuredTournamentSize / 2 - repechageMatches / 2 : 0
       const directCount = configuredTournamentSize - repechageMatches
@@ -224,18 +230,20 @@
         ? !!season.playoffs.repechage?.enabled
         : !!H.ui.repechageEnabled && repechageEligible)
       const rowZone = groupStage
-        ? 2
+        ? groupQualifierCount
         : twoSeries
         ? repechageEnabled ? directPerSeries + repechageMatches : Math.floor(configuredTournamentSize / 2)
         : repechageEnabled ? configuredTournamentSize + repechageMatches : zone
       const directZone = groupStage ? rowZone : repechageEnabled ? (twoSeries ? directPerSeries : directCount) : rowZone
       const classifiedCount = groupStage
-        ? competitionGroups.reduce((sum, group) => sum + Math.min(2, group.length), 0)
+        ? competitionGroups.reduce((sum, group) => sum + Math.min(groupQualifierCount, group.length), 0)
         : rowZone * (twoSeries ? 2 : 1)
       const signed = (v) => (v > 0 ? `+${v}` : String(v))
-      const rowClass = (i) => (i === 0 ? 'is-winner' : i < directZone ? 'is-zone' : i < rowZone ? repechageEnabled ? 'is-repechage' : 'is-zone' : rowZone ? 'is-out' : '')
+      const rowClass = (i) => groupStage
+        ? i < rowZone ? 'is-zone' : 'is-out'
+        : i === 0 ? 'is-winner' : i < directZone ? 'is-zone' : i < rowZone ? repechageEnabled ? 'is-repechage' : 'is-zone' : rowZone ? 'is-out' : ''
       const rowLabel = (i) => groupStage
-        ? i === 0 ? 'Campeón de grupo' : i < rowZone ? 'Clasifica a Tournament' : 'Eliminado'
+        ? i < rowZone ? 'Clasifica a Tournament' : 'Eliminado'
         : i === 0 ? (twoSeries ? 'Líder de la serie' : 'Líder de la liga') : repechageEnabled && i < rowZone
           ? twoSeries
             ? i < directPerSeries ? 'Clasifica directo a Tournament' : 'Juega repechaje'
@@ -284,7 +292,7 @@
         <div class="table-repechage-setting table-toggle-card" data-toggle-card="table-repechage"><label class="series-choice"><input type="checkbox" name="table-repechage" ${repechageEnabled ? 'checked' : ''} ${!repechageEligible || season.playoffs ? 'disabled' : ''}> <span>Repechajes</span></label><p class="hint">${repechageHelp}</p></div>
         ${manual ? `<div class="table-finalized-setting table-toggle-card" data-toggle-card="manual-finished"><label class="series-choice"><input type="checkbox" name="manual-finished" ${season.manual?.finished ? 'checked' : ''}> <span>Liga finalizada</span></label><p class="hint">El primer lugar será el campeón de liga.</p></div>` : ''}
         ${twoSeries && !groupStage ? `<p class="hint">Asigna cada equipo a una serie. Los partidos de liga se jugarán solo entre equipos de la misma serie.</p><div class="team-series-list">${season.teams.map((t) => `<div class="team-series-row"><span class="club-cell">${crest(t.logo, 'xs', t.name)}<span>${esc(t.name)}</span></span><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="1" ${season.tableConfig.series1.includes(t.id) ? 'checked' : ''}> Serie 1</label><label class="series-choice"><input type="checkbox" value="${esc(t.id)}" data-team-series="2" ${season.tableConfig.series2.includes(t.id) ? 'checked' : ''}> Serie 2</label></div>`).join('')}</div><div class="row-actions"><button class="btn btn--ghost" data-action="random-series">Randomizar equipos</button><button class="btn btn--primary" data-action="save-series">Guardar series</button></div><p class="hint">Las series pueden tener tamaños distintos.${seriesReady ? '' : ' Asigna al menos 2 equipos a cada serie y guarda antes de generar el calendario.'}</p>` : ''}
-        ${groupStage ? `<p class="hint">Asigna cada equipo a un grupo. Los dos primeros de cada grupo clasifican a Tournament.</p><div class="team-series-list group-assignment-list">${season.teams.map((team) => { const selectedGroup = competitionGroups.findIndex((group) => group.includes(team.id)); return `<div class="team-series-row"><span class="club-cell">${crest(team.logo, 'xs', team.name)}<span>${esc(team.name)}</span></span><label class="field field--inline"><span class="field-label">Grupo</span><select class="input" data-team-group data-team="${esc(team.id)}">${competitionGroups.map((_, index) => `<option value="${index}" ${index === selectedGroup ? 'selected' : ''}>Grupo ${String.fromCharCode(65 + index)}</option>`).join('')}</select></label></div>` }).join('')}</div><div class="row-actions"><button class="btn btn--primary" data-action="save-groups">Guardar grupos</button></div>` : ''}
+        ${groupStage ? `<p class="hint">Asigna cada equipo a un grupo. ${groupWinnersOnly ? 'El primero de cada grupo clasifica a Tournament.' : 'Los dos primeros de cada grupo clasifican a Tournament.'}</p><div class="team-series-list group-assignment-list">${season.teams.map((team) => { const selectedGroup = competitionGroups.findIndex((group) => group.includes(team.id)); return `<div class="team-series-row"><span class="club-cell">${crest(team.logo, 'xs', team.name)}<span>${esc(team.name)}</span></span><label class="field field--inline"><span class="field-label">Grupo</span><select class="input" data-team-group data-team="${esc(team.id)}">${competitionGroups.map((_, index) => `<option value="${index}" ${index === selectedGroup ? 'selected' : ''}>Grupo ${String.fromCharCode(65 + index)}</option>`).join('')}</select></label></div>` }).join('')}</div><div class="row-actions"><button class="btn btn--primary" data-action="save-groups">Guardar grupos</button></div>` : ''}
       </article>`
 
       const tools = manual
@@ -297,7 +305,7 @@
         : ''
 
       const seriesTables = groupStage
-        ? competitionGroups.map((group, index) => `<section class="card card--wide"><header class="card-head"><div><h3 class="card-title">Grupo ${String.fromCharCode(65 + index)}</h3><p class="card-sub">${group.length} equipos · clasifican los dos primeros</p></div></header>${tableMarkup(H.computeTable(season, group))}</section>`).join('')
+        ? competitionGroups.map((group, index) => `<section class="card card--wide"><header class="card-head"><div><h3 class="card-title">Grupo ${String.fromCharCode(65 + index)}</h3><p class="card-sub">${group.length} equipos · ${groupQualifierCount === 1 ? 'clasifica el primero' : 'clasifican los dos primeros'}</p></div></header>${tableMarkup(H.computeTable(season, group))}</section>`).join('')
         : twoSeries ? `<section class="card card--wide"><header class="card-head"><div><h3 class="card-title">Serie 1</h3><p class="card-sub">${season.tableConfig.series1.length} equipos</p></div></header>${tableMarkup(H.computeTable(season, season.tableConfig.series1))}</section><section class="card card--wide"><header class="card-head"><div><h3 class="card-title">Serie 2</h3><p class="card-sub">${season.tableConfig.series2.length} equipos</p></div></header>${tableMarkup(H.computeTable(season, season.tableConfig.series2))}</section>`
         : tableMarkup(rows)
       el.innerHTML = `<article class="card card--wide" id="table-export">
@@ -319,10 +327,9 @@
               : ''
           }
           <ul class="legend-list" aria-label="Leyenda de posiciones">
-            <li class="legend"><span class="legend-dot legend-dot--win"></span>Ganador</li>
             ${
               zone
-                ? `<li class="legend"><span class="legend-dot legend-dot--po"></span>${groupStage ? 'Tournament · primeros 2 de cada grupo' : repechageEnabled ? twoSeries ? `Tournament · ${directPerSeries} directos + ${repechageMatches} repechaje por serie` : `Tournament · ${directCount} directos + ${repechageMatches * 2} en repechaje` : twoSeries ? `Tournament · primeros ${rowZone} de cada serie` : `Tournament · ${stage} (${zone > 1 ? `2.º–${zone}.º` : ''})`}</li>
+                ? `<li class="legend"><span class="legend-dot legend-dot--po"></span>${groupStage ? groupWinnersOnly ? 'Tournament · 1.º de cada grupo' : 'Tournament · primeros 2 de cada grupo' : repechageEnabled ? twoSeries ? `Tournament · ${directPerSeries} directos + ${repechageMatches} repechaje por serie` : `Tournament · ${directCount} directos + ${repechageMatches * 2} en repechaje` : twoSeries ? `Tournament · primeros ${rowZone} de cada serie` : `Tournament · ${stage} (${zone > 1 ? `2.º–${zone}.º` : ''})`}</li>
                    ${repechageEnabled ? '<li class="legend"><span class="legend-dot legend-dot--repechage"></span>Repechaje</li>' : ''}
                    ${n > classifiedCount ? `<li class="legend"><span class="legend-dot legend-dot--out"></span>Eliminados (${n - classifiedCount})</li>` : ''}`
                 : ''

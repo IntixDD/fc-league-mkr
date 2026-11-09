@@ -79,10 +79,38 @@
   const TABLE_ICON = '<svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16m6-16v16"/></svg>'
   const TICKET_ICON = '<svg class="stat-icon" viewBox="2 5 20 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6L6 6C5.068 6 4.602 6 4.234 6.152 3.744 6.355 3.355 6.745 3.152 7.235 3 7.602 3 8.068 3 9 4.657 9 6 10.343 6 12s-1.343 3-3 3c0 .932 0 1.398.152 1.765.203.49.592.88 1.082 1.083C4.602 18 5.068 18 6 18h8m0-12h4c.932 0 1.398 0 1.765.152.49.203.88.593 1.083 1.083C21 7.602 21 8.068 21 9c-1.657 0-3 1.343-3 3s1.343 3 3 3c0 .932 0 1.398-.152 1.765-.203.49-.593.88-1.083 1.083C19.398 18 18.932 18 18 18h-4m0-12v12"/></svg>'
 
-  function standingsTable(rows) {
-    return `<div class="table-wrap season-standing-table-wrap"><table class="data-table season-standing-table">
+  function standingsRowClass(season, index, rowCount) {
+    const type = season.tableConfig?.type
+    if (type === 'groups') {
+      const qualifiersPerGroup = season.tableConfig.count === 4 && season.playoffs?.size === 4 ? 1 : 2
+      return index < Math.min(qualifiersPerGroup, rowCount) ? 'is-zone' : 'is-out'
+    }
+
+    const isSeries = type === 'two-series'
+    const playoffSize = Number(season.playoffs?.size) || 0
+    if (!playoffSize) return index === 0 ? 'is-winner' : ''
+
+    const repechageEnabled = !!season.playoffs?.repechage?.enabled
+    const repechageMatches = playoffSize === 4 ? 2 : playoffSize / 4
+    const directPerSeries = playoffSize / 2 - repechageMatches / 2
+    const rowZone = isSeries
+      ? repechageEnabled ? directPerSeries + repechageMatches : Math.floor(playoffSize / 2)
+      : repechageEnabled ? playoffSize + repechageMatches : playoffSize
+    const directZone = repechageEnabled
+      ? isSeries ? directPerSeries : playoffSize - repechageMatches
+      : rowZone
+
+    if (index === 0) return 'is-winner'
+    if (index < directZone) return 'is-zone'
+    if (repechageEnabled && index < rowZone) return 'is-repechage'
+    if (index < rowZone) return 'is-zone'
+    return rowZone ? 'is-out' : ''
+  }
+
+  function standingsTable(season, rows) {
+    return `<div class="table-wrap season-standing-table-wrap"><table class="data-table data-table--league season-standing-table">
       <thead><tr><th class="num">Pos</th><th class="club">Club</th><th class="num">PJ</th><th class="num">PG</th><th class="num">PE</th><th class="num">PP</th><th class="num">GF</th><th class="num">GC</th><th class="num">DG</th><th class="num pts">Puntos</th></tr></thead>
-      <tbody>${rows.map((row, i) => `<tr><td class="num pos">${i + 1}</td><th scope="row" class="club"><span class="club-cell">${crest(row.team.logo, 'xs', row.team.name)}<span>${esc(row.team.name)}</span></span></th><td class="num">${row.pj}</td><td class="num">${row.pg}</td><td class="num">${row.pe}</td><td class="num">${row.pp}</td><td class="num">${row.gf}</td><td class="num">${row.gc}</td><td class="num">${row.dg > 0 ? `+${row.dg}` : row.dg}</td><td class="num pts">${row.pts}</td></tr>`).join('')}</tbody>
+      <tbody>${rows.map((row, i) => `<tr class="${standingsRowClass(season, i, rows.length)}"><td class="num pos"><span class="pos-num">${i + 1}</span></td><th scope="row" class="club"><span class="club-cell">${crest(row.team.logo, 'xs', row.team.name)}<span>${esc(row.team.name)}</span></span></th><td class="num">${row.pj}</td><td class="num">${row.pg}</td><td class="num">${row.pe}</td><td class="num">${row.pp}</td><td class="num">${row.gf}</td><td class="num">${row.gc}</td><td class="num">${row.dg > 0 ? `+${row.dg}` : row.dg}</td><td class="num pts">${row.pts}</td></tr>`).join('')}</tbody>
     </table></div>`
   }
 
@@ -99,7 +127,7 @@
         ]
       : [['Tabla regular', H.computeTable(season)]]
     const count = season.tableConfig?.type === 'groups' ? `${season.tableConfig.count} grupos` : grouped ? '2 series' : `${season.teams.length} equipos`
-    const content = lazy ? '' : `<div class="season-standing-groups">${groups.map(([label, rows]) => `<section class="season-award-group"><h4>${label}<span>${rows.length} equipos</span></h4>${standingsTable(rows)}</section>`).join('')}</div>`
+    const content = lazy ? '' : `<div class="season-standing-groups">${groups.map(([label, rows]) => `<section class="season-award-group"><h4>${label}<span>${rows.length} equipos</span></h4>${standingsTable(season, rows)}</section>`).join('')}</div>`
     const standingsLabel = season.tableConfig?.type === 'groups' ? 'Grupos' : grouped ? 'Series' : 'Tabla'
     return `<details class="season-awards season-standings" data-season-detail="standings" data-season-id="${esc(season.id || '')}"><summary><span class="season-awards-heading">${TABLE_ICON}<span>${standingsLabel}</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
   }

@@ -215,4 +215,7 @@
 * Teams/Equipos registrados: Se arregló el botón Randomizar Escudos para que funcione correctamente en función al modo de temporada elegido.
 * Teams/Registrar club: Ahora se puede seleccionar el modo de temporada desde este recuadro.
 * Performance/Badges: Se agregaron 10 nuevas insignias (Varias en función al modo de temporada)
+* Se agregó un cuadro de confirmación al abandonar la app en celular.
+* Seasons/Temporadas guardadas/Tabla: Ahora se muestran en colores al ganador, clasificados, eliminados y repechaje.
+* Table/Clasificación: (Formato Fase de Grupos) Ahora ya no se muestra el color de "Ganador" del grupo.
 
