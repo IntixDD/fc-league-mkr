@@ -1,7 +1,7 @@
 {
   "app": "league-hub",
   "version": 1,
-  "exportedAt": "2026-11-02T05:00:14.607Z",
+  "exportedAt": "2026-11-09T07:10:42.266Z",
   "readOnly": true,
   "library": {
     "name": "Cum League",
@@ -392,7 +392,7 @@
       },
       "fields": null,
       "tableConfig": null,
-      "seasonMode": "clubs",
+      "seasonMode": "selections",
       "manual": {
         "rows": {
           "sm7uztzf6v4": {
@@ -456,7 +456,7 @@
         "leagueScorer": null,
         "cupScorer": null
       },
-      "savedAt": "2026-10-22T07:45:03.398Z"
+      "savedAt": "2026-11-09T07:10:27.754Z"
     },
     {
       "id": "pk500g005m4",
