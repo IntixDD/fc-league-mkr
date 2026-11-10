@@ -191,8 +191,8 @@
     render(el, s) {
       const season = s.current
       if (!season.teams.length) {
-        const modes = [['clubs', 'Modo clubes'], ['selections', 'Modo selecciones'], ['premier', 'Modo Premier'], ['laliga', 'Modo LaLiga']]
-        el.innerHTML = `<article class="card"><header class="card-head"><h2 class="card-title">Modo de temporada</h2></header><label class="field"><span class="field-label">Escudos permitidos al registrar</span><select class="input" name="season-mode">${modes.map(([value, label]) => `<option value="${value}" ${(season.seasonMode || 'clubs') === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><p class="hint">${season.seasonMode === 'selections' ? 'Solo podrás usar escudos de Selecciones.' : season.seasonMode === 'premier' ? 'Solo podrás usar escudos de Premier League.' : season.seasonMode === 'laliga' ? 'Solo podrás usar escudos de LaLiga.' : 'Los escudos de selecciones quedan deshabilitados.'}</p><p class="empty">Registra equipos en <a href="#teams">Teams</a> para crear la tabla.</p></article>`
+        const modes = [['clubs', 'Modo clubes'], ['selections', 'Modo selecciones'], ['premier', 'Modo Premier'], ['laliga', 'Modo LaLiga'], ['seriea', 'Modo Serie A']]
+        el.innerHTML = `<article class="card"><header class="card-head"><h2 class="card-title">Modo de temporada</h2></header><label class="field"><span class="field-label">Escudos permitidos al registrar</span><select class="input" name="season-mode">${modes.map(([value, label]) => `<option value="${value}" ${(season.seasonMode || 'clubs') === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><p class="hint">${season.seasonMode === 'selections' ? 'Solo podrás usar escudos de Selecciones.' : season.seasonMode === 'premier' ? 'Solo podrás usar escudos de Premier League.' : season.seasonMode === 'laliga' ? 'Solo podrás usar escudos de LaLiga.' : season.seasonMode === 'seriea' ? 'Solo podrás usar escudos de Serie A.' : 'Los escudos de selecciones quedan deshabilitados.'}</p><p class="empty">Registra equipos en <a href="#teams">Teams</a> para crear la tabla.</p></article>`
         return
       }
       const manual = H.isManualTable(season)
@@ -285,7 +285,7 @@
         : repechageEligible
           ? 'Los equipos en repechaje jugarán por los últimos lugares del cuadro.'
           : `Se necesitan ${repechageMinimum} para usar repechajes.`
-      const modes = [['clubs', 'Modo clubes'], ['selections', 'Modo selecciones'], ['premier', 'Modo Premier'], ['laliga', 'Modo LaLiga']]
+      const modes = [['clubs', 'Modo clubes'], ['selections', 'Modo selecciones'], ['premier', 'Modo Premier'], ['laliga', 'Modo LaLiga'], ['seriea', 'Modo Serie A']]
       const tableSetup = `<article class="card card--wide table-setup-card" data-export-hide>
         <header class="card-head"><h2 class="card-title">Crear tabla</h2></header>
         <div class="row-actions table-options"><label class="field"><span class="field-label">Modo de temporada</span><select class="input" name="season-mode">${modes.map(([value, label]) => `<option value="${value}" ${(season.seasonMode || 'clubs') === value ? 'selected' : ''}>${label}</option>`).join('')}</select></label><label class="field"><span class="field-label">Formato</span><select class="input table-format" id="table-format" name="table-format"><option value="regular" ${!twoSeries ? 'selected' : ''}>Tabla regular</option><option value="two-series" ${season.tableConfig?.type === 'two-series' ? 'selected' : ''}>2 Series</option><option value="groups" ${groupStage ? 'selected' : ''}>Fase de grupos</option></select></label><label class="field${groupStage ? '' : ' groups-count-field'}"><span class="field-label">Cantidad de grupos</span><select class="input" name="group-count"><option value="4" ${(season.tableConfig?.count || 4) === 4 ? 'selected' : ''}>4 grupos</option><option value="8" ${season.tableConfig?.count === 8 ? 'selected' : ''}>8 grupos</option></select></label><button class="btn btn--primary" data-action="create-table" ${(!groupStage && !twoSeries) ? 'disabled' : ''}>${groupStage ? `${season.tableConfig.count} grupos activos` : twoSeries ? 'Tabla de 2 series activa' : 'Tabla regular activa'}</button></div>
@@ -327,6 +327,7 @@
               : ''
           }
           <ul class="legend-list" aria-label="Leyenda de posiciones">
+            ${!groupStage ? `<li class="legend"><span class="legend-dot legend-dot--win"></span>${twoSeries ? 'Campeones de Serie' : 'Campeón de Liga'}</li>` : ''}
             ${
               zone
                 ? `<li class="legend"><span class="legend-dot legend-dot--po"></span>${groupStage ? groupWinnersOnly ? 'Tournament · 1.º de cada grupo' : 'Tournament · primeros 2 de cada grupo' : repechageEnabled ? twoSeries ? `Tournament · ${directPerSeries} directos + ${repechageMatches} repechaje por serie` : `Tournament · ${directCount} directos + ${repechageMatches * 2} en repechaje` : twoSeries ? `Tournament · primeros ${rowZone} de cada serie` : `Tournament · ${stage} (${zone > 1 ? `2.º–${zone}.º` : ''})`}</li>

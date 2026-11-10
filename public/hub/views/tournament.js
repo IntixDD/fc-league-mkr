@@ -10,6 +10,8 @@
   let repechageDraft = null
   let twoLeggedDraftSeason = null
   let twoLeggedDraft = null
+  let supercupDraftSeason = null
+  let supercupDraft = null
 
   function repechageSetup(season, size, grouped) {
     if (grouped) {
@@ -100,6 +102,7 @@
   }
 
   const randomGoals = () => Math.floor(Math.random() * 6)
+  const randomField = (count = 2) => Math.floor(Math.random() * Math.max(2, Math.trunc(Number(count)) || 2)) + 1
   const isMobileDevice = () => /android.*mobile|iphone|ipod|ipad|windows phone/i.test(navigator.userAgent)
     || window.matchMedia('(pointer: coarse) and (max-width: 767px)').matches
 
@@ -147,6 +150,14 @@
       }
       const bracket = H.computeBracket(season)
       if (bracket?.third?.pair) playoffs.results.third = randomMatchResult(bracket.third)
+      if (season.tableConfig?.type !== 'groups' && playoffs.supercup?.enabled) {
+        const supercup = H.supercupPair(season, bracket)
+        if (supercup) {
+          const result = { pair: supercup.pair, hg: randomGoals(), ag: randomGoals(), hp: null, ap: null }
+          if (result.hg === result.ag) randomPenaltyResult(result)
+          playoffs.supercup.result = result
+        }
+      }
     })
     H.toast('Resultados de Tournament aleatorizados')
   }
@@ -170,8 +181,8 @@
     if (useRepechage && !grouped && !repechageSetup(season, size, false)) {
       return H.toast(`Con repechaje se necesitan al menos ${size + size / 4} equipos.`, 'error')
     }
-    if (season.playoffs && (Object.keys(season.playoffs.results).length || Object.keys(season.playoffs.repechage?.results || {}).length)) {
-      if (!(await H.confirm('Se creará un nuevo cuadro y se perderán los resultados actuales de Tournament.', { confirmText: 'Crear' })))
+    if (season.playoffs && (Object.keys(season.playoffs.results).length || Object.keys(season.playoffs.repechage?.results || {}).length || !!season.playoffs.supercup?.result?.pair)) {
+      if (!(await H.confirm('Se creará un nuevo cuadro y se perderán los resultados actuales de Tournament y Supercopa.', { confirmText: 'Crear' })))
         return
     }
     let seeds
@@ -221,6 +232,7 @@
       seeds,
       twoLegged: !!twoLeggedDraft,
       results: {},
+      supercup: { enabled: !groupStage && !!supercupDraft, result: null, field: randomField(season.fields || 2) },
       fields: H.generateTournamentFields(size, season.fields || 2, !!twoLeggedDraft),
       ...(repechage ? { repechage: { ...repechage, twoLegged: !!twoLeggedDraft }, bracketOrder: randomBracketOrder(size, repechage.seedSlots) } : {}),
     }))
@@ -308,12 +320,21 @@
 
   H.view('tournament', {
     bind(el) {
+      let supercupSettleTimer = 0
+      const settleSupercup = () => {
+        clearTimeout(supercupSettleTimer)
+        supercupSettleTimer = setTimeout(() => {
+          const active = document.activeElement
+          if (active && el.contains(active) && active.matches('input, textarea, select')) return
+          H.render()
+        }, 150)
+      }
       window.addEventListener('keydown', (e) => {
         if (!e.shiftKey || e.key.toLowerCase() !== 'r' || e.altKey || e.ctrlKey || e.metaKey || e.repeat || e.isComposing) return
         const section = el.closest('.section')
         if (!section || section.hidden || isMobileDevice()) return
         const editing = e.target.closest?.('input, textarea, select, [contenteditable="true"]')
-        if (editing && !editing.matches('[data-match], [data-po]')) return
+        if (editing && !editing.matches('[data-match], [data-po], [data-supercup]')) return
         e.preventDefault()
         randomizeTournamentResults()
       })
@@ -334,6 +355,21 @@
         else if (action === 'remove') remove()
       })
       el.addEventListener('input', (e) => {
+        const supercupInput = e.target.closest('[data-supercup]')
+        if (supercupInput) {
+          const { pair, field } = supercupInput.dataset
+          const value = H.parseScore(supercupInput.value)
+          H.update((s) => {
+            const supercup = s.current.playoffs?.supercup
+            if (!supercup?.enabled) return
+            const previous = supercup.result
+            const result = previous && previous.pair === pair ? previous : { pair, hg: null, ag: null, hp: null, ap: null }
+            result[field] = value
+            if (field === 'hg' || field === 'ag') { result.hp = null; result.ap = null }
+            supercup.result = result
+          }, { skip: 'tournament' })
+          return
+        }
         const input = e.target.closest('[data-po]')
         if (!input) return
         const { po: key, pair, field } = input.dataset
@@ -362,7 +398,18 @@
           H.render()
           return
         }
+        if (e.target.name === 'supercup-enabled') {
+          if (H.state.current.tableConfig?.type === 'groups') return
+          supercupDraft = e.target.checked
+          H.ui.supercupEnabled = supercupDraft
+          H.render()
+          return
+        }
         if (e.target.closest('[data-po]')) H.render()
+        else if (e.target.closest('[data-supercup]')) settleSupercup()
+      })
+      el.addEventListener('focusout', (e) => {
+        if (e.target.closest?.('[data-supercup]')) settleSupercup()
       })
     },
 
@@ -390,6 +437,15 @@
         twoLeggedDraftSeason = season.id
         twoLeggedDraft = po ? !!po.twoLegged : !!H.ui.tournamentTwoLegged
         H.ui.tournamentTwoLegged = twoLeggedDraft
+      }
+      if (groupStage) {
+        supercupDraftSeason = season.id
+        supercupDraft = false
+        H.ui.supercupEnabled = false
+      } else if (supercupDraftSeason !== season.id || supercupDraft == null || (!po && supercupDraft !== !!H.ui.supercupEnabled)) {
+        supercupDraftSeason = season.id
+        supercupDraft = po ? !!po.supercup?.enabled : !!H.ui.supercupEnabled
+        H.ui.supercupEnabled = supercupDraft
       }
       const repechageEnabled = groupStage ? false : repechageDraft
       const canRepechage = (size) => !groupStage && !!repechageSetup(season, size, grouped)
@@ -426,6 +482,7 @@
           <div class="tournament-options">
             <div class="tournament-option-card tournament-toggle-card" data-toggle-card="repechage-enabled"><label class="series-choice tournament-repechage-toggle"><input type="checkbox" name="repechage-enabled" ${repechageEnabled ? 'checked' : ''} ${canRepechage(H.ui.poSize) ? '' : 'disabled'}> <span>Repechajes</span> <span class="hint">(mínimo ${repechageMinimum(H.ui.poSize, grouped)})</span></label></div>
             <div class="tournament-option-card tournament-toggle-card" data-toggle-card="two-legged-enabled"><label class="series-choice"><input type="checkbox" name="two-legged-enabled" ${twoLeggedDraft ? 'checked' : ''}> <span>Ida y vuelta</span></label></div>
+            <div class="tournament-option-card tournament-toggle-card${groupStage ? ' is-disabled' : ''}" data-toggle-card="supercup-enabled"${groupStage ? ' aria-disabled="true"' : ''}><label class="series-choice"><input type="checkbox" name="supercup-enabled" ${!groupStage && supercupDraft ? 'checked' : ''} ${groupStage ? 'disabled' : ''}> <span>Supercopa</span></label>${groupStage ? '<small class="tournament-option-note">No disponible en Fase de Grupos</small>' : ''}</div>
           </div>
           ${total && played < total ? `<p class="notice">La liga aún no termina (${played}/${total}). Los clasificados se toman de la tabla actual.</p>` : ''}
           <div class="row-actions">
@@ -548,6 +605,49 @@
           </div>
         </div>`
 
+      const supercupPair = !groupStage && po.supercup?.enabled ? H.supercupPair(season, bracket) : null
+      const supercupMatch = supercupPair ? H.supercupMatch(season, bracket) : null
+      const provisionalGroupWinners = groupStage
+        ? (season.tableConfig.groups || []).map((group) => H.computeTable(season, group)[0]).filter((row) => row && (row.pj || row.pts)).sort((a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.team.name.localeCompare(b.team.name))
+        : []
+      const seasonAwards = H.seasonStats(season)
+      const provisionalDomesticChampion = grouped
+        ? seasonAwards.find((team) => team.seriesFinalChampion)?.id || null
+        : groupStage
+          ? provisionalGroupWinners[0]?.team.id || null
+          : seasonAwards.find((team) => team.leagueChampion)?.id || null
+      const provisionalDomesticRunnerUp = grouped
+        ? seasonAwards.find((team) => team.seriesFinalRunnerUp)?.id || null
+        : groupStage
+          ? provisionalGroupWinners[1]?.team.id || null
+          : H.computeTable(season)[1]?.team.id || null
+      const displayedSupercupHome = supercupPair?.home || (bracket.champion && provisionalDomesticChampion === bracket.champion
+        ? provisionalDomesticRunnerUp || provisionalDomesticChampion
+        : provisionalDomesticChampion)
+      const displayedSupercupAway = supercupPair?.away || bracket.champion || null
+      const supercupHome = displayedSupercupHome ? teams.get(displayedSupercupHome) : null
+      const supercupAway = displayedSupercupAway ? teams.get(displayedSupercupAway) : null
+      const supercupInput = (field, team) => `<input class="score-input tournament-supercup-score" type="number" inputmode="numeric" min="0" max="99" value="${supercupMatch?.[field] ?? ''}"
+        data-key="supercup:${field}" data-supercup="" data-pair="${esc(supercupPair?.pair || '')}" data-field="${field}" aria-label="Goles de ${esc(team?.name || 'por definir')}" ${supercupPair ? '' : 'disabled'}>`
+      const supercupPenalty = (field, team) => `<label class="po-leg-score tournament-supercup-penalty"><span>Penales</span><input class="score-input score-input--pen" type="number" inputmode="numeric" min="0" max="99" value="${supercupMatch?.[field] ?? ''}"
+        data-key="supercup:${field}" data-supercup="" data-pair="${esc(supercupPair?.pair || '')}" data-field="${field}" aria-label="Penales de ${esc(team?.name || 'por definir')}" ${supercupPair ? '' : 'disabled'}></label>`
+      const supercupCard = !groupStage && po.supercup?.enabled ? `
+        <article class="card card--wide tournament-supercup-panel">
+          <header class="card-head"><div><h2 class="card-title">Supercopa</h2><p class="card-sub">Cancha ${supercupMatch?.field || po.supercup.field || '—'}</p></div></header>
+          <div class="menu-match-card tournament-supercup-match">
+            ${supercupHome?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(supercupHome.logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
+            ${supercupAway?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(supercupAway.logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
+            <h4>Final de Supercopa</h4>
+            <div class="tournament-supercup-fixture">
+              <div class="tournament-supercup-team${supercupMatch?.winner === supercupPair?.home ? ' is-winner' : ''}">${supercupHome ? crest(supercupHome.logo, 'md', supercupHome.name) : '<span class="crest crest--md crest--tbd"></span>'}<span>${esc(supercupHome?.name || 'Por definir')}</span></div>
+              <div class="tournament-supercup-scoreline">${supercupInput('hg', supercupHome)}<i>:</i>${supercupInput('ag', supercupAway)}</div>
+              <div class="tournament-supercup-team tournament-supercup-team--away${supercupMatch?.winner === supercupPair?.away ? ' is-winner' : ''}">${supercupAway ? crest(supercupAway.logo, 'md', supercupAway.name) : '<span class="crest crest--md crest--tbd"></span>'}<span>${esc(supercupAway?.name || 'Por definir')}</span></div>
+            </div>
+            ${supercupMatch?.tied ? `<div class="tournament-supercup-penalties">${supercupPenalty('hp', supercupHome)}<span>:</span>${supercupPenalty('ap', supercupAway)}</div><p class="menu-match-pens">${supercupMatch.winner ? 'Definida por penales' : supercupMatch.penaltiesTied ? 'Los penales no pueden terminar empatados' : 'Empate: ingresa la tanda de penales'}</p>` : ''}
+          </div>
+          ${!supercupPair ? '<p class="hint">La Supercopa aparecerá cuando estén definidos el campeón de liga o Finalísima y el campeón de Tournament.</p>' : ''}
+        </article>` : ''
+
       const place = (id, label, cls, icon) => {
         const t = id ? teams.get(id) : null
         return `
@@ -585,6 +685,7 @@
               ${leftCols}${finalCol}${rightCols}
             </div>
           </article>
+          ${supercupCard}
         </div>`
       watchBracket(el, bracket.rounds.length)
     },

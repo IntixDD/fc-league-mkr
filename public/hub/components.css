@@ -1637,6 +1637,7 @@ select.input option {
 
 .season-champs {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -1725,14 +1726,27 @@ select.input option {
 }
 
 .season-awards-content { padding: 12px; }
+.season-finals-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 10px; }
+.season-finals-match { min-height: 138px; gap: 10px; }
+.season-finals-field { position: absolute; z-index: 2; top: 9px; left: 10px; color: var(--muted); font-size: 9px; font-weight: 700; text-shadow: 0 2px 8px #000; }
+.season-finals-score-row { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.season-finals-team { display: flex; align-items: center; gap: 6px; min-width: 0; color: #fff; font-size: 11px; font-weight: 700; text-shadow: 0 2px 8px #000; }
+.season-finals-team > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.season-finals-team--away { justify-content: flex-end; text-align: right; }
+.season-finals-score { color: #fff; font: 700 21px var(--font-display); font-variant-numeric: tabular-nums; text-shadow: 0 2px 10px #000; white-space: nowrap; }
+.season-finals-score i { color: var(--accent); font-style: normal; }
+.season-finals-score .is-champion { color: #ffd166; }
+.season-finals-meta { position: relative; z-index: 1; display: flex; justify-content: center; gap: 10px; color: var(--gold); font-size: 10px; font-weight: 700; text-shadow: 0 2px 8px #000; }
+.season-finals-pens { font-size: 14px; font-weight: 800; }
 
-.season-json-export-settings { display: grid; gap: 10px; margin-top: 14px; }
+.season-json-export-settings { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: stretch; gap: 10px; margin-top: 14px; }
 .season-json-export-settings .input { min-height: 38px; font-size: 13px; }
-.season-json-icon-control { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
-.season-json-icon-preview { display: grid; place-items: center; width: 38px; height: 38px; flex: none; overflow: hidden; color: var(--accent); background: rgb(var(--accent-rgb) / .08); border: 1px solid var(--line); border-radius: 9px; }
+.season-json-icon-control { display: grid; place-items: center; width: 76px; height: 76px; min-width: 0; padding: 8px; color: var(--accent); font: inherit; background: rgb(255 255 255 / .025); border: 1px solid var(--line); border-radius: 10px; appearance: none; cursor: pointer; transition: border-color .16s ease, background .16s ease, transform .16s ease; }
+.season-json-icon-control:hover { background: rgb(var(--accent-rgb) / .08); border-color: var(--line-strong); }
+.season-json-icon-control:active { transform: scale(.96); }
+.season-json-icon-preview { display: grid; place-items: center; width: 48px; height: 48px; overflow: hidden; color: var(--accent); }
 .season-json-icon-preview svg { width: 22px; height: 22px; }
 .season-json-icon-preview img { width: 100%; height: 100%; object-fit: contain; }
-.season-json-icon-name { flex: 1; min-width: 100px; color: var(--muted); font-size: 12px; }
 .season-library-list { display: grid; gap: 6px; margin-top: 14px; }
 .season-library-entry { display: flex; align-items: center; gap: 9px; width: 100%; min-width: 0; padding: 8px; color: inherit; text-align: left; background: rgb(255 255 255 / .025); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
 .season-library-entry:hover { border-color: var(--line-strong); background: rgb(var(--accent-rgb) / .06); }
@@ -1810,6 +1824,7 @@ select.input option {
 .season-fixture-score { min-width: 46px; color: #fff; font-size: 12px; font-variant-numeric: tabular-nums; text-align: center; }
 .season-fixture-score i { color: var(--muted); font-style: normal; }
 .season-fixture-rest { margin: 8px 0 0; color: var(--muted); font-size: 10px; }
+.fx-finalissima-meta { position: relative; z-index: 1; margin: 0; color: var(--muted); font-size: 10px; text-align: center; text-shadow: 0 2px 8px #000; }
 
 /* Main menu carousels */
 .menu-layout { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: stretch; }
@@ -1847,9 +1862,29 @@ select.input option {
 .menu-crest-watermark--away { right: -1%; }
 .menu-match-score { position: relative; z-index: 1; color: #fff; font: 700 30px var(--font-display); font-variant-numeric: tabular-nums; text-align: center; text-shadow: 0 2px 14px #000; }
 .menu-match-score i { color: var(--accent); font-style: normal; }
+.menu-match-score .is-champion { color: #ffd166; }
 .menu-match-names { position: relative; z-index: 1; display: flex; justify-content: space-between; gap: 18px; color: #fff; font-size: 12px; font-weight: 700; text-shadow: 0 2px 10px #000; }
 .menu-match-names span { max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-match-names span:last-child { text-align: right; }
+.tournament-supercup-panel { display: grid; align-content: start; gap: 12px; }
+.tournament-supercup-match { min-height: 188px; }
+.tournament-supercup-fixture { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; gap: clamp(8px, 2vw, 20px); }
+.tournament-supercup-team { display: flex; align-items: center; justify-content: flex-start; gap: 10px; min-width: 0; color: #fff; font-size: 13px; font-weight: 700; text-shadow: 0 2px 10px #000; }
+.tournament-supercup-team > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tournament-supercup-team--away { justify-content: flex-end; text-align: right; }
+.tournament-supercup-team.is-winner { color: var(--gold); }
+.tournament-supercup-scoreline { display: flex; align-items: center; gap: 7px; }
+.tournament-supercup-scoreline i { color: var(--accent); font-size: 20px; font-style: normal; font-weight: 800; }
+.tournament-supercup-score { width: 48px; height: 42px; border-color: var(--line-strong); font-size: 21px; font-weight: 800; }
+.tournament-supercup-score:disabled { opacity: .45; }
+.tournament-supercup-penalties,
+.fx-finalissima-penalties { position: relative; z-index: 1; display: flex; align-items: end; justify-content: center; gap: 10px; }
+.tournament-supercup-penalties > span,
+.fx-finalissima-penalties > span { padding-bottom: 10px; color: var(--gold); font-weight: 800; }
+.tournament-supercup-penalty,
+.fx-finalissima-penalty { min-width: 46px; }
+.tournament-supercup-penalty .score-input,
+.fx-finalissima-penalty .score-input { width: 38px; height: 31px; font-size: 15px; }
 .menu-final-pair { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; width: 100%; }
 .ui-scale-minus-one .menu-final-pair { grid-template-columns: minmax(0,1fr); }
 .menu-match-pens { position: relative; z-index: 1; color: var(--gold); font-size: 11px; font-weight: 700; text-align: center; text-shadow: 0 2px 10px #000; }
@@ -1912,6 +1947,10 @@ select.input option {
   .menu-final-pair { grid-template-columns: 1fr; }
   .menu-carousel { min-height: 0; }
   .menu-match-card { min-height: 135px; padding: 10px; }
+  .tournament-supercup-fixture { gap: 5px; }
+  .tournament-supercup-team { gap: 5px; font-size: 10px; }
+  .tournament-supercup-scoreline { gap: 4px; }
+  .tournament-supercup-score { width: 39px; height: 36px; font-size: 18px; }
   .menu-match-score { font-size: 23px; }
   .menu-match-names { gap: 4px; font-size: 9px; }
   .table-options { align-items: stretch; }
@@ -1996,6 +2035,7 @@ select.input option {
 .season-award-icon--silver { --award-tone: var(--silver); }
 .season-award-icon--bronze { --award-tone: var(--bronze); }
 .season-award-icon--accent { --award-tone: var(--accent); }
+.season-award-icon--cyan { --award-tone: #22d3ee; }
 .season-award-icon--purple { --award-tone: #c084fc; }
 .season-award-icon--plain { --award-tone: #8fa3bf; }
 
@@ -2134,6 +2174,7 @@ select.input option {
 .badge-tone-rose { --badge-tone: #fb7185; }
 .badge-tone-sky { --badge-tone: #7dd3fc; }
 .badge-tone-green { --badge-tone: #4ade80; }
+.badge-tone-lightgreen { --badge-tone: #86efac; }
 .badge-tone-blue { --badge-tone: #60a5fa; }
 .badge-tone-accent { --badge-tone: var(--accent); }
 .badge-tone-purple { --badge-tone: #c084fc; }
@@ -2328,8 +2369,12 @@ select.input option {
 .menu-dot.is-active { background:var(--accent); transform:rotate(45deg) scale(1.35); box-shadow:0 0 10px color-mix(in srgb,var(--accent) 65%,transparent); }
 .menu-command { padding-top:2px; }
 .menu-quick { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:9px; }
-.menu-quick-card { position:relative; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:10px; min-width:0; min-height:68px; padding:11px; overflow:hidden; border:1px solid var(--line); color:#fff; background:linear-gradient(135deg,color-mix(in srgb,var(--surface) 92%,#000),color-mix(in srgb,var(--surface) 90%,var(--accent))); text-decoration:none; transition:transform .2s,border-color .2s,background .2s; }
-.menu-quick-card:hover { transform:translateY(-3px); border-color:var(--accent); background:color-mix(in srgb,var(--surface) 84%,var(--accent)); }
+.menu-quick-card { position:relative; display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:10px; min-width:0; min-height:68px; padding:11px; overflow:hidden; border:1px solid var(--line); color:#fff; background:linear-gradient(135deg,color-mix(in srgb,var(--surface) 92%,#000),color-mix(in srgb,var(--surface) 90%,var(--accent))); text-decoration:none; -webkit-tap-highlight-color:transparent; transition:border-color .18s ease; }
+.menu-quick-card:focus { outline:none; box-shadow:none; }
+.menu-quick-card:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+@media (hover:hover) and (pointer:fine) {
+  .menu-quick-card:hover { border-color:var(--accent); }
+}
 .menu-quick-number { align-self:start; color:var(--accent); font:800 10px var(--font-display); }
 .menu-quick-copy { display:grid; gap:4px; min-width:0; }
 .menu-quick-copy strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font:700 11px var(--font-display); text-transform:uppercase; }
@@ -2651,6 +2696,8 @@ select.input option {
   .table-toggle-card input:focus { outline: none !important; box-shadow: none !important; }
 }
 .tournament-option-card .series-choice { width: 100%; gap: 8px; color: #fff; font-size: 12px; font-weight: 700; white-space: normal; cursor: pointer; }
+.tournament-option-card.is-disabled { opacity: .55; cursor: not-allowed; }
+.tournament-option-note { color: var(--muted); font-size: 9px; white-space: nowrap; }
 .tournament-option-card .series-choice input { width: 16px; height: 16px; flex: none; }
 .season-keep-teams-card { width: 100%; min-height: 58px; margin-top: 10px; padding: 10px 14px; }
 .season-keep-teams-card .season-keep-teams-choice { align-items: center; gap: 12px; font-size: 13px; }
@@ -2709,6 +2756,7 @@ select.input option {
 .trophy--silver { --tone: var(--silver); }
 .trophy--bronze { --tone: var(--bronze); }
 .trophy--accent { --tone: var(--accent); }
+.trophy--cyan { --tone: #22d3ee; }
 .trophy--purple { --tone: #c084fc; }
 .trophy--plain { --tone: #8fa3bf; }
 
@@ -3030,6 +3078,10 @@ select.input option {
   background: rgba(110, 231, 168, 0.1);
   border-color: rgba(110, 231, 168, 0.4);
 }
+
+.fx-finalissima .fx-round-num { font-size: 13px; }
+.fx-finalissima .fx-match { border-color: rgb(var(--accent-rgb) / .35); }
+.fx-finalissima-penalties { margin-top: 10px; }
 
 .fx-round-info {
   display: flex;

@@ -18,6 +18,7 @@ window.Hub = (() => {
     repechageEnabled: null,
     lockSeasonExport: false,
     tournamentTwoLegged: false,
+    supercupEnabled: false,
   }
   let state = null
   let saveTimer = 0
@@ -56,7 +57,7 @@ window.Hub = (() => {
   // synchronous mirror so the latest edit survives a reload even if the async write is cut off.
   const LS_STATE = 'league-hub:state'
   const LS_UI = 'league-hub:ui'
-  const UI_KEYS = ['fxMode', 'poSize', 'perfTeam', 'historySort', 'historySortVersion', 'historyDir', 'historyQuery', 'newKeepTeams', 'tableEdit', 'repechageEnabled', 'lockSeasonExport', 'tournamentTwoLegged']
+  const UI_KEYS = ['fxMode', 'poSize', 'perfTeam', 'historySort', 'historySortVersion', 'historyDir', 'historyQuery', 'newKeepTeams', 'tableEdit', 'repechageEnabled', 'lockSeasonExport', 'tournamentTwoLegged', 'supercupEnabled']
   let dirty = false
   let lastUi = ''
 
@@ -170,6 +171,12 @@ window.Hub = (() => {
     const n = Math.trunc(Number(v))
     return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : 0
   }
+  const randomField = (count = 2) => Math.floor(Math.random() * Math.max(2, Math.min(999, Math.trunc(Number(count)) || 2))) + 1
+  const savedField = (value, count = 2) => {
+    const limit = Math.max(2, Math.min(999, Math.trunc(Number(count)) || 2))
+    const field = Number(value)
+    return Number.isInteger(field) && field >= 1 && field <= limit ? field : randomField(limit)
+  }
 
   function sanitizeManual(raw, ids) {
     if (!raw || typeof raw !== 'object') return null
@@ -207,6 +214,9 @@ window.Hub = (() => {
         series1: Array.isArray(raw.fixtures.series1) ? raw.fixtures.series1.filter((id) => ids.has(id)) : null,
         series2: Array.isArray(raw.fixtures.series2) ? raw.fixtures.series2.filter((id) => ids.has(id)) : null,
         groups: Array.isArray(raw.fixtures.groups) ? raw.fixtures.groups.map((group) => group.filter((id) => ids.has(id))) : null,
+        finalissima: raw.fixtures.finalissima && typeof raw.fixtures.finalissima === 'object'
+          ? { pair: typeof raw.fixtures.finalissima.pair === 'string' ? raw.fixtures.finalissima.pair : '', hg: sc(raw.fixtures.finalissima.hg), ag: sc(raw.fixtures.finalissima.ag), hp: sc(raw.fixtures.finalissima.hp), ap: sc(raw.fixtures.finalissima.ap), field: savedField(raw.fixtures.finalissima.field, fields || 2) }
+          : null,
         rounds: raw.fixtures.rounds
           .map((r) =>
             (Array.isArray(r) ? r : [])
@@ -274,6 +284,14 @@ window.Hub = (() => {
           }
         }
       })
+      const rawSupercup = raw.playoffs.supercup
+      playoffs.supercup = {
+        enabled: tableConfig?.type !== 'groups' && rawSupercup?.enabled === true,
+        field: savedField(rawSupercup?.field, fields || 2),
+        result: rawSupercup?.result && typeof rawSupercup.result.pair === 'string'
+          ? { pair: rawSupercup.result.pair, hg: sc(rawSupercup.result.hg), ag: sc(rawSupercup.result.ag), hp: sc(rawSupercup.result.hp), ap: sc(rawSupercup.result.ap) }
+          : null,
+      }
       const rawRepechage = raw.playoffs.repechage
       if (rawRepechage?.enabled && Array.isArray(rawRepechage.pairs)) {
         playoffs.repechage = {
@@ -327,7 +345,7 @@ window.Hub = (() => {
       playoffs,
       fields,
       tableConfig,
-      seasonMode: ['clubs', 'selections', 'premier', 'laliga'].includes(raw.seasonMode) ? raw.seasonMode : 'clubs',
+      seasonMode: ['clubs', 'selections', 'premier', 'laliga', 'seriea'].includes(raw.seasonMode) ? raw.seasonMode : 'clubs',
       manual: sanitizeManual(raw.manual, ids),
       awards: {
         leagueScorer: ids.has(awards.leagueScorer) ? awards.leagueScorer : null,
@@ -352,7 +370,7 @@ window.Hub = (() => {
     // Older saved states used random string IDs and could contain repeated gallery entries.
     ;(Array.isArray(raw.logos) ? raw.logos : []).forEach((logo) => {
       addLogo(logo?.data)
-      if (logo?.data && ['custom', 'selections', 'premier', 'laliga', 'other'].includes(logo.category)) logoCategories.set(logo.data, logo.category)
+      if (logo?.data && ['custom', 'selections', 'premier', 'laliga', 'seriea', 'other'].includes(logo.category)) logoCategories.set(logo.data, logo.category)
     })
     const current = sanitizeSeason(raw.current) || emptySeason(1)
     const seasons = Array.isArray(raw.seasons) ? raw.seasons.map(sanitizeSeason).filter((s) => s && s.id) : []
@@ -496,7 +514,7 @@ window.Hub = (() => {
         continue
       }
       const id = state.logos.length
-      const category = ['custom', 'selections', 'premier', 'laliga', 'other'].includes(entry?.category) ? entry.category : 'custom'
+      const category = ['custom', 'selections', 'premier', 'laliga', 'seriea', 'other'].includes(entry?.category) ? entry.category : 'custom'
       state.logos.push({ id, data, category })
       added.push(id)
     }
@@ -728,13 +746,17 @@ window.Hub = (() => {
   const STAT_STYLE = {
     series: { icon: 'crown', cls: 'tone tone-green' },
     cups: { icon: 'trophy', cls: 'tone tone-gold' },
-    leagues: { icon: 'crown', cls: 'tone tone-green' },
+    leagues: { icon: 'crown', cls: 'tone tone-cyan' },
+    finalissimas: { icon: 'trophy', cls: 'tone tone-gold' },
+    supercups: { icon: 'trophy', cls: 'tone tone-gold' },
     runnerUp: { icon: 'medal2', cls: 'tone tone-silver' },
     third: { icon: 'medal3', cls: 'tone tone-bronze' },
     fourth: { icon: 'medal4', cls: 'tone tone-slate' },
     leagueGoals: { icon: 'ball', cls: 'tone tone-lime' },
     leagueConceded: { icon: 'conceded', cls: 'tone tone-rose' },
     cupGoals: { icon: 'ball', cls: 'tone tone-blue' },
+    finalGoals: { icon: 'ball', cls: 'tone tone-gold' },
+    finalConceded: { icon: 'conceded', cls: 'tone tone-rose' },
     goals: { icon: 'ball', cls: 'tone tone-cyan' },
     points: { icon: 'star', cls: 'tone tone-accent' },
     titles: { icon: 'trophy', cls: 'tone tone-gold' },
@@ -871,6 +893,72 @@ window.Hub = (() => {
     return [...rows.values()]
       .map((r) => ({ ...r, dg: r.gf - r.gc }))
       .sort((a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.team.name.localeCompare(b.team.name))
+  }
+
+  function seasonPhaseComplete(season) {
+    if (season.fixtures) {
+      const matches = leagueMatches(season)
+      return matches.length > 0 && matches.every(played)
+    }
+    return !!season.manual?.finished
+  }
+
+  function seriesChampionIds(season) {
+    if (season.tableConfig?.type !== 'two-series' || !seasonPhaseComplete(season)) return null
+    const groups = [season.tableConfig.series1, season.tableConfig.series2]
+    const assigned = new Set(groups.flat())
+    if (groups.some((group) => !Array.isArray(group) || group.length < 2) || assigned.size !== season.teams.length) return null
+    const winners = groups.map((group) => {
+      const row = computeTable(season, group)[0]
+      return row && (row.pj || row.pts) ? row.team.id : null
+    })
+    return winners.every(Boolean) ? winners : null
+  }
+
+  function finalissimaMatch(season) {
+    const champions = seriesChampionIds(season)
+    if (!champions || !season.fixtures) return null
+    const raw = season.fixtures.finalissima
+    return resolveMatch({ fields: { finalissima: raw?.field }, results: { finalissima: raw } }, 'finalissima', champions[0], champions[1], null, null, 'Finalísima de Series')
+  }
+
+  function supercupPair(season, bracket = computeBracket(season)) {
+    if (season.tableConfig?.type === 'groups') return null
+    if (!seasonPhaseComplete(season) || !bracket?.champion) return null
+    const type = season.tableConfig?.type
+    let domesticChampion = null
+    let domesticRunnerUp = null
+
+    if (type === 'two-series') {
+      const final = finalissimaMatch(season)
+      if (!final?.winner) return null
+      domesticChampion = final.winner
+      domesticRunnerUp = final.loser
+    } else if (type === 'groups') {
+      const tables = (season.tableConfig.groups || []).map((group) => computeTable(season, group))
+      if (!tables.length || tables.some((table) => !table[0] || !table[0].pj)) return null
+      const winners = tables.map((table) => table[0]).sort((a, b) =>
+        b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.team.name.localeCompare(b.team.name),
+      )
+      domesticChampion = winners[0]?.team.id || null
+      domesticRunnerUp = winners[1]?.team.id || null
+    } else {
+      const table = computeTable(season)
+      if (!table[0] || !(table[0].pj || table[0].pts)) return null
+      domesticChampion = table[0].team.id
+      domesticRunnerUp = table[1]?.team.id || null
+    }
+
+    if (domesticChampion === bracket.champion) domesticChampion = domesticRunnerUp
+    if (!domesticChampion || domesticChampion === bracket.champion) return null
+    return { home: domesticChampion, away: bracket.champion, pair: `${domesticChampion}|${bracket.champion}` }
+  }
+
+  function supercupMatch(season, bracket = computeBracket(season)) {
+    const pair = supercupPair(season, bracket)
+    if (!pair) return null
+    const raw = season.playoffs?.supercup?.result
+    return resolveMatch({ fields: { supercup: season.playoffs?.supercup?.field }, results: { supercup: raw } }, 'supercup', pair.home, pair.away, null, null, 'Supercopa')
   }
 
   function seedOrder(n) {
@@ -1026,10 +1114,13 @@ window.Hub = (() => {
         number: season.number,
         seasonMode: season.seasonMode || 'clubs',
         tableType: season.tableConfig?.type || 'regular',
+        supercupEnabled: season.tableConfig?.type !== 'groups' && season.playoffs?.supercup?.enabled === true,
         position: null,
         leaguePosition: null,
         league: zero(),
         cup: zero(),
+        seriesFinal: zero(),
+        supercup: zero(),
         matches: [],
         tournamentQualifiedByDraws: false,
         tournamentQualifiedByRepechage: false,
@@ -1040,6 +1131,11 @@ window.Hub = (() => {
         twelveGoalMatch: false,
         leagueChampion: false,
         seriesChampion: false,
+        seriesFinalChampion: false,
+        seriesFinalRunnerUp: false,
+        supercupChampion: false,
+        domesticDouble: false,
+        theTreble: false,
         groupChampion: false,
         wonTitleOnGoalDifference: false,
         wonTitleWithNonPositiveGoalDifference: false,
@@ -1129,6 +1225,13 @@ window.Hub = (() => {
       }
       if (table[0].dg <= 0) byId.get(table[0].team.id).wonTitleWithNonPositiveGoalDifference = true
       table.filter((row) => row.pj > 0 && row.pp === 0).forEach((row) => (byId.get(row.team.id).invincibleLeague = true))
+    }
+
+    const finalissima = finalissimaMatch(season)
+    if (finalissima?.played) {
+      record(finalissima, 'seriesFinal', 'Finalísima de Series', finalissima.tied && finalissima.decided)
+      if (finalissima.winner && byId.has(finalissima.winner)) byId.get(finalissima.winner).seriesFinalChampion = true
+      if (finalissima.loser && byId.has(finalissima.loser)) byId.get(finalissima.loser).seriesFinalRunnerUp = true
     }
 
     const bracket = computeBracket(season)
@@ -1242,6 +1345,12 @@ window.Hub = (() => {
       }
     }
 
+    const supercup = season.tableConfig?.type !== 'groups' && season.playoffs?.supercup?.enabled ? supercupMatch(season, bracket) : null
+    if (supercup?.played) {
+      record(supercup, 'supercup', 'Supercopa', supercup.tied && supercup.decided)
+      if (supercup.winner && byId.has(supercup.winner)) byId.get(supercup.winner).supercupChampion = true
+    }
+
     // "Goleador" awards go to the highest-scoring club once the competition is finished.
     const all = [...byId.values()]
     const award = (type, prop) => {
@@ -1284,14 +1393,24 @@ window.Hub = (() => {
       }
     }
     all.forEach((team) => {
+      const groupStage = season.tableConfig?.type === 'groups'
+      const domesticChampion = season.tableConfig?.type === 'two-series'
+        ? team.seriesFinalChampion
+        : !groupStage && team.leagueChampion
+      const supercupPair = !groupStage && season.playoffs?.supercup?.enabled === true && team.supercupChampion
+      team.domesticDouble = !!(
+        (domesticChampion && team.cupChampion) ||
+        (supercupPair && (domesticChampion || team.cupChampion))
+      )
+      team.theTreble = !!(domesticChampion && team.cupChampion && team.supercupChampion)
       team.perfectSeason = !!(
         team.cupChampion &&
-        (team.leagueChampion || team.seriesChampion) &&
-        team.cupScorer &&
-        (team.leagueScorer || team.seriesScorer) &&
-        team.seasonCleanSheetAward
+        (groupStage || domesticChampion) &&
+        team.seasonScorer &&
+        team.seasonCleanSheetAward &&
+        (groupStage || !season.playoffs?.supercup?.enabled || team.supercupChampion)
       )
-      team.legendarySeason = team.perfectSeason && team.league.gc + team.cup.gc === 0
+      team.legendarySeason = team.perfectSeason && team.league.gc + team.cup.gc + team.seriesFinal.gc + team.supercup.gc === 0
     })
     return all
   }
@@ -1599,7 +1718,7 @@ window.Hub = (() => {
     }
   }
 
-  const PERFORMANCE_TITLE_FLAGS = ['cupChampion', 'leagueChampion', 'seriesChampion', 'runnerUp', 'third', 'fourth', 'seasonScorer', 'seasonCleanSheetAward']
+  const PERFORMANCE_TITLE_FLAGS = ['cupChampion', 'leagueChampion', 'seriesFinalChampion', 'supercupChampion', 'runnerUp', 'third', 'fourth', 'seasonScorer', 'seasonCleanSheetAward']
 
   function titleCount(rec) {
     return (rec?.seasons || []).reduce((total, season) =>
@@ -1607,10 +1726,12 @@ window.Hub = (() => {
   }
 
   function teamTotals(rec) {
-    const t = { cups: 0, leagues: 0, series: 0, runnerUp: 0, third: 0, fourth: 0, leagueScorer: 0, cupScorer: 0, league: zero(), cup: zero() }
+    const t = { cups: 0, leagues: 0, finalissimas: 0, supercups: 0, series: 0, runnerUp: 0, third: 0, fourth: 0, leagueScorer: 0, cupScorer: 0, league: zero(), cup: zero(), finals: zero() }
     rec.seasons.forEach((s) => {
       if (s.cupChampion) t.cups++
       if (s.leagueChampion) t.leagues++
+      if (s.seriesFinalChampion) t.finalissimas++
+      if (s.supercupChampion) t.supercups++
       if (s.seriesChampion) t.series++
       if (s.runnerUp) t.runnerUp++
       if (s.third) t.third++
@@ -1621,14 +1742,18 @@ window.Hub = (() => {
         t.league[k] += s.league[k]
         t.cup[k] += s.cup[k]
       })
+      t.finals.gf += (s.seriesFinal?.gf || 0) + (s.supercup?.gf || 0)
+      t.finals.gc += (s.seriesFinal?.gc || 0) + (s.supercup?.gc || 0)
     })
     t.leagueGoals = t.league.gf
     t.leagueConceded = t.league.gc
     t.cupGoals = t.cup.gf
-    t.goals = t.league.gf + t.cup.gf
+    t.finalGoals = t.finals.gf
+    t.finalConceded = t.finals.gc
+    t.goals = t.league.gf + t.cup.gf + t.finals.gf
     t.points = t.league.pts
     t.titles = titleCount(rec)
-    t.achievements = rec.seasons.reduce((n, season) => n + ['cupScorer', 'leagueScorer', 'seriesScorer', 'perfectSeason', 'invincibleLeague', 'invincibleSeries', 'legendarySeason', 'groupChampion'].reduce((sum, flag) => sum + Number(!!season[flag]), 0), 0)
+    t.achievements = rec.seasons.reduce((n, season) => n + ['cupScorer', 'leagueScorer', 'seriesScorer', 'seriesChampion', 'domesticDouble', 'theTreble', 'perfectSeason', 'invincibleLeague', 'invincibleSeries', 'legendarySeason', 'groupChampion'].reduce((sum, flag) => sum + Number(!!season[flag]), 0), 0)
     return t
   }
 
@@ -1697,6 +1822,10 @@ window.Hub = (() => {
     computeTable,
     computeBracket,
     computeRepechage,
+    seriesChampionIds,
+    finalissimaMatch,
+    supercupPair,
+    supercupMatch,
     seasonStats,
     statSeasons,
     teamRecords,

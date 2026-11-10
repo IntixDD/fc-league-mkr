@@ -18,7 +18,7 @@
     if (config && (groups.some((group) => group.length < 2) || new Set(groups.flat()).size !== season.teams.length)) {
       return H.toast('Asigna todos los equipos a grupos o series (mínimo 2 equipos por grupo).', 'error')
     }
-    const hasResults = H.leagueMatches(season).some(H.played)
+    const hasResults = H.leagueMatches(season).some(H.played) || H.played(season.fixtures?.finalissima || {})
     if (season.fixtures) {
       const msg = hasResults
         ? 'Se generará un calendario nuevo y se perderán los resultados de liga cargados.'
@@ -30,7 +30,7 @@
     H.update((s) => {
       if (config) {
         const generated = H.generateSeriesRounds(groups, mode === 'double')
-        s.current.fixtures = { mode, roundsPerLeg: generated.roundsPerLeg, series1: config.series1 ? [...config.series1] : null, series2: config.series2 ? [...config.series2] : null, groups: config.type === 'groups' ? groups.map((group) => [...group]) : null, rounds: generated.rounds }
+        s.current.fixtures = { mode, roundsPerLeg: generated.roundsPerLeg, series1: config.series1 ? [...config.series1] : null, series2: config.series2 ? [...config.series2] : null, groups: config.type === 'groups' ? groups.map((group) => [...group]) : null, finalissima: config.type === 'two-series' ? { pair: '', hg: null, ag: null, hp: null, ap: null, field: randomField(s.current.fields || 2) } : null, rounds: generated.rounds }
       } else s.current.fixtures = { mode, roundsPerLeg: 0, rounds: H.generateRounds(s.current.teams.map((t) => t.id), mode === 'double') }
     })
     H.toast('Calendario generado')
@@ -65,6 +65,7 @@
   }
 
   const randomGoals = () => Math.floor(Math.random() * 6)
+  const randomField = (count = 2) => Math.floor(Math.random() * Math.max(2, Math.trunc(Number(count)) || 2)) + 1
   const isMobileDevice = () => /android.*mobile|iphone|ipod|ipad|windows phone/i.test(navigator.userAgent)
     || window.matchMedia('(pointer: coarse) and (max-width: 767px)').matches
 
@@ -76,6 +77,12 @@
         match.hg = randomGoals()
         match.ag = randomGoals()
       }))
+      const final = H.finalissimaMatch(s.current)
+      if (final?.pair) {
+        const result = { pair: final.pair, hg: randomGoals(), ag: randomGoals(), hp: null, ap: null, field: s.current.fixtures.finalissima?.field || randomField(s.current.fields || 2) }
+        if (result.hg === result.ag) { result.hp = 5; result.ap = 4 }
+        s.current.fixtures.finalissima = result
+      }
     })
     H.toast('Resultados de Fixtures aleatorizados')
   }
@@ -87,7 +94,7 @@
         const section = el.closest('.section')
         if (!section || section.hidden || isMobileDevice()) return
         const editing = e.target.closest?.('input, textarea, select, [contenteditable="true"]')
-        if (editing && !editing.matches('[data-match], [data-po]')) return
+        if (editing && !editing.matches('[data-match], [data-po], [data-finalissima]')) return
         e.preventDefault()
         randomizeFixtureResults()
       })
@@ -107,18 +114,22 @@
           H.update((s) => {
             s.current.fields = count
             if (s.current.playoffs) {
-              s.current.playoffs.fields = H.generateTournamentFields(s.current.playoffs.size, count)
+              s.current.playoffs.fields = H.generateTournamentFields(s.current.playoffs.size, count, !!s.current.playoffs.twoLegged)
+              if (s.current.playoffs.supercup) s.current.playoffs.supercup.field = randomField(count)
               if (s.current.playoffs.repechage) s.current.playoffs.repechage.fields = H.generateRepechageFields(s.current.playoffs.repechage.pairs.length, count, !!s.current.playoffs.repechage.twoLegged)
             }
+            if (s.current.fixtures.finalissima) s.current.fixtures.finalissima.field = randomField(count)
           })
           H.toast('Canchas guardadas')
         } else if (action === 'clear-fields') {
           H.update((s) => {
             s.current.fields = null
             if (s.current.playoffs) {
-              s.current.playoffs.fields = H.generateTournamentFields(s.current.playoffs.size, 2)
+              s.current.playoffs.fields = H.generateTournamentFields(s.current.playoffs.size, 2, !!s.current.playoffs.twoLegged)
+              if (s.current.playoffs.supercup) s.current.playoffs.supercup.field = randomField(2)
               if (s.current.playoffs.repechage) s.current.playoffs.repechage.fields = H.generateRepechageFields(s.current.playoffs.repechage.pairs.length, 2, !!s.current.playoffs.repechage.twoLegged)
             }
+            if (s.current.fixtures.finalissima) s.current.fixtures.finalissima.field = randomField(2)
           })
           H.toast('Asignación de canchas eliminada')
         } else if (action === 'jump') {
@@ -129,6 +140,22 @@
         }
       })
       el.addEventListener('input', (e) => {
+        const finalInput = e.target.closest('[data-finalissima]')
+        if (finalInput) {
+          const value = H.parseScore(finalInput.value)
+          H.update((s) => {
+            const current = s.current.fixtures?.finalissima
+            if (!current || current.pair !== finalInput.dataset.pair) s.current.fixtures.finalissima = { pair: finalInput.dataset.pair, hg: null, ag: null, hp: null, ap: null, field: current?.field || randomField(s.current.fields || 2) }
+            s.current.fixtures.finalissima[finalInput.dataset.side] = value
+            if (finalInput.dataset.side === 'hg' || finalInput.dataset.side === 'ag') {
+              s.current.fixtures.finalissima.hp = null
+              s.current.fixtures.finalissima.ap = null
+            }
+          }, { skip: 'fixtures' })
+          const block = finalInput.closest('.fx-round')
+          if (block) refreshBlock(block)
+          return
+        }
         const input = e.target.closest('[data-match]')
         if (!input) return
         const value = H.parseScore(input.value)
@@ -155,10 +182,10 @@
         }, 150)
       }
       el.addEventListener('change', (e) => {
-        if (e.target.closest('[data-match]')) settle()
+        if (e.target.closest('[data-match], [data-finalissima]')) settle()
       })
       el.addEventListener('focusout', (e) => {
-        if (e.target.closest?.('[data-match]')) settle()
+        if (e.target.closest?.('[data-match], [data-finalissima]')) settle()
       })
     },
 
@@ -230,6 +257,28 @@
       const score = (m, sideKey, t) =>
         `<input class="score-input score-input--sm" type="number" inputmode="numeric" min="0" max="99" value="${m[sideKey] ?? ''}"
           data-key="fx:${esc(m.id)}:${sideKey}" data-match="${esc(m.id)}" data-side="${sideKey}" aria-label="Goles de ${esc(t?.name)}">`
+
+      const finalissimaIds = H.seriesChampionIds(season)
+      const finalissima = finalissimaIds ? H.finalissimaMatch(season) : null
+      const finalissimaTeams = finalissimaIds?.map((id) => teams.get(id)) || []
+      const finalScore = (side, t) => `<input class="score-input tournament-supercup-score" type="number" inputmode="numeric" min="0" max="99" value="${finalissima?.[side] ?? ''}"
+        data-key="finalissima:${side}" data-finalissima="" data-pair="${esc(finalissima?.pair || '')}" data-side="${side}" aria-label="Goles de ${esc(t?.name || 'por definir')}" ${finalissima?.pair ? '' : 'disabled'}>`
+      const finalPenalty = (side, t) => `<label class="po-leg-score tournament-supercup-penalty"><span>Penales</span><input class="score-input score-input--pen" type="number" inputmode="numeric" min="0" max="99" value="${finalissima?.[side] ?? ''}"
+        data-key="finalissima:${side}" data-finalissima="" data-pair="${esc(finalissima?.pair || '')}" data-side="${side}" aria-label="Penales de ${esc(t?.name || 'por definir')}" ${finalissima?.pair ? '' : 'disabled'}></label>`
+
+      const finalissimaBlock = season.tableConfig?.type === 'two-series' ? `
+        <article class="menu-match-card tournament-supercup-match fx-finalissima-match-card">
+          ${finalissimaTeams[0]?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(finalissimaTeams[0].logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
+          ${finalissimaTeams[1]?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(finalissimaTeams[1].logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
+          <h4>Finalísima de Series</h4>
+          <div class="tournament-supercup-fixture">
+            <div class="tournament-supercup-team${finalissima?.winner === finalissimaIds?.[0] ? ' is-winner' : ''}">${finalissimaTeams[0] ? crest(finalissimaTeams[0].logo, 'md', finalissimaTeams[0].name) : '<span class="crest crest--md crest--tbd"></span>'}<span>${esc(finalissimaTeams[0]?.name || 'Campeón Serie 1')}</span></div>
+            <div class="tournament-supercup-scoreline">${finalScore('hg', finalissimaTeams[0])}<i>:</i>${finalScore('ag', finalissimaTeams[1])}</div>
+            <div class="tournament-supercup-team tournament-supercup-team--away${finalissima?.winner === finalissimaIds?.[1] ? ' is-winner' : ''}">${finalissimaTeams[1] ? crest(finalissimaTeams[1].logo, 'md', finalissimaTeams[1].name) : '<span class="crest crest--md crest--tbd"></span>'}<span>${esc(finalissimaTeams[1]?.name || 'Campeón Serie 2')}</span></div>
+          </div>
+          <p class="fx-finalissima-meta">Cancha ${finalissima?.field || season.fixtures.finalissima?.field || '—'} · ${finalissima?.played ? finalissima.winner ? finalissima.tied ? 'Definida por penales' : 'Finalizada' : 'Empate: define por penales' : finalissima?.pair ? 'En juego' : 'Esperando campeones de serie'}</p>
+          ${finalissima?.tied ? `<div class="tournament-supercup-penalties">${finalPenalty('hp', finalissimaTeams[0])}<span>:</span>${finalPenalty('ap', finalissimaTeams[1])}</div>${finalissima.penaltiesTied ? '<p class="menu-match-pens">Los penales no pueden terminar empatados</p>' : ''}` : ''}
+        </article>` : ''
 
       const currentIndex = rounds.findIndex((r) => r.some((m) => !H.played(m)))
 
@@ -318,7 +367,7 @@
               </div>
             </header>
             ${jump}
-            <div class="fx-rounds">${blocks}</div>
+            <div class="fx-rounds">${blocks}${finalissimaBlock}</div>
             <p class="hint" data-export-hide>Escribe los goles directamente en cada partido: la tabla se actualiza al instante y todo queda guardado.</p>
           </article>
         </div>`

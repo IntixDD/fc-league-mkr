@@ -5,20 +5,22 @@
   const COLS = [
     { key: 'cups', label: 'Copas', title: 'Campeón de Tournament' },
     { key: 'leagues', label: 'Ligas', title: 'Campeón de liga' },
-    { key: 'series', label: 'Series', title: 'Campeón de Serie' },
+    { key: 'finalissimas', label: 'Finalís.', title: 'Campeón de la Finalísima de Series' },
+    { key: 'supercups', label: 'Supercop.', title: 'Campeón de la Supercopa' },
+    { key: 'series', label: 'Series', title: 'Logro Campeón de Serie' },
     { key: 'runnerUp', label: 'Subcamp.', title: 'Subcampeonatos (Tournament)' },
     { key: 'third', label: '3ros', title: '3er lugar (Tournament)' },
     { key: 'fourth', label: '4tos', title: '4to lugar (Tournament)' },
     { key: 'leagueGoals', label: 'GF LSG', title: 'Goles a favor en liga, series y fase de grupos' },
-    { key: 'leagueConceded', label: 'GC LSG', title: 'Goles en contra en liga, series y fase de grupos' },
-    { key: 'cupGoals', label: 'GF Camp.', title: 'Goles a favor en campeonatos (Tournament)' },
+    { key: 'cupGoals', label: 'GF TR', title: 'Goles a favor en Tournament' },
+    { key: 'finalGoals', label: 'GF F+S', title: 'Goles a favor en Finalísima y Supercopa' },
     { key: 'goals', label: 'Goles', title: 'Goles totales' },
     { key: 'points', label: 'Puntos', title: 'Puntos totales (solo liga)' },
     { key: 'titles', label: 'Títulos', title: 'Títulos totales', icon: 'trophy' },
     { key: 'achievements', label: 'Logros', title: 'Logros totales', icon: 'star' },
     { key: 'badges', label: 'Insignias', title: 'Insignias obtenidas', icon: 'points25' },
   ]
-  const TIEBREAK = ['titles', 'achievements', 'badges', 'cups', 'leagues', 'series', 'runnerUp', 'third', 'fourth', 'points', 'goals']
+  const TIEBREAK = ['titles', 'achievements', 'badges', 'cups', 'leagues', 'finalissimas', 'supercups', 'series', 'runnerUp', 'third', 'fourth', 'points', 'goals']
   let compareTeams = ['', '']
 
   function selectedTeams(records) {
@@ -147,7 +149,8 @@
         el.innerHTML = `<article class="card"><p class="empty">El historial se construye con las temporadas guardadas en <a href="#seasons">Seasons</a> y la temporada en curso.</p></article>`
         return
       }
-      const sortKey = H.ui.historySort
+      const sortKey = H.ui.historySort === 'neutral' || COLS.some((column) => column.key === H.ui.historySort) ? H.ui.historySort : 'neutral'
+      H.ui.historySort = sortKey
       const dir = H.ui.historyDir === 'asc' ? 1 : -1
       records.sort((a, b) => {
         const primary = sortKey === 'neutral' ? 'cups' : sortKey

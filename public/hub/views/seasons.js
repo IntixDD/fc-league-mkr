@@ -9,7 +9,6 @@
   let publishedLibraryError = ''
   let publishedLibraryVisible = false
   const JSON_FILE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5M8.5 12h7M8.5 15.5h7M8.5 19h4"/></svg>'
-  const seasonStatsCache = new WeakMap()
   document.addEventListener('app:sectionchange', (event) => {
     if (event.detail?.id !== 'seasons') {
       miniBracketObserver?.disconnect()
@@ -20,13 +19,15 @@
   const nextNumber = (s) => Math.max(0, s.current.number, ...s.seasons.map((x) => x.number)) + 1
 
   function summary(season) {
-    let stats = seasonStatsCache.get(season)
-    if (!stats) {
-      stats = H.seasonStats(season)
-      seasonStatsCache.set(season, stats)
-    }
+    const stats = H.seasonStats(season)
     const find = (prop) => stats.find((x) => x[prop])
-    return { league: find('leagueChampion'), cup: find('cupChampion') }
+    const series = season.tableConfig?.type === 'two-series'
+      ? [
+          ['Serie 1', season.tableConfig.series1],
+          ['Serie 2', season.tableConfig.series2],
+        ].map(([label, ids]) => ({ label, team: stats.find((team) => team.seriesChampion && ids?.includes(team.id)) })).filter((item) => item.team)
+      : []
+    return { league: find('leagueChampion'), cup: find('cupChampion'), series }
   }
 
   const AWARD_SECTIONS = [
@@ -34,8 +35,9 @@
       label: 'Títulos',
       awards: [
         ['Campeón de Torneo', 'cupChampion', 'trophy', 'gold'],
-        ['Campeón de Liga', 'leagueChampion', 'crown', 'gold'],
-        ['Campeón de Serie', 'seriesChampion', 'crown', 'green'],
+        ['Campeón de Liga', 'leagueChampion', 'crown', 'cyan'],
+        ['Campeón de la Finalísima', 'seriesFinalChampion', 'steaua', 'gold'],
+        ['Campeón de la Supercopa', 'supercupChampion', 'trophy', 'gold'],
         ['Subcampeón de Torneo', 'runnerUp', 'medal2', 'silver'],
         ['3er lugar', 'third', 'medal3', 'bronze'],
         ['4to lugar', 'fourth', 'medal4', 'plain'],
@@ -47,11 +49,12 @@
       label: 'Logros',
       awards: [
         ['Goleador de torneo', 'cupScorer', 'ball', 'accent'],
-        ['Goleador de liga', 'leagueScorer', 'ball', 'accent'],
+        ['Goleador de Liga', 'leagueScorer', 'ball', 'cyan'],
         ['Goleador de Serie', 'seriesScorer', 'ball', 'green'],
+        ['Campeón de Serie', 'seriesChampion', 'crown', 'green'],
         ['Campeón de grupo', 'groupChampion', 'crown', 'purple'],
         ['Temporada perfecta', 'perfectSeason', 'star', 'gold'],
-        ['Invicto en Liga', 'invincibleLeague', 'win', 'accent'],
+        ['Invicto en Liga', 'invincibleLeague', 'win', 'cyan'],
         ['Invicto en Serie', 'invincibleSeries', 'win', 'green'],
         ['Temporada Legendaria', 'legendarySeason', 'trophy', 'gold'],
       ],
@@ -59,8 +62,7 @@
   ]
 
   function awardSummary(season, open, lazy = false) {
-    const stats = seasonStatsCache.get(season) || H.seasonStats(season)
-    seasonStatsCache.set(season, stats)
+    const stats = H.seasonStats(season)
     const groups = AWARD_SECTIONS.map(({ label, awards }) => {
       const items = awards.flatMap(([title, flag, icon, tone]) => {
         const winners = stats.filter((team) => team[flag])
@@ -73,11 +75,10 @@
     const content = count
       ? `<div class="season-award-groups">${groups.filter((group) => group.items.length).map((group) => `<section class="season-award-group"><h4>${group.label}</h4>${group.items.join('')}</section>`).join('')}</div>`
       : '<p class="season-awards-empty">Todavía no hay títulos ni logros registrados.</p>'
-    return `<details class="season-awards" data-season-detail="awards" data-season-id="${esc(season.id || '')}" ${open ? 'open data-hydrated="true"' : ''}><summary><span class="season-awards-heading">${H.ICONS.trophy}<span>Títulos y Logros</span></span><span class="season-awards-count">${count} distinciones</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${lazy && !open ? '' : content}</div></details>`
+    return `<details class="season-awards" data-season-detail="awards" data-season-id="${esc(season.id || '')}" ${open ? 'open data-hydrated="true"' : ''}><summary><span class="season-awards-heading">${H.ICONS.win}<span>Títulos y Logros</span></span><span class="season-awards-count">${count} distinciones</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${lazy && !open ? '' : content}</div></details>`
   }
 
   const TABLE_ICON = '<svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16m6-16v16"/></svg>'
-  const TICKET_ICON = '<svg class="stat-icon" viewBox="2 5 20 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 6L6 6C5.068 6 4.602 6 4.234 6.152 3.744 6.355 3.355 6.745 3.152 7.235 3 7.602 3 8.068 3 9 4.657 9 6 10.343 6 12s-1.343 3-3 3c0 .932 0 1.398.152 1.765.203.49.592.88 1.082 1.083C4.602 18 5.068 18 6 18h8m0-12h4c.932 0 1.398 0 1.765.152.49.203.88.593 1.083 1.083C21 7.602 21 8.068 21 9c-1.657 0-3 1.343-3 3s1.343 3 3 3c0 .932 0 1.398-.152 1.765-.203.49-.593.88-1.083 1.083C19.398 18 18.932 18 18 18h-4m0-12v12"/></svg>'
 
   function standingsRowClass(season, index, rowCount) {
     const type = season.tableConfig?.type
@@ -243,35 +244,44 @@
     return `<details class="season-awards season-tournament-details" data-season-detail="tournament" data-season-id="${esc(season.id || '')}"><summary><span class="season-awards-heading">${H.ICONS.trophy}<span>Tournament</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
   }
 
-  function repechageSummary(season, lazy = false) {
-    if (!season.playoffs?.repechage?.enabled) return ''
+  function finalsSummary(season, lazy = false) {
+    const hasSeriesFinal = season.tableConfig?.type === 'two-series'
+    const hasSupercup = !!season.playoffs?.supercup?.enabled
+    if (!hasSeriesFinal && !hasSupercup) return ''
+
+    const expected = Number(hasSeriesFinal) + Number(!!season.playoffs) + Number(hasSupercup)
+    const matches = []
     const teams = new Map(season.teams.map((team) => [team.id, team]))
-    const matches = lazy ? [] : H.computeRepechage(season)
-    const played = matches.reduce((count, match) => count + (match.twoLegged
-      ? Number(match.leg1Played) + Number(match.leg2Played)
-      : Number(match.played)), 0)
-    const total = matches.reduce((count, match) => count + (match.twoLegged ? 2 : 1), 0)
-    const content = lazy ? '' : matches.length
-      ? `<div class="feat-grid season-repechage-grid">${matches.map((match, index) => {
-          const home = teams.get(match.home)
-          const away = teams.get(match.away)
-          return `<article class="feat-match season-repechage-match">
-            <h3 class="feat-title">Repechaje ${index + 1}</h3>
-            <div class="feat-score">
-              <span class="feat-team">${home ? crest(home.logo, 'md', home.name) : '<span class="crest crest--md crest--tbd"></span>'}<span>${home ? esc(home.name) : 'Por definir'}</span></span>
-              <span class="feat-result">${match.hg ?? '—'} - ${match.ag ?? '—'}</span>
-              <span class="feat-team">${away ? crest(away.logo, 'md', away.name) : '<span class="crest crest--md crest--tbd"></span>'}<span>${away ? esc(away.name) : 'Por definir'}</span></span>
-            </div>
-            ${match.twoLegged ? `<div class="season-mini-leg-columns">
-              <div class="season-mini-leg"><span>Ida · Cancha ${match.leg1Field || '–'}</span><strong>${match.leg1?.hg ?? '–'}–${match.leg1?.ag ?? '–'}</strong></div>
-              <div class="season-mini-leg"><span>Vuelta · Cancha ${match.leg2Field || '–'}</span><strong>${match.leg2?.hg ?? '–'}–${match.leg2?.ag ?? '–'}</strong></div>
-            </div><p class="feat-when">Global ${match.hg ?? '–'}–${match.ag ?? '–'}</p>` : match.field ? `<p class="feat-when">Cancha ${match.field}</p>` : ''}
-            ${match.tied && match.decided ? `<p class="feat-pens">Penales ${match.hp}–${match.ap}</p>` : ''}
-          </article>`
-        }).join('')}</div>`
-      : '<p class="season-awards-empty">No hay cruces de repechaje registrados.</p>'
-    const count = lazy ? `${season.playoffs.repechage.pairs?.length || 0} cruces` : `${played}/${total} partidos`
-    return `<details class="season-awards season-tournament-details" data-season-detail="repechage" data-season-id="${esc(season.id || '')}"><summary><span class="season-awards-heading">${TICKET_ICON}<span>Repechajes</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
+    if (!lazy) {
+      if (hasSeriesFinal) matches.push(['Finalísima de Series', H.finalissimaMatch(season)])
+      const bracket = season.playoffs ? H.computeBracket(season) : null
+      if (bracket?.final) matches.push(['Final de Tournament', bracket.final])
+      if (hasSupercup) matches.push(['Final de Supercopa', H.supercupMatch(season, bracket)])
+    }
+
+    const card = ([title, match]) => {
+      const home = match?.home ? teams.get(match.home) : null
+      const away = match?.away ? teams.get(match.away) : null
+      const score = (value) => value ?? '—'
+      return `<article class="menu-match-card season-finals-match">
+        ${home?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(home.logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
+        ${away?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(away.logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
+        ${match?.field ? `<span class="season-finals-field">Cancha ${match.field}</span>` : ''}
+        <h4>${title}</h4>
+        <div class="season-finals-score-row">
+          <span class="season-finals-team">${home ? crest(home.logo, 'sm', home.name) : '<span class="crest crest--sm crest--tbd"></span>'}<span>${esc(home?.name || 'Por definir')}</span></span>
+          <strong class="season-finals-score"><span class="${match?.winner === match?.home ? 'is-champion' : ''}">${score(match?.hg)}</span> <i>:</i> <span class="${match?.winner === match?.away ? 'is-champion' : ''}">${score(match?.ag)}</span></strong>
+          <span class="season-finals-team season-finals-team--away">${away ? crest(away.logo, 'sm', away.name) : '<span class="crest crest--sm crest--tbd"></span>'}<span>${esc(away?.name || 'Por definir')}</span></span>
+        </div>
+        ${match?.tied && match.decided ? `<div class="season-finals-meta"><span class="season-finals-pens">Penales ${match.hp}–${match.ap}</span></div>` : ''}
+      </article>`
+    }
+    const content = lazy
+      ? ''
+      : `<div class="season-finals-grid">${matches.map(card).join('')}</div>`
+    const played = matches.filter(([, match]) => match?.played).length
+    const count = lazy ? `${expected} finales` : `${played}/${expected} disputadas`
+    return `<details class="season-awards season-finals-details" data-season-detail="finals" data-season-id="${esc(season.id || '')}"><summary><span class="season-awards-heading">${H.ICONS.trophy}<span>Finales</span></span><span class="season-awards-count">${count}</span><span class="season-awards-chevron" aria-hidden="true"></span></summary><div class="season-awards-content">${content}</div></details>`
   }
 
   function drawMiniBracketConnectors(map, roundsCount) {
@@ -355,7 +365,6 @@
     if (!cur.teams.length) return H.toast('Registra equipos antes de guardar', 'error')
     if (s.seasons.some((x) => x.number === cur.number && x.id !== cur.id))
       return H.toast(`Ya existe una Temporada ${cur.number} guardada. Cambia el número.`, 'error')
-    seasonStatsCache.delete(cur)
     H.update((st) => {
       const c = st.current
       if (!c.id) c.id = H.uid()
@@ -457,8 +466,8 @@
   }
 
   async function chooseLibraryIcon() {
-    if (!H.pickLogo) return H.toast('No se pudo abrir la galería de escudos', 'error')
-    const logo = await H.pickLogo('Escudo del archivo JSON')
+    if (!H.pickAnyLogo) return H.toast('No se pudo abrir la galería de escudos', 'error')
+    const logo = await H.pickAnyLogo('Escudo del archivo JSON')
     if (!logo) return
     libraryExportIcon = logo.data
     H.render()
@@ -609,14 +618,16 @@
       el.addEventListener('toggle', (e) => {
         const detail = e.target
         if (detail.matches('details[data-season-detail]') && detail.open && !detail.dataset.hydrated) {
-          const season = H.state.seasons.find((item) => item.id === detail.dataset.seasonId)
+          const season = H.state.current.id === detail.dataset.seasonId
+            ? H.state.current
+            : H.state.seasons.find((item) => item.id === detail.dataset.seasonId)
           if (season) {
             const renderers = {
               awards: (item) => awardSummary(item, true),
               standings: standingsSummary,
               fixture: fixtureSummary,
-              repechage: repechageSummary,
               tournament: tournamentSummary,
+              finals: finalsSummary,
             }
             const renderDetail = renderers[detail.dataset.seasonDetail]
             if (renderDetail) {
@@ -649,10 +660,7 @@
         else if (action === 'export-all') exportAll(el)
         else if (action === 'import-json') pickSeasonJson()
         else if (action === 'choose-json-icon') chooseLibraryIcon()
-        else if (action === 'clear-json-icon') {
-          libraryExportIcon = ''
-          H.render()
-        } else if (action === 'toggle-published-library') togglePublishedLibrary()
+        else if (action === 'toggle-published-library') togglePublishedLibrary()
         else if (action === 'load-published') {
           const entry = publishedLibraryEntries?.[Number(btn.dataset.index)]
           if (entry) {
@@ -731,16 +739,13 @@
             <button class="btn btn--ghost" data-action="export-all" ${s.seasons.length ? '' : 'disabled'}>Exportar todas</button>
           </div>
           <div class="season-json-export-settings">
+            <button type="button" class="season-json-icon-control" data-action="choose-json-icon" aria-label="Elegir escudo del JSON">
+              <span class="season-json-icon-preview">${libraryExportIcon ? `<img src="${esc(libraryExportIcon)}" alt="">` : JSON_FILE_ICON}</span>
+            </button>
             <label class="field">
               <span class="field-label">Nombre del archivo</span>
               <input class="input" type="text" name="library-export-name" maxlength="48" value="${esc(libraryExportName)}">
             </label>
-            <div class="season-json-icon-control">
-              <span class="season-json-icon-preview">${libraryExportIcon ? `<img src="${esc(libraryExportIcon)}" alt="Escudo seleccionado">` : JSON_FILE_ICON}</span>
-              <span class="season-json-icon-name">Escudo del JSON</span>
-              <button class="btn btn--ghost btn--sm" data-action="choose-json-icon">${libraryExportIcon ? 'Cambiar' : 'Elegir'}</button>
-              ${libraryExportIcon ? '<button class="btn btn--ghost btn--sm" data-action="clear-json-icon" aria-label="Quitar escudo">Quitar</button>' : ''}
-            </div>
           </div>
           ${publishedLibraryVisible ? `<div class="season-library-list" aria-live="polite">
             ${publishedLibraryLoading
@@ -785,6 +790,7 @@
                     <div class="season-champs">
                       ${sm.league ? `<span class="champ" title="Campeón de liga">${crest(sm.league.logo, 'sm', sm.league.name)}<span>Liga</span></span>` : ''}
                       ${sm.cup ? `<span class="champ" title="Campeón de copa">${crest(sm.cup.logo, 'sm', sm.cup.name)}<span>Copa</span></span>` : ''}
+                      ${sm.series.map(({ label, team }) => `<span class="champ" title="Campeón de ${label}">${crest(team.logo, 'sm', team.name)}<span>${label}</span></span>`).join('')}
                     </div>
                     <div class="team-actions">
                       <button class="btn btn--ghost btn--sm" data-action="edit" data-id="${esc(season.id)}" ${open || season.readOnly ? 'disabled' : ''} ${season.readOnly ? 'title="Edición bloqueada al importar"' : ''}>Editar</button>
@@ -793,8 +799,8 @@
                     </div>
                     ${standingsSummary(selectedSeason, true)}
                     ${fixtureSummary(selectedSeason, true)}
-                    ${repechageSummary(selectedSeason, true)}
                     ${tournamentSummary(selectedSeason, true)}
+                    ${finalsSummary(selectedSeason, true)}
                     ${awardSummary(selectedSeason, open, true)}
                   </li>`
                   })

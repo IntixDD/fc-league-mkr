@@ -219,3 +219,20 @@
 * Seasons/Temporadas guardadas/Tabla: Ahora se muestran en colores al ganador, clasificados, eliminados y repechaje.
 * Table/Clasificación: (Formato Fase de Grupos) Ahora ya no se muestra el color de "Ganador" del grupo.
 
+
+
+**\[Big update] Beta 4.0:**
+
+* Performance/Badges: Se agregaron 8 nuevas insignias
+* Fixtures: (Formato Series) Ahora el formato Series cuenta con un partido extra: La Finalísima de Series. Esta enfrenta a los campeones de ambas Series.
+* Tournament/Crear Tournament: Se agrego la opción Supercopa. La Supercopa consiste en una final entre el Campeón de la Liga y el Campeón del Tournament (Formato Liga), el Campeón de la Finalísima entre el Campeón del Tournament (Formato Series).
+* Performance/Palmarés Histórico: Se agregaron los Títulos: Campeón de la Finalísima y Campeón de la Supercopa. Se movió el Título Campeón de Serie a Logros. Se agregaron los Logros: Doblete y Triplete.
+* Teams/Galería de escudos: Se agregó la categoría Serie A.
+* Table/Crear tabla/ y Teams/Registrar equipos/: Se agregó el modo de temporada Serie A. En este modo solo se permiten escudos pertenecientes a la categoría Serie A.
+* Seasons/Temporadas guardadas: Se agregó el botón desplegable Finales. Se modificó el icono del botón desplegable Títulos y Logros.
+* Menú/Última Temporada/Final y Tercer lugar: Ahora se muestran las finales de Supercopa y Finalísima.
+* Performance/Temporada por temporada: Se agregaron las columnas: GF F+S, GC F+S (Goles a favor y en contra en Finalísimas y Supercopas), GC TOT (Goles en contra totales).
+* History/Historial de clubes: Se agregaron las columnas: GF F+S, Finalísimas y Supercopas.
+* Performance/Partidos destacados/Finales disputadas: Ahora se muestran las Finalísimas y finales de Supercopa.
+* Se solucionaron bugs visuales y criterios de obtención en algunas insignias.
+
