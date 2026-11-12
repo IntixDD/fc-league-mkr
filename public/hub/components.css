@@ -1834,8 +1834,10 @@ select.input option {
 .menu-slide { display: none; align-content: start; gap: 10px; min-width: 0; min-height: 0; height: 100%; overflow: auto; padding: 14px 6px 8px; }
 .menu-slide.is-active { display: grid; animation: menu-slide-in .55s cubic-bezier(.2,.75,.25,1) both; }
 .menu-slide h3 { margin: 0; color: var(--accent); font: 400 14px var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+.icon-asset { display: inline-block; flex: none; background-color: currentColor; -webkit-mask-image: var(--icon-asset); mask-image: var(--icon-asset); -webkit-mask-position: center; mask-position: center; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-size: contain; mask-size: contain; }
 .menu-slide-title { display: flex; align-items: center; gap: 9px; }
 .menu-slide-title svg { width: 19px; height: 19px; flex: none; color: var(--accent); }
+.menu-slide-title .icon-asset { width: 19px; height: 19px; flex: none; }
 .menu-slide ol { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .menu-slide li { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 7px 9px; background: rgb(255 255 255 / .035); border: 1px solid var(--line); border-radius: 9px; }
 .menu-slide li > span:not(.crest) { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2128,6 +2130,13 @@ select.input option {
   cursor: pointer;
 }
 
+.data-table--history .sort-btn .icon-asset { width: 16px; height: 16px; flex: none; }
+.data-table--history .sort-btn[data-sort='leagueGoals'] .stat-icon,
+.data-table--history .sort-btn[data-sort='cupGoals'] .stat-icon,
+.data-table--history .sort-btn[data-sort='finalGoals'] .stat-icon,
+.data-table--history .sort-btn[data-sort='goals'] .stat-icon,
+.data-table--history .sort-btn[data-sort='points'] .stat-icon { width: 18px; height: 18px; }
+
 .sort-btn:hover,
 .sort-btn.is-active {
   color: var(--accent);
@@ -2356,7 +2365,7 @@ select.input option {
 .menu-stat-card { position:relative; display:grid; grid-template-columns:34px 1fr; grid-template-rows:auto auto; align-items:center; column-gap:10px; min-height:78px; padding:12px; overflow:hidden; border:1px solid var(--line); background:linear-gradient(120deg,color-mix(in srgb,var(--surface) 96%,#000),color-mix(in srgb,var(--surface) 88%,var(--accent))); }
 .menu-stat-card::after { content:""; position:absolute; right:-16px; bottom:-31px; width:75px; height:75px; border:1px solid color-mix(in srgb,var(--accent) 18%,transparent); transform:rotate(45deg); }
 .menu-stat-icon { grid-row:1/3; display:grid; place-items:center; width:34px; height:34px; color:var(--accent); border:1px solid color-mix(in srgb,var(--accent) 32%,var(--line)); background:#0002; }
-.menu-stat-icon svg { width:17px; height:17px; }
+.menu-stat-icon svg, .menu-stat-icon .icon-asset { width:17px; height:17px; }
 .menu-stat-label { align-self:end; color:var(--muted); font:700 9px var(--font-display); letter-spacing:.07em; text-transform:uppercase; }
 .menu-stat-card strong { align-self:start; font:800 22px/.98 var(--font-display); }
 .menu-stat-card small { position:absolute; right:9px; bottom:8px; color:var(--muted); font:700 7px var(--font-display); letter-spacing:.08em; opacity:.72; }
@@ -2706,6 +2715,7 @@ select.input option {
 .season-keep-teams-choice strong { color: #fff; font-size: 13px; }
 .season-keep-teams-choice small { color: var(--muted); font-size: 10px; font-weight: 500; }
 .music-autoplay-card { width: 100%; min-height: 58px; margin: 12px 0 0; padding: 10px 14px; }
+.bg-controls .bg-grid-toggle-card { grid-column: 1 / -1; margin-top: 0; }
 .music-autoplay-card .music-autoplay-choice { align-items: center; gap: 12px; font-size: 13px; }
 .music-autoplay-card .music-autoplay-choice input { width: 19px; height: 19px; flex: none; }
 .music-autoplay-choice > span { display: grid; gap: 3px; }
@@ -2782,6 +2792,8 @@ select.input option {
   width: 20px;
   height: 20px;
 }
+
+.trophy-icon .stat-icon.trophy-icon--boost { width: 24px; height: 24px; }
 
 .trophy-count {
   margin: 0;

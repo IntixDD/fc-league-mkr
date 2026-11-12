@@ -19,6 +19,42 @@
     communityshield: 'communityshield.svg',
     supercopaitalia: 'supercopaitalia.svg',
   }
+  const ASSET_BADGE_ICONS = {
+    tournamentTitle: 'tournament.svg',
+    leagueTitle: 'league.svg',
+    finalissimaTitle: 'finalisima.svg',
+    supercupTitle: 'supercup.svg',
+    doubleTitle: 'trophy_2.svg',
+    trebleTitle: 'trophy_3.svg',
+    trophyCommon: 'trophy_common.svg',
+    worldcup: 'worldcup.svg',
+    perfectSeasonArt: 'premio3.svg',
+    legendarySeasonArt: 'premio1.svg',
+    achievementMedal: 'medal.svg',
+    commonCrown: 'crown_common.svg',
+    invincibleMedal: 'medal_1.svg',
+    scorelessTrophy: 'trophy_0.svg',
+    zidaneArt: 'zidane.svg',
+    fourInRow: '4inarow.svg',
+    medalTwoArt: 'medal_2.svg',
+    medalOneArt: 'medal_1.svg',
+    cineArt: 'cine.svg',
+    bucarestCrown: 'crown.svg',
+    perfectPointsMedal: 'medal.svg',
+    legendary: 'tournament.svg',
+    league: 'league.svg',
+    steaua: 'crown.svg',
+    noGoals: 'trophy_0.svg',
+    zidane: 'zidane.svg',
+    guardiola: '4inarow.svg',
+    medal1: 'medal_1.svg',
+    medal2: 'medal_2.svg',
+    star: 'medal.svg',
+    points25: 'badge.svg',
+    points50: 'badge.svg',
+    points100: 'badge.svg',
+    points200: 'badge.svg',
+  }
   const BADGE_ART = {
     ball: '<circle cx="12" cy="12" r="9"/><path d="m12 7 4 3-1.5 5h-5L8 10l4-3zM12 7V3m4 7 5-2m-6.5 7.5 3 4M9.5 15.5l-3 4M8 10l-5-2"/>',
     trophy: '<path d="M7 4h10v5a5 5 0 0 1-10 0zM7 6H4v2a4 4 0 0 0 4 4m9-6h3v2a4 4 0 0 1-4 4m-4 2v4m-5 4h10m-8-4h6"/>',
@@ -33,6 +69,8 @@
   }
 
   function badgeIcon(badge) {
+    const assetIcon = ASSET_BADGE_ICONS[badge.icon]
+    if (assetIcon) return H.assetIcon(assetIcon, 'stat-icon badge-icon-svg badge-icon-asset')
     const titleIcon = TITLE_BADGE_ICONS[badge.icon]
     if (titleIcon) return `<img class="stat-icon badge-icon-svg badge-icon-image" src="badge-icons/${titleIcon}" alt="" aria-hidden="true">`
     if (badge.icon.startsWith('points')) return POINTS_BADGE_ICON
@@ -160,13 +198,13 @@
 
     const badges = [
       ...thresholdBadges('Goles', 'ball', 'blue', totals.goals, [[10, 'Primer rugido', 'Marca 10 goles en cualquier competición.'], [50, 'Cazagoles', 'Acumula 50 goles entre Liga/Serie y Tournament.'], [100, 'Centurión del gol', 'Llega a 100 goles totales.'], [200, 'Doble artillería', 'Alcanza 200 goles en tu historial.'], [500, 'Leyenda goleadora', 'Anota 500 goles totales con el equipo.']]),
-      ...thresholdBadges('Títulos', 'trophy', 'gold', titles, [[1, 'Primera corona', 'Gana tu primer título oficial.'], [5, 'Coleccionista de copas', 'Acumula 5 títulos oficiales.'], [10, 'Palmarés de élite', 'Acumula 10 títulos oficiales.'], [20, 'Dinastía campeona', 'Llega a 20 títulos oficiales.'], [50, 'Leyenda del palmarés', 'Consigue 50 títulos oficiales.'], [100, 'Inmortal de los títulos', 'Alcanza 100 títulos oficiales.']]),
-      { category: 'Títulos', name: 'Rey del Tournament', description: 'Conquista Tournament al menos una vez.', icon: 'legendary', tone: 'gold', value: totals.cups, target: 1, earned: totals.cups > 0, progress: `${totals.cups}/1` },
-      { category: 'Títulos', name: 'Corona de Liga', description: 'Termina una liga en el primer lugar.', icon: 'league', tone: 'cyan', value: totals.leagues, target: 1, earned: totals.leagues > 0, progress: `${totals.leagues}/1` },
-      { category: 'Títulos', name: 'Campeón de campeones', description: 'Gana la Finalísima de Series.', icon: 'steaua', tone: 'gold', earned: record.seasons.some((season) => season.seriesFinalChampion), progress: record.seasons.some((season) => season.seriesFinalChampion) ? 'Obtenida' : 'Pendiente' },
-      { category: 'Títulos', name: 'Supercampeón', description: 'Gana la final de Supercopa.', icon: 'trophy', tone: 'gold', earned: record.seasons.some((season) => season.supercupChampion), progress: record.seasons.some((season) => season.supercupChampion) ? 'Obtenida' : 'Pendiente' },
-      { category: 'Títulos', name: 'Doblete Doméstico', description: 'Consigue 2 trofeos en la misma temporada', icon: 'doblete', tone: 'accent', earned: titleBadges.doblete, progress: titleBadges.doblete ? 'Obtenida' : 'Pendiente' },
-      { category: 'Títulos', name: 'The Treble', description: 'Consigue 3 trofeos en la misma temporada', icon: 'zidane', tone: 'cyan', earned: titleBadges.theTreble, progress: titleBadges.theTreble ? 'Obtenida' : 'Pendiente' },
+      ...thresholdBadges('Títulos', 'trophyCommon', 'gold', titles, [[1, 'Primera corona', 'Gana tu primer título oficial.'], [5, 'Coleccionista de copas', 'Acumula 5 títulos oficiales.'], [10, 'Palmarés de élite', 'Acumula 10 títulos oficiales.'], [20, 'Dinastía campeona', 'Llega a 20 títulos oficiales.'], [50, 'Leyenda del palmarés', 'Consigue 50 títulos oficiales.'], [100, 'Inmortal de los títulos', 'Alcanza 100 títulos oficiales.']]),
+      { category: 'Títulos', name: 'Rey del Tournament', description: 'Conquista Tournament al menos una vez.', icon: 'tournamentTitle', tone: 'gold', value: totals.cups, target: 1, earned: totals.cups > 0, progress: `${totals.cups}/1` },
+      { category: 'Títulos', name: 'Corona de Liga', description: 'Termina una liga en el primer lugar.', icon: 'leagueTitle', tone: 'cyan', value: totals.leagues, target: 1, earned: totals.leagues > 0, progress: `${totals.leagues}/1` },
+      { category: 'Títulos', name: 'Campeón de campeones', description: 'Gana la Finalísima de Series.', icon: 'finalissimaTitle', tone: 'gold', earned: record.seasons.some((season) => season.seriesFinalChampion), progress: record.seasons.some((season) => season.seriesFinalChampion) ? 'Obtenida' : 'Pendiente' },
+      { category: 'Títulos', name: 'Supercampeón', description: 'Gana la final de Supercopa.', icon: 'supercupTitle', tone: 'gold', earned: record.seasons.some((season) => season.supercupChampion), progress: record.seasons.some((season) => season.supercupChampion) ? 'Obtenida' : 'Pendiente' },
+      { category: 'Títulos', name: 'Doblete Doméstico', description: 'Consigue 2 trofeos en la misma temporada', icon: 'doubleTitle', tone: 'accent', earned: titleBadges.doblete, progress: titleBadges.doblete ? 'Obtenida' : 'Pendiente' },
+      { category: 'Títulos', name: 'The Treble', description: 'Consigue 3 trofeos en la misma temporada', icon: 'trebleTitle', tone: 'cyan', earned: titleBadges.theTreble, progress: titleBadges.theTreble ? 'Obtenida' : 'Pendiente' },
       { category: 'Modos de Temporada', name: 'Campeón del Mundo', description: 'Conságrate campeón de Tournament en modo Selecciones.', icon: 'worldcup', tone: 'gold', earned: titleBadges.worldcup, progress: titleBadges.worldcup ? 'Obtenida' : 'Pendiente' },
       { category: 'Modos de Temporada', name: 'Campeón de LaLiga', description: 'Gana la liga regular en modo LaLiga.', icon: 'laliga', tone: 'rose', earned: titleBadges.laliga, progress: titleBadges.laliga ? 'Obtenida' : 'Pendiente' },
       { category: 'Modos de Temporada', name: 'Copa del Rey', description: 'Conságrate campeón de Tournament en modo LaLiga.', icon: 'copadelrey', tone: 'rose', earned: titleBadges.copadelrey, progress: titleBadges.copadelrey ? 'Obtenida' : 'Pendiente' },
@@ -177,11 +215,11 @@
       { category: 'Modos de Temporada', name: 'Campeón de la Serie A', description: 'Gana la liga regular en modo Serie A.', icon: 'seriea', tone: 'lightgreen', earned: titleBadges.seriea, progress: titleBadges.seriea ? 'Obtenida' : 'Pendiente' },
       { category: 'Modos de Temporada', name: 'Coppa Italia', description: 'Conságrate campeón de Tournament en modo Serie A.', icon: 'coppaitalia', tone: 'lightgreen', earned: titleBadges.coppaitalia, progress: titleBadges.coppaitalia ? 'Obtenida' : 'Pendiente' },
       { category: 'Modos de Temporada', name: 'Supercoppa di Lega', description: 'Gana la Supercopa en modo Serie A.', icon: 'supercopaitalia', tone: 'lightgreen', earned: titleBadges.supercopaitalia, progress: titleBadges.supercopaitalia ? 'Obtenida' : 'Pendiente' },
-      ...thresholdBadges('Temporadas perfectas', 'star', 'gold', perfect, [[1, 'La temporada perfecta', 'Consigue todos los trofeos y títulos ganables en una misma temporada'], [5, 'Quinteto perfecto', 'Consigue 5 temporadas perfectas.'], [10, 'Perfección absoluta', 'Consigue 10 temporadas perfectas.'], [20, 'Veinte veces perfectos', 'Consigue 20 temporadas perfectas.']]),
-      ...thresholdBadges('Temporadas legendarias', 'legendary', 'purple', legendary, [[1, 'Nace una leyenda', 'Completa una temporada perfecta sin recibir goles durante el juego en ninguna competición. Los penales de las tandas no cuentan.'], [2, 'Leyenda consagrada', 'Completa 2 temporadas legendarias.'], [5, 'Linaje legendario', 'Completa 5 temporadas legendarias.'], [10, 'Mito del fútbol', 'Completa 10 temporadas legendarias.']]),
-      ...thresholdBadges('Logros', 'achievement', 'accent', achievements, [[10, 'Cazador de hazañas', 'Acumula 10 logros de temporada.'], [20, 'Coleccionista de logros', 'Acumula 20 logros de temporada.'], [50, 'Palmarés de proezas', 'Acumula 50 logros de temporada.'], [100, 'Centenario de hazañas', 'Alcanza 100 logros de temporada.']]),
-      { category: 'Logros', name: 'Soberano de Serie', description: 'Gana el primer lugar de una serie.', icon: 'series', tone: 'green', value: totals.series, target: 1, earned: totals.series > 0, progress: `${totals.series}/1` },
-      { category: 'Logros', name: 'Líder del Grupo', description: 'Consigue el logro Campeón de grupo.', icon: 'league', tone: 'purple', value: groupChampions, target: 1, earned: groupChampions > 0, progress: `${groupChampions}/1` },
+      ...thresholdBadges('Temporadas perfectas', 'perfectSeasonArt', 'gold', perfect, [[1, 'La temporada perfecta', 'Consigue todos los trofeos y títulos ganables en una misma temporada'], [5, 'Quinteto perfecto', 'Consigue 5 temporadas perfectas.'], [10, 'Perfección absoluta', 'Consigue 10 temporadas perfectas.'], [20, 'Veinte veces perfectos', 'Consigue 20 temporadas perfectas.']]),
+      ...thresholdBadges('Temporadas legendarias', 'legendarySeasonArt', 'purple', legendary, [[1, 'Nace una leyenda', 'Completa una temporada perfecta sin recibir goles durante el juego en ninguna competición. Los penales de las tandas no cuentan.'], [2, 'Leyenda consagrada', 'Completa 2 temporadas legendarias.'], [5, 'Linaje legendario', 'Completa 5 temporadas legendarias.'], [10, 'Mito del fútbol', 'Completa 10 temporadas legendarias.']]),
+      ...thresholdBadges('Logros', 'achievementMedal', 'accent', achievements, [[10, 'Cazador de hazañas', 'Acumula 10 logros de temporada.'], [20, 'Coleccionista de logros', 'Acumula 20 logros de temporada.'], [50, 'Palmarés de proezas', 'Acumula 50 logros de temporada.'], [100, 'Centenario de hazañas', 'Alcanza 100 logros de temporada.']]),
+      { category: 'Logros', name: 'Soberano de Serie', description: 'Gana el primer lugar de una serie.', icon: 'commonCrown', tone: 'green', value: totals.series, target: 1, earned: totals.series > 0, progress: `${totals.series}/1` },
+      { category: 'Logros', name: 'Líder del Grupo', description: 'Consigue el logro Campeón de grupo.', icon: 'commonCrown', tone: 'purple', value: groupChampions, target: 1, earned: groupChampions > 0, progress: `${groupChampions}/1` },
       { category: 'Logros', name: 'El invencible', description: 'Consigue el logro Invicto en Liga por primera vez.', icon: 'medal1', tone: 'accent', earned: invincibleLeague, progress: invincibleLeague ? 'Obtenida' : 'Pendiente' },
       ...thresholdBadges('Puntos', 'points25', 'blue', totals.points, [[25, 'Primer botín', 'Suma 25 puntos en Liga/Serie a lo largo de tus temporadas.'], [50, 'Cosecha de puntos', 'Acumula 50 puntos en Liga/Serie.'], [100, 'Centenario de puntos', 'Alcanza 100 puntos en Liga/Serie.'], [200, 'Imperio de puntos', 'Acumula 200 puntos en Liga/Serie.']]).map((badge, index) => ({ ...badge, icon: ['points25', 'points50', 'points100', 'points200'][index] })),
       { category: 'Especiales', name: 'Pase de acero', description: 'Clasifica a Tournament tras empatar todos los partidos de Liga/Serie/Grupos; el empate que se define por penales también cuenta.', icon: 'draw', tone: 'cyan', earned: tournamentByDraws, progress: tournamentByDraws ? 'Obtenida' : 'Pendiente' },
@@ -192,7 +230,7 @@
       { category: 'Especiales', name: '¡Agüerooooo!', description: 'Gana la Liga o Serie con más diferencia de goles que el segundo lugar, estando ambos empatados en puntos.', icon: 'medal1', tone: 'cyan', earned: aguerooooo, progress: aguerooooo ? 'Obtenida' : 'Pendiente' },
       { category: 'Especiales', name: 'Campeón Incomprendido', description: 'Gana una Liga o Serie con una diferencia de goles igual o inferior a cero.', icon: 'draw', tone: 'gold', earned: campeonIncomprendido, progress: campeonIncomprendido ? 'Obtenida' : 'Pendiente' },
       { category: 'Especiales', name: 'Repesca Anarquica', description: 'Marca 7 o más goles en un mismo partido de repechaje.', icon: 'ball', tone: 'slate', earned: repescaAnarquica, progress: repescaAnarquica ? 'Obtenida' : 'Pendiente' },
-      { category: 'Especiales', name: 'Cine Absoluto', description: 'Gana Tournament tras clasificar por repechaje.', icon: 'trophy', tone: 'gold', earned: cineAbsoluto, progress: cineAbsoluto ? 'Obtenida' : 'Pendiente' },
+      { category: 'Especiales', name: 'Cine Absoluto', description: 'Gana Tournament tras clasificar por repechaje.', icon: 'cineArt', tone: 'gold', earned: cineAbsoluto, progress: cineAbsoluto ? 'Obtenida' : 'Pendiente' },
       { category: 'Especiales', name: 'El invicto de Ferguson', description: 'Llega invicto a la final de Tournament con ida y vuelta y pierde la final en el tiempo regular.', icon: 'medal2', tone: 'gold', earned: fergusonUnbeatenFinalLoss, progress: fergusonUnbeatenFinalLoss ? 'Obtenida' : 'Pendiente' },
       { category: 'Especiales', name: 'Mister Tournament', description: 'Consigue 17 goles en una sola edición de Tournament, sin contar los repechajes.', icon: 'ball', tone: 'gold', value: maxTournamentGoals, target: 17, earned: maxTournamentGoals >= 17, progress: `${maxTournamentGoals}/17` },
       { category: 'Especiales', name: 'Invicto de Bucarest', description: 'Completa 105 partidos consecutivos sin perder en Liga/Serie/Grupos, sumando todas las temporadas.', icon: 'steaua', tone: 'gold', value: longestUnbeaten, target: 105, earned: longestUnbeaten >= 105, progress: `${longestUnbeaten}/105` },

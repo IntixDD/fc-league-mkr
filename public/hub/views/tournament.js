@@ -655,7 +655,7 @@
             ${t ? `<img class="podium-watermark" src="${esc(t.logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
             ${t ? crest(t.logo, 'md', t.name) : '<span class="crest crest--md crest--tbd"></span>'}
             <span class="podium-text">
-              <span class="podium-label">${H.ICONS[icon]}<span>${label}</span></span>
+              <span class="podium-label">${icon.endsWith('.svg') ? H.assetIcon(icon) : H.ICONS[icon]}<span>${label}</span></span>
               <span class="podium-name">${t ? esc(t.name) : 'Por definir'}</span>
             </span>
           </li>`
@@ -667,10 +667,10 @@
           <article class="card">
             <header class="card-head"><h2 class="card-title">Podio · Temporada ${season.number}</h2></header>
             <ol class="podium">
-              ${place(bracket.champion, 'Campeón', 'is-gold', 'trophy')}
-              ${place(bracket.runnerUp, 'Subcampeón', 'is-silver', 'medal2')}
-              ${place(bracket.thirdPlace, '3er lugar', 'is-bronze', 'medal3')}
-              ${place(bracket.fourth, '4to lugar', '', 'medal4')}
+              ${place(bracket.champion, 'Campeón', 'is-gold', 'tournament.svg')}
+              ${place(bracket.runnerUp, 'Subcampeón', 'is-silver', 'medal_2.svg')}
+              ${place(bracket.thirdPlace, '3er lugar', 'is-bronze', 'medal_3.svg')}
+              ${place(bracket.fourth, '4to lugar', '', 'medal_4.svg')}
             </ol>
           </article>
           <article class="card card--wide" id="tournament-export">

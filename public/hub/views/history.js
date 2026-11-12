@@ -3,22 +3,22 @@
   const { esc, crest } = H
 
   const COLS = [
-    { key: 'cups', label: 'Copas', title: 'Campeón de Tournament' },
-    { key: 'leagues', label: 'Ligas', title: 'Campeón de liga' },
-    { key: 'finalissimas', label: 'Finalís.', title: 'Campeón de la Finalísima de Series' },
-    { key: 'supercups', label: 'Supercop.', title: 'Campeón de la Supercopa' },
-    { key: 'series', label: 'Series', title: 'Logro Campeón de Serie' },
-    { key: 'runnerUp', label: 'Subcamp.', title: 'Subcampeonatos (Tournament)' },
-    { key: 'third', label: '3ros', title: '3er lugar (Tournament)' },
-    { key: 'fourth', label: '4tos', title: '4to lugar (Tournament)' },
+    { key: 'cups', label: 'Copas', title: 'Campeón de Tournament', iconFile: 'tournament.svg' },
+    { key: 'leagues', label: 'Ligas', title: 'Campeón de liga', iconFile: 'league.svg' },
+    { key: 'finalissimas', label: 'Finalís.', title: 'Campeón de la Finalísima de Series', iconFile: 'finalisima.svg' },
+    { key: 'supercups', label: 'Supercop.', title: 'Campeón de la Supercopa', iconFile: 'supercup.svg' },
+    { key: 'series', label: 'Series', title: 'Logro Campeón de Serie', iconFile: 'crown_common.svg' },
+    { key: 'runnerUp', label: 'Subcamp.', title: 'Subcampeonatos (Tournament)', iconFile: 'medal_2.svg' },
+    { key: 'third', label: '3ros', title: '3er lugar (Tournament)', iconFile: 'medal_3.svg' },
+    { key: 'fourth', label: '4tos', title: '4to lugar (Tournament)', iconFile: 'medal_4.svg' },
     { key: 'leagueGoals', label: 'GF LSG', title: 'Goles a favor en liga, series y fase de grupos' },
     { key: 'cupGoals', label: 'GF TR', title: 'Goles a favor en Tournament' },
     { key: 'finalGoals', label: 'GF F+S', title: 'Goles a favor en Finalísima y Supercopa' },
     { key: 'goals', label: 'Goles', title: 'Goles totales' },
     { key: 'points', label: 'Puntos', title: 'Puntos totales (solo liga)' },
-    { key: 'titles', label: 'Títulos', title: 'Títulos totales', icon: 'trophy' },
-    { key: 'achievements', label: 'Logros', title: 'Logros totales', icon: 'star' },
-    { key: 'badges', label: 'Insignias', title: 'Insignias obtenidas', icon: 'points25' },
+    { key: 'titles', label: 'Títulos', title: 'Títulos totales', iconFile: 'trophy_common.svg' },
+    { key: 'achievements', label: 'Logros', title: 'Logros totales', iconFile: 'medal.svg' },
+    { key: 'badges', label: 'Insignias', title: 'Insignias obtenidas', iconFile: 'badge_2.svg' },
   ]
   const TIEBREAK = ['titles', 'achievements', 'badges', 'cups', 'leagues', 'finalissimas', 'supercups', 'series', 'runnerUp', 'third', 'fourth', 'points', 'goals']
   let compareTeams = ['', '']
@@ -164,7 +164,7 @@
         const active = c.key === sortKey
         const aria = active ? (dir === 1 ? 'ascending' : 'descending') : 'none'
         const st = H.STAT_STYLE[c.key]
-        const icon = c.icon === 'points25' ? H.badgeIcon?.({ icon: 'points25' }) || H.ICONS[st.icon] : H.ICONS[st.icon]
+        const icon = c.iconFile ? H.assetIcon(c.iconFile) : c.icon === 'points25' ? H.badgeIcon?.({ icon: 'points25' }) || H.ICONS[st.icon] : H.ICONS[st.icon]
         return `<th scope="col" class="num ${st.cls}" aria-sort="${aria}"><button class="sort-btn${active ? ' is-active' : ''}" data-sort="${c.key}" title="${c.title}">${icon}<span>${c.label}</span><span class="sort-arrow" aria-hidden="true">${active ? (dir === 1 ? '↑' : '↓') : ''}</span></button></th>`
       }).join('')
 

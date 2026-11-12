@@ -9,6 +9,9 @@
   const PRELOADED_BACKGROUNDS = [
     { id: 'preset-estadio-atardecer', label: 'Stadio Diego Armando Maradona', src: 'backgrounds/estadio0.jpg' },
     { id: 'preset-estadio-cielo-abierto', label: 'Etihad Stadium', src: 'backgrounds/estadio1.jpg' },
+    { id: 'preset-santiago-bernabeu', label: 'Estadio Santiago Bernabéu', src: 'backgrounds/santiagobernabeu.jpg' },
+    { id: 'preset-spotify-camp-nou', label: 'Spotify Camp Nou', src: 'backgrounds/campnou.jpg' },
+    { id: 'preset-riyadh-air-metropolitano', label: 'Estadio Riyadh Air Metropolitano', src: 'backgrounds/metropolitano.jpg' },
   ]
   const MUSIC_ICONS = {
     previous: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M19 5 9 12l10 7z"/></svg>',
@@ -606,10 +609,12 @@
                 <span class="field-label">Oscurecer imagen <output>${Math.round(p.bgDim * 100)}%</output></span>
                 <input type="range" name="bg-dim" min="0" max="0.85" step="0.05" value="${p.bgDim}" ${p.activeBg ? '' : 'disabled'}>
               </label>
-              <label class="check">
-                <input type="checkbox" name="bg-grid" ${p.bgGrid ? 'checked' : ''}>
-                Mostrar la cuadrícula sobre el fondo
-              </label>
+              <div class="tournament-option-card tournament-toggle-card music-autoplay-card bg-grid-toggle-card" data-toggle-card="bg-grid">
+                <label class="series-choice music-autoplay-choice">
+                  <input type="checkbox" name="bg-grid" ${p.bgGrid ? 'checked' : ''}>
+                  <span><strong>Mostrar la cuadrícula sobre el fondo</strong><small>Aplica una cuadrícula sutil sobre el fondo activo</small></span>
+                </label>
+              </div>
             </div>
             <p class="hint">Toca un fondo para aplicarlo. Las imágenes se guardan solo en este dispositivo.</p>`,
         })}
@@ -628,7 +633,7 @@
           sub: 'League Hub',
           wide: true,
           extraClass: 'set-about',
-          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-4.0</strong><span class="about-build">Beta Build</span></div>',
+          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-4.1</strong><span class="about-build">Beta Build</span></div>',
         })}
       </div>`
     updateMusicControls()
@@ -639,9 +644,9 @@
     if (!el) return
     document.addEventListener('league:brandlogochange', () => render())
     el.addEventListener('click', async (e) => {
-      const autoplayCard = e.target.closest('[data-toggle-card="music-autoplay"]')
-      if (autoplayCard && !e.target.closest('input, label')) {
-        autoplayCard.querySelector('input[type="checkbox"]')?.click()
+      const toggleCard = e.target.closest('[data-toggle-card]')
+      if (toggleCard && !e.target.closest('input, label')) {
+        toggleCard.querySelector('input[type="checkbox"]')?.click()
         return
       }
       const btn = e.target.closest('[data-action]')

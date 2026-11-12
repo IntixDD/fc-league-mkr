@@ -105,7 +105,7 @@
   })
 
   const lastLogo = (record) => record.seasons.at(-1)?.logo || record.logos.at(-1) || ''
-  const rankSlide = (title, icon, records, value) => `<article class="menu-slide"><h3 class="menu-slide-title">${icon === 'points25' ? POINTS_BADGE_ICON : H.ICONS[icon]}<span>${title}</span></h3>${records.length ? `<ol>${records.map((record) => `<li>${crest(lastLogo(record), 'xs', record.name)}<span>${esc(record.name)}</span><strong>${value(record)}</strong></li>`).join('')}</ol>` : '<p class="empty">Aún no hay datos.</p>'}</article>`
+  const rankSlide = (title, icon, records, value) => `<article class="menu-slide"><h3 class="menu-slide-title">${icon.endsWith('.svg') ? H.assetIcon(icon) : icon === 'points25' ? POINTS_BADGE_ICON : H.ICONS[icon]}<span>${title}</span></h3>${records.length ? `<ol>${records.map((record) => `<li>${crest(lastLogo(record), 'xs', record.name)}<span>${esc(record.name)}</span><strong>${value(record)}</strong></li>`).join('')}</ol>` : '<p class="empty">Aún no hay datos.</p>'}</article>`
 
   function sharpenBrandImage(el, source) {
     if (!source || source.startsWith('data:image/svg+xml') || /\.svg(?:[?#]|$)/i.test(source)) return
@@ -174,10 +174,10 @@
     const metrics = [
       ['calendar', 'Temporada actual', current.number || '—', 'EN PREPARACIÓN'],
       ['teams', 'Equipos activos', (current.teams || []).length, 'EN LA LIGA'],
-      ['trophy', 'Títulos históricos', totals.titles, 'EN EL PALMARÉS'],
-      ['star', 'Logros acumulados', totals.achievements, 'HITOS DE TEMPORADA'],
+      ['trophy_common.svg', 'Títulos históricos', totals.titles, 'EN EL PALMARÉS'],
+      ['medal.svg', 'Logros acumulados', totals.achievements, 'HITOS DE TEMPORADA'],
     ]
-    return `<section class="menu-intel"><header class="menu-section-head"><div><span class="menu-section-kicker">PANEL DE TEMPORADA</span><h2>Datos de la liga</h2></div></header><div class="menu-stat-grid">${metrics.map(([icon, label, value, caption], index) => `<article class="menu-stat-card menu-stat-card--${index + 1}"><span class="menu-stat-icon${icon === 'teams' ? ' menu-stat-icon--teams' : ''}">${icon === 'teams' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.1"/><path d="M3.5 19v-1.2a5.5 5.5 0 0 1 11 0V19z"/><path d="M16 5.2a3 3 0 0 1 0 5.7M17 14a4.5 4.5 0 0 1 3.5 4.4V19h-3"/></svg>' : H.ICONS[icon]}</span><div class="menu-stat-reading"><span class="menu-stat-label">${label}</span><div class="menu-stat-value"><strong>${value}</strong><small>${caption}</small></div></div></article>`).join('')}</div></section>`
+    return `<section class="menu-intel"><header class="menu-section-head"><div><span class="menu-section-kicker">PANEL DE TEMPORADA</span><h2>Datos de la liga</h2></div></header><div class="menu-stat-grid">${metrics.map(([icon, label, value, caption], index) => `<article class="menu-stat-card menu-stat-card--${index + 1}"><span class="menu-stat-icon${icon === 'teams' ? ' menu-stat-icon--teams' : ''}">${icon === 'teams' ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.1"/><path d="M3.5 19v-1.2a5.5 5.5 0 0 1 11 0V19z"/><path d="M16 5.2a3 3 0 0 1 0 5.7M17 14a4.5 4.5 0 0 1 3.5 4.4V19h-3"/></svg>' : icon.endsWith('.svg') ? H.assetIcon(icon) : H.ICONS[icon]}</span><div class="menu-stat-reading"><span class="menu-stat-label">${label}</span><div class="menu-stat-value"><strong>${value}</strong><small>${caption}</small></div></div></article>`).join('')}</div></section>`
   }
 
   function quickDeck() {
@@ -234,11 +234,11 @@
       `<article class="menu-slide"><h3>Final y tercer lugar</h3><div class="menu-final-pair">${bracket ? `${matchPanel('Final', bracket.final, season)}${matchPanel('Tercer lugar', bracket.third, season)}${specialFinals}` : '<p class="empty">No hay resultados de Tournament guardados.</p>'}</div></article>`,
     ]
     const recordSlides = [
-      rankSlide('Top 5 · Títulos', 'trophy', topTitles, (record) => record.total.titles),
-      rankSlide('Top 5 · Logros', 'star', topAchievements, (record) => record.total.achievements),
-      rankSlide('Top 5 · Insignias', 'medal1', topBadges, (record) => record.badgeTotal),
+      rankSlide('Top 5 · Títulos', 'trophy_common.svg', topTitles, (record) => record.total.titles),
+      rankSlide('Top 5 · Logros', 'medal.svg', topAchievements, (record) => record.total.achievements),
+      rankSlide('Top 5 · Insignias', 'badge_2.svg', topBadges, (record) => record.badgeTotal),
       rankSlide('Top 5 · Goleadores', 'ball', topScorers, (record) => record.total.goals),
-      rankSlide('Top 5 · Puntos', 'points25', topPoints, (record) => `${record.total.points} pts`),
+      rankSlide('Top 5 · Puntos', 'badge.svg', topPoints, (record) => `${record.total.points} pts`),
     ]
     el.innerHTML = `<div class="menu-stage">${heroMarkup(state, season, stats)}${metricsMarkup(state, records)}<div class="panel-grid menu-layout"><article class="card menu-feature-card menu-feature-card--season"><header class="card-head"><div><span class="menu-section-kicker">ARCHIVO DE CAMPAÑA</span><h2 class="card-title">Última temporada</h2><p class="card-sub">Temporada ${season.number} · ${season.teams.length} equipos</p></div><div class="menu-dots" data-dots="summary" role="group" aria-label="Apartados de Última temporada"></div></header><div class="menu-carousel" data-carousel="summary">${finalSlides.join('')}</div></article><div class="menu-side-stack"><article class="card menu-feature-card menu-feature-card--records"><header class="card-head"><div><span class="menu-section-kicker">HALL OF FAME</span><h2 class="card-title">Récords de la liga</h2></div><div class="menu-dots" data-dots="records" role="group" aria-label="Récords de la liga"></div></header><div class="menu-carousel" data-carousel="records">${recordSlides.join('')}</div></article>${quickDeck()}</div></div></div>`
     sharpenBrandImage(el, state.brandLogo)

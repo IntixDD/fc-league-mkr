@@ -711,6 +711,8 @@ window.Hub = (() => {
   /* ---------- Stat icons & colors (History / Performance) ---------- */
   const SVG = (body) =>
     `<svg class="stat-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`
+  const assetIcon = (file, className = 'stat-icon') =>
+    `<span class="${esc(className)} icon-asset" style="--icon-asset:url('icons/${esc(file)}')" aria-hidden="true"></span>`
   const medal = (n) =>
     SVG(
       `<path d="M8 2.5 11 8"/><path d="M16 2.5 13 8"/><circle cx="12" cy="14.5" r="6.5"/><text x="12" y="17.6" text-anchor="middle" font-size="9" font-weight="800" fill="currentColor" stroke="none" font-family="system-ui,sans-serif">${n}</text>`,
@@ -1811,6 +1813,7 @@ window.Hub = (() => {
     isZipFile,
     exportButton,
     ICONS,
+    assetIcon,
     STAT_STYLE,
     isManualTable,
     toInt,

@@ -61,13 +61,14 @@
   }
 
   function matchListDropdown(title, icon, tone, matches, rec, isWin) {
+    const iconMarkup = icon.endsWith('.svg') ? H.assetIcon(icon) : H.ICONS[icon]
     const content = matches.length
       ? `<div class="feat-match-list">${matches.map((match) => `<div class="feat-match feat-match--${isWin(match) ? 'for' : 'against'}">${matchContent(match, rec)}</div>`).join('')}</div>`
       : '<p class="empty">Sin partidos disputados.</p>'
     return `
       <details class="feat-disclosure">
         <summary>
-          <span class="feat-disclosure-heading feat-disclosure-heading--${tone}">${H.ICONS[icon]}<span>${title}</span></span>
+          <span class="feat-disclosure-heading feat-disclosure-heading--${tone}">${iconMarkup}<span>${title}</span></span>
           <span class="season-awards-count">${matches.length}</span>
           <span class="feat-disclosure-chevron" aria-hidden="true"></span>
         </summary>
@@ -152,7 +153,7 @@
         { label: 'GF LSG', title: 'Goles a favor en liga, series y fase de grupos', tone: 'lime', icon: 'ball', get: (l) => l.gf },
         { label: 'GC LSG', title: 'Goles en contra en liga, series y fase de grupos', tone: 'rose', icon: 'conceded', get: (l) => l.gc },
         { label: 'GF TR', title: 'Goles a favor en Tournament', tone: 'blue', icon: 'ball', get: (l, c) => c.gf },
-        { label: 'GC TR', title: 'Goles en contra en Tournament', tone: 'orange', icon: 'conceded', get: (l, c) => c.gc },
+        { label: 'GC TR', title: 'Goles en contra en Tournament', tone: 'rose', icon: 'conceded', get: (l, c) => c.gc },
         { label: 'GF F+S', title: 'Goles a favor en Finalísima y Supercopa', tone: 'gold', icon: 'ball', get: (l, c, f) => f.gf },
         { label: 'GC F+S', title: 'Goles en contra en Finalísima y Supercopa', tone: 'rose', icon: 'conceded', get: (l, c, f) => f.gc },
         { label: 'GF TOT', title: 'Goles a favor totales', tone: 'cyan', icon: 'ball', get: (l, c, f) => l.gf + c.gf + f.gf },
@@ -205,38 +206,38 @@
           <div class="feat-grid">
             ${matchBox('Más goles a favor', bestFor, rec, 'for')}
             ${matchBox('Más goles en contra', worstAgainst, rec, 'against')}
-            ${matchListDropdown('Finales disputadas', 'trophy', 'final', finalsPlayed, rec, isWin)}
-            ${matchListDropdown('Terceros lugares disputados', 'medal3', 'third', thirdPlacesPlayed, rec, isWin)}
+            ${matchListDropdown('Finales disputadas', 'trophy_common.svg', 'final', finalsPlayed, rec, isWin)}
+            ${matchListDropdown('Terceros lugares disputados', 'medal_3.svg', 'third', thirdPlacesPlayed, rec, isWin)}
           </div>
         </article>`
 
       const titles = [
-        { label: 'Campeón de Torneo', flag: 'cupChampion', tone: 'gold', icon: 'trophy' },
-        { label: 'Campeón de Liga', flag: 'leagueChampion', tone: 'cyan', icon: 'crown' },
-        { label: 'Campeón de la Finalísima', flag: 'seriesFinalChampion', tone: 'gold', icon: 'steaua' },
-        { label: 'Campeón de la Supercopa', flag: 'supercupChampion', tone: 'gold', icon: 'trophy' },
-        { label: 'Subcampeón de Torneo', flag: 'runnerUp', tone: 'silver', icon: 'medal2' },
-        { label: '3er lugar', flag: 'third', tone: 'bronze', icon: 'medal3' },
-        { label: '4to lugar', flag: 'fourth', tone: 'plain', icon: 'medal4' },
-        { label: 'Goleador de la temporada', flag: 'seasonScorer', tone: 'gold', icon: 'ball' },
-        { label: 'Portería imbatible de la temporada', flag: 'seasonCleanSheetAward', tone: 'accent', icon: 'conceded' },
+        { label: 'Campeón de Torneo', flag: 'cupChampion', tone: 'gold', iconFile: 'tournament.svg' },
+        { label: 'Campeón de Liga', flag: 'leagueChampion', tone: 'cyan', iconFile: 'league.svg' },
+        { label: 'Campeón de la Finalísima', flag: 'seriesFinalChampion', tone: 'gold', iconFile: 'finalisima.svg' },
+        { label: 'Campeón de la Supercopa', flag: 'supercupChampion', tone: 'gold', iconFile: 'supercup.svg' },
+        { label: 'Subcampeón de Torneo', flag: 'runnerUp', tone: 'silver', iconFile: 'medal_2.svg' },
+        { label: '3er lugar', flag: 'third', tone: 'bronze', iconFile: 'medal_3.svg' },
+        { label: '4to lugar', flag: 'fourth', tone: 'plain', iconFile: 'medal_4.svg' },
+        { label: 'Goleador de la temporada', flag: 'seasonScorer', tone: 'gold', iconFile: 'goleador_3.svg', iconBoost: true },
+        { label: 'Portería imbatible de la temporada', flag: 'seasonCleanSheetAward', tone: 'accent', iconFile: 'glove.svg', iconBoost: true },
       ]
       const achievements = [
-        { label: 'Campeón de Serie', flag: 'seriesChampion', tone: 'green', icon: 'crown', emptyLabel: 'Sin logros' },
-        { label: 'Campeón de grupo', flag: 'groupChampion', tone: 'purple', icon: 'crown', emptyLabel: 'Sin logros' },
-        { label: 'Invicto en Liga', flag: 'invincibleLeague', tone: 'cyan', icon: 'win', emptyLabel: 'Sin logros' },
-        { label: 'Invicto en Serie', flag: 'invincibleSeries', tone: 'green', icon: 'win', emptyLabel: 'Sin logros' },
-        { label: 'Goleador de torneo', flag: 'cupScorer', tone: 'accent', icon: 'ball', emptyLabel: 'Sin logros' },
-        { label: 'Goleador de Liga', flag: 'leagueScorer', tone: 'cyan', icon: 'ball', emptyLabel: 'Sin logros' },
-        { label: 'Goleador de Serie', flag: 'seriesScorer', tone: 'green', icon: 'ball', emptyLabel: 'Sin logros' },
-        { label: 'Doblete', flag: 'domesticDouble', tone: 'accent', badgeIcon: 'doblete', emptyLabel: 'Sin logros' },
-        { label: 'Triplete', flag: 'theTreble', tone: 'cyan', badgeIcon: 'zidane', emptyLabel: 'Sin logros' },
-        { label: 'Temporada perfecta', flag: 'perfectSeason', tone: 'gold', icon: 'star', emptyLabel: 'Sin logros' },
-        { label: 'Temporada Legendaria', flag: 'legendarySeason', tone: 'gold', icon: 'trophy', emptyLabel: 'Sin logros' },
+        { label: 'Campeón de Serie', flag: 'seriesChampion', tone: 'green', iconFile: 'crown_common.svg', emptyLabel: 'Sin logros' },
+        { label: 'Campeón de grupo', flag: 'groupChampion', tone: 'purple', iconFile: 'crown_common.svg', emptyLabel: 'Sin logros' },
+        { label: 'Invicto en Liga', flag: 'invincibleLeague', tone: 'cyan', iconFile: 'premio4.svg', emptyLabel: 'Sin logros' },
+        { label: 'Invicto en Serie', flag: 'invincibleSeries', tone: 'green', iconFile: 'premio4.svg', emptyLabel: 'Sin logros' },
+        { label: 'Goleador de torneo', flag: 'cupScorer', tone: 'accent', iconFile: 'goleador.svg', emptyLabel: 'Sin logros' },
+        { label: 'Goleador de Liga', flag: 'leagueScorer', tone: 'cyan', iconFile: 'goleador_2.svg', emptyLabel: 'Sin logros' },
+        { label: 'Goleador de Serie', flag: 'seriesScorer', tone: 'green', iconFile: 'goleador_2.svg', emptyLabel: 'Sin logros' },
+        { label: 'Doblete', flag: 'domesticDouble', tone: 'accent', iconFile: 'trophy_2.svg', emptyLabel: 'Sin logros' },
+        { label: 'Triplete', flag: 'theTreble', tone: 'cyan', iconFile: 'trophy_3.svg', emptyLabel: 'Sin logros' },
+        { label: 'Temporada perfecta', flag: 'perfectSeason', tone: 'gold', iconFile: 'premio3.svg', emptyLabel: 'Sin logros' },
+        { label: 'Temporada Legendaria', flag: 'legendarySeason', tone: 'gold', iconFile: 'premio1.svg', emptyLabel: 'Sin logros' },
       ]
       const trophyCard = (tr) => {
         const won = rec.seasons.filter((s) => s[tr.flag]).sort((a, b) => a.number - b.number)
-        const icon = tr.badgeIcon ? H.badgeIcon?.({ icon: tr.badgeIcon }) || H.ICONS.trophy : H.ICONS[tr.icon] || H.ICONS.trophy
+        const icon = tr.iconFile ? H.assetIcon(tr.iconFile, `stat-icon${tr.iconBoost ? ' trophy-icon--boost' : ''}`) : tr.badgeIcon ? H.badgeIcon?.({ icon: tr.badgeIcon }) || H.ICONS.trophy : H.ICONS[tr.icon] || H.ICONS.trophy
         const seasons = won.length
           ? `<ul class="trophy-seasons" aria-label="Temporadas">${won.map((s) => `<li class="trophy-season">T${s.number}</li>`).join('')}</ul>`
           : `<p class="trophy-none">${tr.emptyLabel || 'Sin títulos'}</p>`

@@ -34,29 +34,29 @@
     {
       label: 'Títulos',
       awards: [
-        ['Campeón de Torneo', 'cupChampion', 'trophy', 'gold'],
-        ['Campeón de Liga', 'leagueChampion', 'crown', 'cyan'],
-        ['Campeón de la Finalísima', 'seriesFinalChampion', 'steaua', 'gold'],
-        ['Campeón de la Supercopa', 'supercupChampion', 'trophy', 'gold'],
-        ['Subcampeón de Torneo', 'runnerUp', 'medal2', 'silver'],
-        ['3er lugar', 'third', 'medal3', 'bronze'],
-        ['4to lugar', 'fourth', 'medal4', 'plain'],
-        ['Goleador de la temporada', 'seasonScorer', 'ball', 'gold'],
-        ['Portería imbatible de la temporada', 'seasonCleanSheetAward', 'conceded', 'accent'],
+        ['Campeón de Torneo', 'cupChampion', 'tournament.svg', 'gold'],
+        ['Campeón de Liga', 'leagueChampion', 'league.svg', 'cyan'],
+        ['Campeón de la Finalísima', 'seriesFinalChampion', 'finalisima.svg', 'gold'],
+        ['Campeón de la Supercopa', 'supercupChampion', 'supercup.svg', 'gold'],
+        ['Subcampeón de Torneo', 'runnerUp', 'medal_2.svg', 'silver'],
+        ['3er lugar', 'third', 'medal_3.svg', 'bronze'],
+        ['4to lugar', 'fourth', 'medal_4.svg', 'plain'],
+        ['Goleador de la temporada', 'seasonScorer', 'goleador_3.svg', 'gold'],
+        ['Portería imbatible de la temporada', 'seasonCleanSheetAward', 'glove.svg', 'accent'],
       ],
     },
     {
       label: 'Logros',
       awards: [
-        ['Goleador de torneo', 'cupScorer', 'ball', 'accent'],
-        ['Goleador de Liga', 'leagueScorer', 'ball', 'cyan'],
-        ['Goleador de Serie', 'seriesScorer', 'ball', 'green'],
-        ['Campeón de Serie', 'seriesChampion', 'crown', 'green'],
-        ['Campeón de grupo', 'groupChampion', 'crown', 'purple'],
-        ['Temporada perfecta', 'perfectSeason', 'star', 'gold'],
-        ['Invicto en Liga', 'invincibleLeague', 'win', 'cyan'],
-        ['Invicto en Serie', 'invincibleSeries', 'win', 'green'],
-        ['Temporada Legendaria', 'legendarySeason', 'trophy', 'gold'],
+        ['Goleador de torneo', 'cupScorer', 'goleador.svg', 'accent'],
+        ['Goleador de Liga', 'leagueScorer', 'goleador_2.svg', 'cyan'],
+        ['Goleador de Serie', 'seriesScorer', 'goleador_2.svg', 'green'],
+        ['Campeón de Serie', 'seriesChampion', 'crown_common.svg', 'green'],
+        ['Campeón de grupo', 'groupChampion', 'crown_common.svg', 'purple'],
+        ['Temporada perfecta', 'perfectSeason', 'premio3.svg', 'gold'],
+        ['Invicto en Liga', 'invincibleLeague', 'premio4.svg', 'cyan'],
+        ['Invicto en Serie', 'invincibleSeries', 'premio4.svg', 'green'],
+        ['Temporada Legendaria', 'legendarySeason', 'premio1.svg', 'gold'],
       ],
     },
   ]
@@ -67,7 +67,8 @@
       const items = awards.flatMap(([title, flag, icon, tone]) => {
         const winners = stats.filter((team) => team[flag])
         if (!winners.length) return []
-        return [`<div class="season-award"><div class="season-award-heading"><span class="season-award-icon season-award-icon--${tone}">${H.ICONS[icon]}</span><span class="season-award-label">${title}</span></div><div class="season-award-winners">${winners.map((team) => `<span class="season-award-winner">${crest(team.logo, 'xs', team.name)}<span>${esc(team.name)}</span></span>`).join('')}</div></div>`]
+        const iconMarkup = icon.endsWith('.svg') ? H.assetIcon(icon) : H.ICONS[icon]
+        return [`<div class="season-award"><div class="season-award-heading"><span class="season-award-icon season-award-icon--${tone}">${iconMarkup}</span><span class="season-award-label">${title}</span></div><div class="season-award-winners">${winners.map((team) => `<span class="season-award-winner">${crest(team.logo, 'xs', team.name)}<span>${esc(team.name)}</span></span>`).join('')}</div></div>`]
       })
       return { label, items }
     })
