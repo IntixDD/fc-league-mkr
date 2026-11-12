@@ -218,9 +218,10 @@
     const bracket = H.computeBracket(season)
     const finalissima = H.finalissimaMatch(season)
     const supercup = season.playoffs?.supercup?.enabled ? H.supercupMatch(season, bracket) : null
-    const specialFinals = finalissima?.played && supercup?.played
-      ? `${matchPanel('Finalísima de Series', finalissima, season, 'finalisima.svg')}${matchPanel('Supercopa', supercup, season, 'supercup.svg')}`
-      : ''
+    const specialFinals = [
+      finalissima?.played ? matchPanel('Finalísima de Series', finalissima, season, 'finalisima.svg') : '',
+      supercup?.played ? matchPanel('Supercopa', supercup, season, 'supercup.svg') : '',
+    ].join('')
     const parts = H.seasonMenuParts?.(season)
     const topTitles = [...records].sort((a, b) => b.total.titles - a.total.titles).slice(0, 5)
     const topAchievements = [...records].sort((a, b) => b.total.achievements - a.total.achievements).slice(0, 5)

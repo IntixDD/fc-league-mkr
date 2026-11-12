@@ -1,4 +1,4 @@
-const CACHE = 'league-hub-v209'
+const CACHE = 'league-hub-v210'
 
 const BASE = new URL('./', self.location.href)
 
@@ -84,7 +84,7 @@ const SHELL = [
   'views/performance.js?v=43',
   'views/badges.js?v=50',
   'views/settings.js?v=43',
-  'views/menu.js?v=29',
+  'views/menu.js?v=30',
   'app.js?v=39',
   'media/music/tracks.js?v=3',
   'media/music/FIFA WORLD CUP 2018 RUSSIA SONG - COLORS (COCA-COLA).mp3',
