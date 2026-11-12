@@ -26,6 +26,9 @@ window.Hub = (() => {
   let pendingSkip = null
   let dbPromise = null
   let teamRecordsCache = null
+  let historyGeneralRankCache = null
+  let teamRecordsBuilding = false
+  const HISTORY_GENERAL_TIEBREAK = ['titles', 'achievements', 'badges', 'cups', 'leagues', 'finalissimas', 'supercups', 'series', 'runnerUp', 'third', 'fourth', 'points', 'goals']
 
   /* ---------- Persistence (IndexedDB) ---------- */
   function openDb() {
@@ -873,15 +876,54 @@ window.Hub = (() => {
   }
 
   function computeTable(season, teamIds = null) {
+    if (!teamRecordsBuilding && !historyGeneralRankCache) teamRecords()
     const selected = teamIds ? new Set(teamIds) : null
     const teams = selected ? season.teams.filter((t) => selected.has(t.id)) : season.teams
+    const shareSeriesOrGroup = (teamA, teamB) => {
+      if (season.tableConfig?.type === 'two-series') {
+        return [season.tableConfig.series1, season.tableConfig.series2].some((ids) => ids?.includes(teamA) && ids.includes(teamB))
+      }
+      if (season.tableConfig?.type === 'groups') {
+        return (season.tableConfig.groups || []).some((ids) => ids.includes(teamA) && ids.includes(teamB))
+      }
+      return false
+    }
+    const compareRows = (a, b) => {
+      const base = b.pts - a.pts || b.dg - a.dg || b.gf - a.gf
+      if (base) return base
+
+      const completeTie = a.gc === b.gc && a.pg === b.pg && a.pe === b.pe && a.pp === b.pp
+      const groupTie = completeTie && shareSeriesOrGroup(a.team.id, b.team.id)
+      if (groupTie && season.fixtures) {
+        let pointsA = 0
+        let pointsB = 0
+        let hasDirectMatch = false
+        leagueMatches(season).forEach((match) => {
+          if (!played(match) || !([match.home, match.away].includes(a.team.id) && [match.home, match.away].includes(b.team.id))) return
+          hasDirectMatch = true
+          const goalsA = match.home === a.team.id ? match.hg : match.ag
+          const goalsB = match.home === b.team.id ? match.hg : match.ag
+          if (goalsA > goalsB) pointsA += 3
+          else if (goalsB > goalsA) pointsB += 3
+          else { pointsA += 1; pointsB += 1 }
+        })
+        if (hasDirectMatch && pointsA !== pointsB) return pointsB - pointsA
+      }
+
+      if (groupTie) {
+        const rankA = historyGeneralRankCache?.get(norm(a.team.name)) ?? Number.POSITIVE_INFINITY
+        const rankB = historyGeneralRankCache?.get(norm(b.team.name)) ?? Number.POSITIVE_INFINITY
+        if (rankA !== rankB) return rankA - rankB
+      }
+      return a.team.name.localeCompare(b.team.name)
+    }
     if (isManualTable(season)) {
       return teams
         .map((t) => {
           const r = manualRecord(season, t.id)
           return { team: t, ...r, dg: r.gf - r.gc }
         })
-        .sort((a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.team.name.localeCompare(b.team.name))
+        .sort(compareRows)
     }
     const rows = new Map(teams.map((t) => [t.id, { team: t, ...zero() }]))
     leagueMatches(season).forEach((m) => {
@@ -894,7 +936,7 @@ window.Hub = (() => {
     })
     return [...rows.values()]
       .map((r) => ({ ...r, dg: r.gf - r.gc }))
-      .sort((a, b) => b.pts - a.pts || b.dg - a.dg || b.gf - a.gf || a.team.name.localeCompare(b.team.name))
+      .sort(compareRows)
   }
 
   function seasonPhaseComplete(season) {
@@ -1429,8 +1471,7 @@ window.Hub = (() => {
     return list.sort((a, b) => a.number - b.number)
   }
 
-  function teamRecords() {
-    if (teamRecordsCache) return teamRecordsCache.slice()
+  function collectTeamRecords() {
     const map = new Map()
     statSeasons().forEach((season) =>
       seasonStats(season).forEach((s) => {
@@ -1441,7 +1482,34 @@ window.Hub = (() => {
         rec.seasons.push(s)
       }),
     )
-    teamRecordsCache = [...map.values()]
+    return [...map.values()]
+  }
+
+  function teamRecords() {
+    if (teamRecordsCache) return teamRecordsCache.slice()
+    if (teamRecordsBuilding) return []
+    teamRecordsBuilding = true
+    let records = []
+    try {
+      historyGeneralRankCache = null
+      records = collectTeamRecords()
+      let ranks = historyGeneralRanks(records)
+      for (let pass = 0; pass < 5; pass++) {
+        historyGeneralRankCache = ranks
+        const nextRecords = collectTeamRecords()
+        const nextRanks = historyGeneralRanks(nextRecords)
+        records = nextRecords
+        if (sameHistoryRanks(ranks, nextRanks)) {
+          ranks = nextRanks
+          break
+        }
+        ranks = nextRanks
+      }
+      historyGeneralRankCache = ranks
+      teamRecordsCache = records
+    } finally {
+      teamRecordsBuilding = false
+    }
     return teamRecordsCache.slice()
   }
 
@@ -1637,6 +1705,7 @@ window.Hub = (() => {
   function update(mutator, { skip = null } = {}) {
     mutator(state)
     teamRecordsCache = null
+    historyGeneralRankCache = null
     persist()
     scheduleRender(skip)
   }
@@ -1714,6 +1783,7 @@ window.Hub = (() => {
     }
     state.seasons = next
     teamRecordsCache = null
+    historyGeneralRankCache = null
     if (logosChanged || previous !== JSON.stringify(state.seasons) || previousCurrent !== JSON.stringify(state.current)) {
       persist()
       scheduleRender()
@@ -1759,6 +1829,32 @@ window.Hub = (() => {
     return t
   }
 
+  function historyGeneralCompare(a, b, direction = -1) {
+    const at = a.t || a.total || {}
+    const bt = b.t || b.total || {}
+    const cups = ((at.cups || 0) - (bt.cups || 0)) * direction
+    if (cups) return cups
+    for (const key of HISTORY_GENERAL_TIEBREAK) {
+      const difference = (bt[key] || 0) - (at[key] || 0)
+      if (difference) return difference
+    }
+    return a.name.localeCompare(b.name)
+  }
+
+  function historyGeneralRanks(records) {
+    const ranked = records.map((record) => ({
+      ...record,
+      t: { ...teamTotals(record), badges: window.Hub?.badgeCount?.(record) || 0 },
+    })).sort(historyGeneralCompare)
+    return new Map(ranked.map((record, index) => [record.key, index]))
+  }
+
+  function sameHistoryRanks(a, b) {
+    if (a.size !== b.size) return false
+    for (const [key, rank] of a) if (b.get(key) !== rank) return false
+    return true
+  }
+
   async function init() {
     loadUi()
     let fromDb = null
@@ -1773,6 +1869,7 @@ window.Hub = (() => {
     const oldLogoLibrary = JSON.stringify(newest?.logos || [])
     state = sanitizeState(newest)
     teamRecordsCache = null
+    historyGeneralRankCache = null
     const migratedLogoLibrary = JSON.stringify(state.logos) !== oldLogoLibrary
     if (newest?.updatedAt) state.updatedAt = newest.updatedAt
     if (!dbOk && !writeLocal()) toast('Almacenamiento no disponible: los datos no se guardarán', 'error')
@@ -1833,6 +1930,7 @@ window.Hub = (() => {
     statSeasons,
     teamRecords,
     teamTotals,
+    historyGeneralCompare,
     titleCount,
     achievementCount: (record) => teamTotals(record).achievements,
     stageCounts,

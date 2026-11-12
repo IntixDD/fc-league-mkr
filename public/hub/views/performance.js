@@ -225,8 +225,8 @@
       const achievements = [
         { label: 'Campeón de Serie', flag: 'seriesChampion', tone: 'green', iconFile: 'crown_common.svg', emptyLabel: 'Sin logros' },
         { label: 'Campeón de grupo', flag: 'groupChampion', tone: 'purple', iconFile: 'crown_common.svg', emptyLabel: 'Sin logros' },
-        { label: 'Invicto en Liga', flag: 'invincibleLeague', tone: 'cyan', iconFile: 'premio4.svg', emptyLabel: 'Sin logros' },
-        { label: 'Invicto en Serie', flag: 'invincibleSeries', tone: 'green', iconFile: 'premio4.svg', emptyLabel: 'Sin logros' },
+        { label: 'Invicto en Liga', flag: 'invincibleLeague', tone: 'cyan', iconFile: 'premio2.svg', emptyLabel: 'Sin logros' },
+        { label: 'Invicto en Serie', flag: 'invincibleSeries', tone: 'green', iconFile: 'premio2.svg', emptyLabel: 'Sin logros' },
         { label: 'Goleador de torneo', flag: 'cupScorer', tone: 'accent', iconFile: 'goleador.svg', emptyLabel: 'Sin logros' },
         { label: 'Goleador de Liga', flag: 'leagueScorer', tone: 'cyan', iconFile: 'goleador_2.svg', emptyLabel: 'Sin logros' },
         { label: 'Goleador de Serie', flag: 'seriesScorer', tone: 'green', iconFile: 'goleador_2.svg', emptyLabel: 'Sin logros' },

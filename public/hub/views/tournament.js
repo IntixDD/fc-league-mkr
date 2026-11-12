@@ -402,6 +402,20 @@
           if (H.state.current.tableConfig?.type === 'groups') return
           supercupDraft = e.target.checked
           H.ui.supercupEnabled = supercupDraft
+          if (H.state.current.playoffs) {
+            H.update((s) => {
+              const season = s.current
+              if (season.tableConfig?.type === 'groups' || !season.playoffs) return
+              const supercup = season.playoffs.supercup || {
+                field: randomField(season.fields || 2),
+                result: null,
+              }
+              supercup.enabled = supercupDraft
+              if (!supercup.field) supercup.field = randomField(season.fields || 2)
+              season.playoffs.supercup = supercup
+            })
+            return
+          }
           H.render()
           return
         }
@@ -484,6 +498,7 @@
             <div class="tournament-option-card tournament-toggle-card" data-toggle-card="two-legged-enabled"><label class="series-choice"><input type="checkbox" name="two-legged-enabled" ${twoLeggedDraft ? 'checked' : ''}> <span>Ida y vuelta</span></label></div>
             <div class="tournament-option-card tournament-toggle-card${groupStage ? ' is-disabled' : ''}" data-toggle-card="supercup-enabled"${groupStage ? ' aria-disabled="true"' : ''}><label class="series-choice"><input type="checkbox" name="supercup-enabled" ${!groupStage && supercupDraft ? 'checked' : ''} ${groupStage ? 'disabled' : ''}> <span>Supercopa</span></label>${groupStage ? '<small class="tournament-option-note">No disponible en Fase de Grupos</small>' : ''}</div>
           </div>
+          ${po && !groupStage ? '<p class="hint">La opción de Supercopa se aplica al cuadro actual sin recrearlo.</p>' : ''}
           ${total && played < total ? `<p class="notice">La liga aún no termina (${played}/${total}). Los clasificados se toman de la tabla actual.</p>` : ''}
           <div class="row-actions">
             <button class="btn btn--primary" data-action="generate" ${createDisabled ? 'disabled' : ''}>${po ? 'Recrear cuadro' : 'Crear cuadro'}</button>
@@ -632,12 +647,15 @@
       const supercupPenalty = (field, team) => `<label class="po-leg-score tournament-supercup-penalty"><span>Penales</span><input class="score-input score-input--pen" type="number" inputmode="numeric" min="0" max="99" value="${supercupMatch?.[field] ?? ''}"
         data-key="supercup:${field}" data-supercup="" data-pair="${esc(supercupPair?.pair || '')}" data-field="${field}" aria-label="Penales de ${esc(team?.name || 'por definir')}" ${supercupPair ? '' : 'disabled'}></label>`
       const supercupCard = !groupStage && po.supercup?.enabled ? `
-        <article class="card card--wide tournament-supercup-panel">
-          <header class="card-head"><div><h2 class="card-title">Supercopa</h2><p class="card-sub">Cancha ${supercupMatch?.field || po.supercup.field || '—'}</p></div></header>
+        <article class="card card--wide tournament-supercup-panel" id="tournament-supercup-export">
+          <header class="card-head">
+            <div><h2 class="card-title">Supercopa</h2><p class="card-sub">Cancha ${supercupMatch?.field || po.supercup.field || '—'}</p></div>
+            <div class="row-actions">${H.exportButton('#tournament-supercup-export', 'supercopa')}</div>
+          </header>
           <div class="menu-match-card tournament-supercup-match">
             ${supercupHome?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(supercupHome.logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
             ${supercupAway?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(supercupAway.logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
-            <h4>Final de Supercopa</h4>
+            <h4 class="menu-match-title">${H.assetIcon('supercup.svg')}<span>Final de Supercopa</span></h4>
             <div class="tournament-supercup-fixture">
               <div class="tournament-supercup-team${supercupMatch?.winner === supercupPair?.home ? ' is-winner' : ''}">${supercupHome ? crest(supercupHome.logo, 'md', supercupHome.name) : '<span class="crest crest--md crest--tbd"></span>'}<span>${esc(supercupHome?.name || 'Por definir')}</span></div>
               <div class="tournament-supercup-scoreline">${supercupInput('hg', supercupHome)}<i>:</i>${supercupInput('ag', supercupAway)}</div>

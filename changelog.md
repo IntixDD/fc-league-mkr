@@ -236,3 +236,15 @@
 * Performance/Partidos destacados/Finales disputadas: Ahora se muestran las Finalísimas y finales de Supercopa.
 * Se solucionaron bugs visuales y criterios de obtención en algunas insignias.
 
+
+
+**Beta 4.1:**
+
+* Performance, Seasons y Menú: Se rediseñaron varios iconos svg (Títulos, Logros, Insignias, Botones desplegables)
+* History, Tournament, Seasons y Menú: Se implementaron iconos donde faltaban.
+* Seasons/Temporadas guardadas/Botón desplegable Títulos y Logros: Ahora los Logros se muestran todos los obtenidos en la temporada correctamente.
+* Ahora la música funciona en modo offline.
+* Tournament/Crear Tournament: Ahora la opción de Supercopa se puede habilitar o deshabilitar sin necesidad de recrear el cuadro.
+* Tournament/Supercopa: Ya se puede exportar a png.
+* Table/Clasificación: (Formato Series o Fase de Grupos) Se solucionó el criterio cuando dos equipos (En las primeras posiciones de la misma Serie/Grupo) quedaban igualados en puntos, diferencia de goles, goles a favor y en contra y partidos ganados, empatados y perdidos. El campeón de esa Serie/Grupo es quien haya ganado el enfrentamiento entre ambos, si se produjo empate, el campeón es el que está más arriba en la Tabla histórica en History.
+

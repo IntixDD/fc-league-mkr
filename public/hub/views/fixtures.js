@@ -270,7 +270,7 @@
         <article class="menu-match-card tournament-supercup-match fx-finalissima-match-card">
           ${finalissimaTeams[0]?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(finalissimaTeams[0].logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
           ${finalissimaTeams[1]?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(finalissimaTeams[1].logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
-          <h4>Finalísima de Series</h4>
+          <h4 class="menu-match-title">${H.assetIcon('finalisima.svg')}<span>Finalísima de Series</span></h4>
           <div class="tournament-supercup-fixture">
             <div class="tournament-supercup-team${finalissima?.winner === finalissimaIds?.[0] ? ' is-winner' : ''}">${finalissimaTeams[0] ? crest(finalissimaTeams[0].logo, 'md', finalissimaTeams[0].name) : '<span class="crest crest--md crest--tbd"></span>'}<span>${esc(finalissimaTeams[0]?.name || 'Campeón Serie 1')}</span></div>
             <div class="tournament-supercup-scoreline">${finalScore('hg', finalissimaTeams[0])}<i>:</i>${finalScore('ag', finalissimaTeams[1])}</div>

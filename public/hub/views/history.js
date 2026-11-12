@@ -153,6 +153,7 @@
       H.ui.historySort = sortKey
       const dir = H.ui.historyDir === 'asc' ? 1 : -1
       records.sort((a, b) => {
+        if (sortKey === 'neutral') return H.historyGeneralCompare(a, b, dir)
         const primary = sortKey === 'neutral' ? 'cups' : sortKey
         const d = (a.t[primary] - b.t[primary]) * dir
         if (d) return d

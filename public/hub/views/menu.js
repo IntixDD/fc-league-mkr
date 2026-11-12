@@ -192,11 +192,11 @@
     return `<section class="menu-command"><header class="menu-section-head"><div><span class="menu-section-kicker">PUNTO DE PARTIDA</span><h2>Acceso rápido</h2></div><span class="menu-command-hint">ELIGE TU PRÓXIMA JUGADA</span></header><nav class="menu-quick">${links.map(([href, label, sub], index) => `<a class="menu-quick-card" href="#${href}"><span class="menu-quick-number">0${index + 1}</span><span class="menu-quick-copy"><strong>${label}</strong><small>${sub}</small></span><span class="menu-quick-arrow" aria-hidden="true">${ARROW_UP_RIGHT}</span></a>`).join('')}</nav></section>`
   }
 
-  function matchPanel(label, match, season) {
+  function matchPanel(label, match, season, iconFile) {
     const home = season.teams.find((team) => team.id === match?.home)
     const away = season.teams.find((team) => team.id === match?.away)
     const penalties = match?.tied && match?.decided ? `<div class="menu-match-pens">Penales ${match.hp}–${match.ap}</div>` : ''
-    return `<article class="menu-match-card"><h4>${label}</h4>${home ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(home.logo)}" alt="" loading="lazy">` : ''}${away ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(away.logo)}" alt="" loading="lazy">` : ''}<div class="menu-match-score"><span class="${match?.winner === match?.home ? 'is-champion' : ''}">${match?.hg ?? '–'}</span> <i>:</i> <span class="${match?.winner === match?.away ? 'is-champion' : ''}">${match?.ag ?? '–'}</span></div><div class="menu-match-names"><span>${esc(home?.name || 'Por definir')}</span><span>${esc(away?.name || 'Por definir')}</span></div>${penalties}</article>`
+    return `<article class="menu-match-card"><h4 class="menu-match-title">${H.assetIcon(iconFile)}<span>${label}</span></h4>${home ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(home.logo)}" alt="" loading="lazy">` : ''}${away ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(away.logo)}" alt="" loading="lazy">` : ''}<div class="menu-match-score"><span class="${match?.winner === match?.home ? 'is-champion' : ''}">${match?.hg ?? '–'}</span> <i>:</i> <span class="${match?.winner === match?.away ? 'is-champion' : ''}">${match?.ag ?? '–'}</span></div><div class="menu-match-names"><span>${esc(home?.name || 'Por definir')}</span><span>${esc(away?.name || 'Por definir')}</span></div>${penalties}</article>`
   }
 
   function render(el, state) {
@@ -219,7 +219,7 @@
     const finalissima = H.finalissimaMatch(season)
     const supercup = season.playoffs?.supercup?.enabled ? H.supercupMatch(season, bracket) : null
     const specialFinals = finalissima?.played && supercup?.played
-      ? `${matchPanel('Finalísima de Series', finalissima, season)}${matchPanel('Supercopa', supercup, season)}`
+      ? `${matchPanel('Finalísima de Series', finalissima, season, 'finalisima.svg')}${matchPanel('Supercopa', supercup, season, 'supercup.svg')}`
       : ''
     const parts = H.seasonMenuParts?.(season)
     const topTitles = [...records].sort((a, b) => b.total.titles - a.total.titles).slice(0, 5)
@@ -231,7 +231,7 @@
       `<article class="menu-slide"><h3>Tabla · Temporada ${season.number}</h3>${parts?.table || `<ol>${H.computeTable(season).slice(0, 5).map((row) => `<li>${crest(row.team.logo, 'xs', row.team.name)}<span>${esc(row.team.name)}</span><strong>${row.pts} pts</strong></li>`).join('')}</ol>`}</article>`,
       `<article class="menu-slide"><h3>Fixtures · Temporada ${season.number}</h3>${parts?.fixtures || '<p class="empty">No hay Fixtures guardados.</p>'}</article>`,
       `<article class="menu-slide"><h3>Tournament · Temporada ${season.number}</h3>${parts?.tournament || '<p class="empty">No hay Tournament guardado.</p>'}</article>`,
-      `<article class="menu-slide"><h3>Final y tercer lugar</h3><div class="menu-final-pair">${bracket ? `${matchPanel('Final', bracket.final, season)}${matchPanel('Tercer lugar', bracket.third, season)}${specialFinals}` : '<p class="empty">No hay resultados de Tournament guardados.</p>'}</div></article>`,
+      `<article class="menu-slide"><h3>Final y tercer lugar</h3><div class="menu-final-pair">${bracket ? `${matchPanel('Final', bracket.final, season, 'tournament.svg')}${matchPanel('Tercer Lugar', bracket.third, season, 'medal_3.svg')}${specialFinals}` : '<p class="empty">No hay resultados de Tournament guardados.</p>'}</div></article>`,
     ]
     const recordSlides = [
       rankSlide('Top 5 · Títulos', 'trophy_common.svg', topTitles, (record) => record.total.titles),
