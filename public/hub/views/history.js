@@ -20,7 +20,7 @@
     { key: 'achievements', label: 'Logros', title: 'Logros totales', iconFile: 'medal.svg' },
     { key: 'badges', label: 'Insignias', title: 'Insignias obtenidas', iconFile: 'badge_2.svg' },
   ]
-  const TIEBREAK = ['titles', 'achievements', 'badges', 'cups', 'leagues', 'finalissimas', 'supercups', 'series', 'runnerUp', 'third', 'fourth', 'points', 'goals']
+  const TIEBREAK = ['leagues', 'finalissimas', 'supercups', 'titles', 'achievements', 'badges', 'cups', 'series', 'runnerUp', 'third', 'fourth', 'points', 'goals']
   let compareTeams = ['', '']
 
   function selectedTeams(records) {

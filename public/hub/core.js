@@ -28,7 +28,7 @@ window.Hub = (() => {
   let teamRecordsCache = null
   let historyGeneralRankCache = null
   let teamRecordsBuilding = false
-  const HISTORY_GENERAL_TIEBREAK = ['titles', 'achievements', 'badges', 'cups', 'leagues', 'finalissimas', 'supercups', 'series', 'runnerUp', 'third', 'fourth', 'points', 'goals']
+  const HISTORY_GENERAL_TIEBREAK = ['cups', 'leagues', 'finalissimas', 'supercups', 'series', 'runnerUp', 'third', 'fourth', 'points', 'goals', 'titles', 'achievements', 'badges']
 
   /* ---------- Persistence (IndexedDB) ---------- */
   function openDb() {
@@ -1832,10 +1832,8 @@ window.Hub = (() => {
   function historyGeneralCompare(a, b, direction = -1) {
     const at = a.t || a.total || {}
     const bt = b.t || b.total || {}
-    const cups = ((at.cups || 0) - (bt.cups || 0)) * direction
-    if (cups) return cups
     for (const key of HISTORY_GENERAL_TIEBREAK) {
-      const difference = (bt[key] || 0) - (at[key] || 0)
+      const difference = ((at[key] || 0) - (bt[key] || 0)) * direction
       if (difference) return difference
     }
     return a.name.localeCompare(b.name)
