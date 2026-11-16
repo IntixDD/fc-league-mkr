@@ -40,15 +40,28 @@
 
   function compareMatchOrder(match) {
     const label = String(match.label || '').replace(/\s+-\s+Temporada\s+\d+$/, '')
-    if (match.type === 'league' && /^Jornada 1(?:\s|$)/.test(label)) return 0
+    if (match.type === 'league') return 0
     if (match.type === 'seriesFinal') return 1
     if (match.type === 'cup') {
-      const stages = ['Octavos', 'Cuartos', 'Semifinales', 'Final']
+      const stages = ['Octavos', 'Cuartos', 'Semifinales', 'Tercer Puesto', 'Final']
       const index = stages.findIndex((stage) => label === stage || label.startsWith(`${stage} ·`))
       if (index >= 0) return 2 + index
     }
-    if (match.type === 'supercup') return 6
+    if (match.type === 'supercup') return 7
     return -1
+  }
+
+  function compareMatchSequence(a, b) {
+    const seasonOrder = b.season - a.season
+    if (seasonOrder) return seasonOrder
+    const stageOrder = compareMatchOrder(b) - compareMatchOrder(a)
+    if (stageOrder) return stageOrder
+    if (a.type === 'league' && b.type === 'league') {
+      const roundA = Number(String(a.label || '').match(/^Jornada\s+(\d+)/i)?.[1] || 0)
+      const roundB = Number(String(b.label || '').match(/^Jornada\s+(\d+)/i)?.[1] || 0)
+      if (roundA !== roundB) return roundB - roundA
+    }
+    return Number(/· Vuelta/.test(b.label)) - Number(/· Vuelta/.test(a.label))
   }
 
   function compareCard(records) {
@@ -61,7 +74,7 @@
         .filter((match) => H.norm(match.opp) === teamB.key && compareMatchOrder(match) >= 0)
         .map((match) => ({ ...match, teamName: season.name, logo: season.logo })),
       )
-      .sort((a, b) => b.season - a.season || compareMatchOrder(a) - compareMatchOrder(b) || Number(/· Vuelta/.test(a.label)) - Number(/· Vuelta/.test(b.label)))
+      .sort(compareMatchSequence)
     const winsA = matches.filter((match) => match.gf > match.ga).length
     const draws = matches.filter((match) => match.gf === match.ga).length
     const winsB = matches.filter((match) => match.gf < match.ga).length
@@ -79,10 +92,9 @@
         <h3 class="feat-title">Enfrentamiento</h3>
         <div class="feat-score">
           <span class="feat-team">${crest(match.logo, 'md', match.teamName)}<span>${esc(match.teamName)}</span></span>
-          <span class="feat-result">${match.gf} - ${match.ga}</span>
+          <span class="compare-result-stack"><span class="feat-result">${match.gf} - ${match.ga}</span><small class="compare-match-pens">${match.pens ? `Penales ${esc(match.pens)}` : ''}</small></span>
           <span class="feat-team">${crest(match.oppLogo, 'md', match.opp)}<span>${esc(match.opp)}</span></span>
         </div>
-        ${match.pens ? `<p class="feat-pens">Penales ${esc(match.pens)}</p>` : ''}
         <p class="feat-when">${esc(match.label)}</p>
       </article>`).join('')
 
