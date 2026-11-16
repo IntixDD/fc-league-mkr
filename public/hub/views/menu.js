@@ -232,7 +232,7 @@
       `<article class="menu-slide"><h3>Tabla · Temporada ${season.number}</h3>${parts?.table || `<ol>${H.computeTable(season).slice(0, 5).map((row) => `<li>${crest(row.team.logo, 'xs', row.team.name)}<span>${esc(row.team.name)}</span><strong>${row.pts} pts</strong></li>`).join('')}</ol>`}</article>`,
       `<article class="menu-slide"><h3>Fixtures · Temporada ${season.number}</h3>${parts?.fixtures || '<p class="empty">No hay Fixtures guardados.</p>'}</article>`,
       `<article class="menu-slide"><h3>Tournament · Temporada ${season.number}</h3>${parts?.tournament || '<p class="empty">No hay Tournament guardado.</p>'}</article>`,
-      `<article class="menu-slide"><h3>Final y tercer lugar</h3><div class="menu-final-pair">${bracket ? `${matchPanel('Final', bracket.final, season, 'tournament.svg')}${matchPanel('Tercer Lugar', bracket.third, season, 'medal_3.svg')}${specialFinals}` : '<p class="empty">No hay resultados de Tournament guardados.</p>'}</div></article>`,
+      `<article class="menu-slide"><h3>Finales y Tercer lugar</h3><div class="menu-final-pair">${bracket ? `${matchPanel('Final', bracket.final, season, 'tournament.svg')}${matchPanel('Tercer Lugar', bracket.third, season, 'medal_3.svg')}${specialFinals}` : '<p class="empty">No hay resultados de Tournament guardados.</p>'}</div></article>`,
     ]
     const recordSlides = [
       rankSlide('Top 5 · Títulos', 'trophy_common.svg', topTitles, (record) => record.total.titles),

@@ -1161,6 +1161,8 @@ window.Hub = (() => {
         supercupEnabled: season.tableConfig?.type !== 'groups' && season.playoffs?.supercup?.enabled === true,
         position: null,
         leaguePosition: null,
+        formatPosition: null,
+        formatGroup: null,
         league: zero(),
         cup: zero(),
         seriesFinal: zero(),
@@ -1221,7 +1223,21 @@ window.Hub = (() => {
         h.twelveGoalMatch = true
         a.twelveGoalMatch = true
       }
-      const base = { season: season.number, label: `${label} - Temporada ${season.number}`, type }
+      const base = {
+        season: season.number,
+        label: `${label} - Temporada ${season.number}`,
+        type,
+        homeId: m.home,
+        awayId: m.away,
+        homeName: h.name,
+        awayName: a.name,
+        homeLogo: h.logo,
+        awayLogo: a.logo,
+        homeGoals: m.hg,
+        awayGoals: m.ag,
+        homePens: pens ? m.hp : null,
+        awayPens: pens ? m.ap : null,
+      }
       h.matches.push({ ...base, gf: m.hg, ga: m.ag, opp: a.name, oppLogo: a.logo, pens: pens ? `${m.hp}-${m.ap}` : null })
       a.matches.push({ ...base, gf: m.ag, ga: m.hg, opp: h.name, oppLogo: h.logo, pens: pens ? `${m.ap}-${m.hp}` : null })
     }
@@ -1241,6 +1257,19 @@ window.Hub = (() => {
       : groupStage ? season.tableConfig.groups : []
     const assignedSeriesTeams = new Set(seriesGroups.flat())
     const validSeries = twoSeries && seriesGroups.every((series) => series.length >= 2) && assignedSeriesTeams.size === season.teams.length && season.teams.every((team) => assignedSeriesTeams.has(team.id))
+    if (twoSeries && validSeries) {
+      seriesGroups.forEach((series, groupIndex) => {
+        const rows = computeTable(season, series)
+        if (!rows.some((row) => row.pj > 0)) return
+        rows.forEach((row, i) => {
+          const team = byId.get(row.team.id)
+          team.formatPosition = i + 1
+          team.formatGroup = groupIndex + 1
+        })
+      })
+    } else if (!twoSeries && table.some((row) => row.pj > 0)) {
+      table.forEach((row, i) => (byId.get(row.team.id).formatPosition = i + 1))
+    }
     if (leagueDone && twoSeries && validSeries) {
       seriesGroups.forEach((series) => {
         const rows = computeTable(season, series)
@@ -1257,9 +1286,11 @@ window.Hub = (() => {
             if (winner.dg <= 0) byId.get(winner.team.id).wonTitleWithNonPositiveGoalDifference = true
           }
         }
-        const maxGoals = Math.max(0, ...rows.map((row) => row.gf))
-        if (maxGoals > 0) rows.filter((row) => row.gf === maxGoals).forEach((row) => (byId.get(row.team.id).seriesScorer = true))
-        rows.filter((row) => row.pj > 0 && row.pp === 0).forEach((row) => (byId.get(row.team.id).invincibleSeries = true))
+        if (!groupStage) {
+          const maxGoals = Math.max(0, ...rows.map((row) => row.gf))
+          if (maxGoals > 0) rows.filter((row) => row.gf === maxGoals).forEach((row) => (byId.get(row.team.id).seriesScorer = true))
+          rows.filter((row) => row.pj > 0 && row.pp === 0).forEach((row) => (byId.get(row.team.id).invincibleSeries = true))
+        }
       })
     } else if (leagueDone && !twoSeries && table[0] && (table[0].pj || table[0].pts)) {
       table.forEach((row, i) => (byId.get(row.team.id).leaguePosition = i + 1))

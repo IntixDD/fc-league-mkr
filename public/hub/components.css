@@ -1740,6 +1740,25 @@ select.input option {
 .season-finals-score .is-champion { color: #ffd166; }
 .season-finals-meta { position: relative; z-index: 1; display: flex; justify-content: center; gap: 10px; color: var(--gold); font-size: 10px; font-weight: 700; text-shadow: 0 2px 8px #000; }
 .season-finals-pens { font-size: 14px; font-weight: 800; }
+.history-record-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.history-historical-card { margin-top: 30px; }
+.history-record-match { gap: 8px; }
+.history-record-match .season-finals-title { justify-content: center; color: var(--muted); font: 600 9px var(--font-body); letter-spacing: .02em; text-align: center; text-transform: none; }
+.history-record-category { position: relative; z-index: 1; margin: 0; color: var(--accent); font: 400 15px var(--font-display); letter-spacing: .06em; text-align: center; text-transform: uppercase; }
+.history-record-match.is-empty { align-content: center; }
+.history-record-match.is-empty .empty { position: relative; z-index: 1; margin: 0; text-align: center; }
+.menu-match-card.history-record-match--comeback { gap: 5px; }
+.history-record-legs { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
+.history-record-leg { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 4px 6px; min-width: 0; padding: 5px 7px; color: #fff; background: rgb(0 0 0 / .48); border: 1px solid var(--line); border-radius: 10px; font-size: 10px; text-shadow: 0 2px 8px #000; }
+.history-record-leg > small { grid-column: 1 / -1; color: var(--muted); font-size: 8px; font-weight: 800; text-align: center; text-transform: uppercase; }
+.history-record-leg > strong { color: #fff; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.history-record-leg > strong .is-global-winner { color: #ffd166; }
+.history-record-leg > strong i { color: #fff; font-style: normal; }
+.history-record-leg-team { box-sizing: border-box; display: flex; align-items: center; justify-content: flex-end; gap: 5px; min-width: 0; font-weight: 700; text-align: right; }
+.history-record-leg-team > .crest { width: 18px; height: 18px; flex: none; }
+.history-record-leg-team > span:not(.crest) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-record-leg-team--away { justify-content: flex-start; text-align: left; }
+@media (max-width: 640px) { .history-record-grid { grid-template-columns: 1fr; } }
 
 .season-json-export-settings { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: stretch; gap: 10px; margin-top: 14px; }
 .season-json-export-settings .input { min-height: 38px; font-size: 13px; }
@@ -1985,6 +2004,10 @@ select.input option {
 .season-mini-leg { display: grid; align-content: start; gap: 2px; min-width: 0; padding: 3px 2px; border-radius: 5px; background: rgb(255 255 255 / .035); text-align: center; }
 .season-mini-leg span { color: var(--muted); font-size: 7px; line-height: 1.2; overflow-wrap: anywhere; }
 .season-mini-leg strong { font-size: 9px; font-variant-numeric: tabular-nums; }
+.season-mini-leg-score { display: flex; align-items: center; justify-content: center; gap: 2px; min-width: 0; }
+.season-mini-leg-score .crest { --s: 10px; border-radius: 2px; }
+.season-mini-leg-score strong { font-size: 8px; }
+.season-mini-leg-score i { color: var(--muted); font-size: 7px; font-style: normal; }
 .season-repechage-match .season-mini-leg span { font-size: 10px; }
 .season-repechage-match .season-mini-leg strong { font-size: 14px; }
 .season-mini-match.is-final { border-color: rgb(255 209 102 / .32); }
@@ -3420,6 +3443,75 @@ select.input option {
   border-radius: 999px;
 }
 
+.season-chip--format {
+  display: inline-flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
+  color: #22d3ee;
+  background: rgb(34 211 238 / .12);
+  border-color: rgb(34 211 238 / .45);
+}
+
+.season-chip-format-part,
+.season-chip-position-part {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 23px;
+  padding: 2px 6px;
+}
+
+.season-chip-position-part {
+  min-width: 20px;
+  border-left: 1px solid color-mix(in srgb, currentColor 42%, transparent);
+}
+
+.season-chip--format-series {
+  color: #4ade80;
+  background: rgb(74 222 128 / .12);
+  border-color: rgb(74 222 128 / .45);
+}
+
+.season-chip--format-groups {
+  color: #c084fc;
+  background: rgb(192 132 252 / .12);
+  border-color: rgb(192 132 252 / .45);
+}
+
+.season-chip--mode {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 30px;
+  padding: 3px 5px;
+  color: inherit;
+  background: transparent;
+  border-color: transparent;
+}
+
+.season-mode-logo {
+  display: block;
+  width: auto;
+  max-width: 30px;
+  height: 25px;
+  object-fit: contain;
+}
+
+.season-mode-logo--clubs {
+  flex: none;
+  width: 26px;
+  background-color: var(--mode-club-logo-color);
+  -webkit-mask: url('mode-logos/clubes_logo.svg') center / contain no-repeat;
+  mask: url('mode-logos/clubes_logo.svg') center / contain no-repeat;
+}
+
+.season-mode-logo--clubs-liga { --mode-club-logo-color: #22d3ee; }
+.season-mode-logo--clubs-series { --mode-club-logo-color: #4ade80; }
+.season-mode-logo--clubs-groups { --mode-club-logo-color: #c084fc; }
+
 /* ---------- Settings ---------- */
 .set-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3578,6 +3670,7 @@ select.input option {
   left: 8px;
   width: 20px;
   height: 20px;
+  z-index: 2;
   border-radius: 50%;
   background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%231a0420' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px no-repeat;
 }
@@ -3613,6 +3706,7 @@ select.input option {
 }
 
 .bg-tile--preset .bg-tile-label {
+  z-index: 1;
   position: absolute;
   right: 0;
   bottom: 0;
@@ -3621,6 +3715,16 @@ select.input option {
   color: #fff;
   text-align: left;
   background: linear-gradient(transparent, rgb(0 0 0 / .8));
+}
+
+.bg-tile-preview {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
 }
 
 .bg-tile-del {

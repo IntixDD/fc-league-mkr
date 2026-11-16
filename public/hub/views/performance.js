@@ -4,6 +4,15 @@
   const ROTATE_MS = 7000
   const bg = { key: null, index: 0 }
   let rotateTimer = 0
+  const FORMAT_CODES = { regular: 'L', 'two-series': 'S', groups: 'G' }
+  const MODE_LOGOS = {
+    clubs: 'mode-logos/clubes_logo.svg',
+    selections: 'mode-logos/wc_logo.svg',
+    premier: 'mode-logos/premier_logo.svg',
+    laliga: 'mode-logos/laliga_logo.svg',
+    seriea: 'mode-logos/serie_a_logo.svg',
+  }
+  const MODE_LABELS = { clubs: 'Clubes', selections: 'Selecciones', premier: 'Premier League', laliga: 'LaLiga', seriea: 'Serie A' }
 
   function stopRotation() {
     clearTimeout(rotateTimer)
@@ -163,14 +172,32 @@
       const cell = (col, v, tag = 'td') => `<${tag} class="num tone tone-${col.tone}${v ? '' : ' is-zero'}">${v}</${tag}>`
 
       const rows = rec.seasons
-        .map(
-          (s) => `
+        .map((s) => {
+          const format = s.tableType === 'two-series' ? 'series' : s.tableType === 'groups' ? 'groups' : 'liga'
+          const formatCode = FORMAT_CODES[s.tableType] || 'L'
+          const divisionNumber = Number.isInteger(s.formatGroup) ? s.formatGroup : null
+          const divisionSuffix = format === 'groups' && divisionNumber ? String.fromCharCode(64 + divisionNumber) : format === 'series' && divisionNumber ? String(divisionNumber) : ''
+          const formatLabel = format === 'series' || format === 'groups'
+            ? `${formatCode}${divisionSuffix ? ` ${divisionSuffix}` : ''}`
+            : formatCode
+          const formatPosition = Number.isInteger(s.formatPosition) ? `${s.formatPosition}°` : '—'
+          const formatName = format === 'series' ? `Series${divisionNumber ? ` · Serie ${divisionNumber}` : ''}` : format === 'groups' ? `Grupos${divisionSuffix ? ` · Grupo ${divisionSuffix}` : ''}` : 'Liga'
+          const formatTitle = `${formatName}${s.formatPosition ? ` · Posición ${s.formatPosition}°` : ''}`
+          const mode = s.seasonMode || 'clubs'
+          const modeLabel = MODE_LABELS[mode] || MODE_LABELS.clubs
+          const modeLogo = MODE_LOGOS[mode] || MODE_LOGOS.clubs
+          const modeLogoMarkup = mode === 'clubs'
+            ? `<span class="season-mode-logo season-mode-logo--clubs season-mode-logo--clubs-${format}" role="img" aria-label="${modeLabel}"></span>`
+            : `<img class="season-mode-logo" src="${esc(modeLogo)}" alt="${modeLabel}" loading="lazy" decoding="async">`
+          return `
           <tr>
             <td>${crest(s.logo, 'sm', s.name)}</td>
             <th scope="row" class="num"><span class="season-chip">T${s.number}</span></th>
+            <td class="num" title="${formatTitle}"><span class="season-chip season-chip--format season-chip--format-${format}"><span class="season-chip-format-part">${formatLabel}</span><span class="season-chip-position-part">${formatPosition}</span></span></td>
+            <td class="num" title="Modo: ${modeLabel}"><span class="season-chip season-chip--mode">${modeLogoMarkup}</span></td>
             ${COLS.map((col) => cell(col, col.get(s.league, s.cup, { gf: s.seriesFinal.gf + s.supercup.gf, gc: s.seriesFinal.gc + s.supercup.gc }))).join('')}
-          </tr>`,
-        )
+          </tr>`
+        })
         .join('')
       const L = t.league
       const C = t.cup
@@ -184,15 +211,17 @@
             <table class="data-table data-table--perf">
               <thead>
                 <tr>
-                  <th scope="col">Escudo</th>
+                  <th scope="col" title="Escudo">Escu.</th>
                   <th scope="col" class="num">Temp.</th>
+                  <th scope="col" class="num" title="Formato">Form.</th>
+                  <th scope="col" class="num" title="Modo de temporada">Modo</th>
                   ${COLS.map((col) => `<th scope="col" class="num tone tone-${col.tone}"><abbr class="th-stat" title="${col.title}">${H.ICONS[col.icon]}<span>${col.label}</span></abbr></th>`).join('')}
                 </tr>
               </thead>
               <tbody>${rows}</tbody>
               <tfoot>
                 <tr>
-                  <th scope="row" colspan="2">Total</th>
+                  <th scope="row" colspan="4">Total</th>
                   ${COLS.map((col, i) => cell(col, totals[i])).join('')}
                 </tr>
               </tfoot>

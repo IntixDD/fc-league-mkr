@@ -38,6 +38,19 @@
     return ''
   }
 
+  function compareMatchOrder(match) {
+    const label = String(match.label || '').replace(/\s+-\s+Temporada\s+\d+$/, '')
+    if (match.type === 'league' && /^Jornada 1(?:\s|$)/.test(label)) return 0
+    if (match.type === 'seriesFinal') return 1
+    if (match.type === 'cup') {
+      const stages = ['Octavos', 'Cuartos', 'Semifinales', 'Final']
+      const index = stages.findIndex((stage) => label === stage || label.startsWith(`${stage} ·`))
+      if (index >= 0) return 2 + index
+    }
+    if (match.type === 'supercup') return 6
+    return -1
+  }
+
   function compareCard(records) {
     if (records.length < 2) {
       return `<article class="card card--wide compare-card"><header class="card-head"><h2 class="card-title">Compare</h2></header><p class="empty">Necesitas al menos dos clubes para compararlos.</p></article>`
@@ -45,10 +58,10 @@
     const [teamA, teamB] = selectedTeams(records)
     const matches = teamA.seasons
       .flatMap((season) => season.matches
-        .filter((match) => H.norm(match.opp) === teamB.key)
+        .filter((match) => H.norm(match.opp) === teamB.key && compareMatchOrder(match) >= 0)
         .map((match) => ({ ...match, teamName: season.name, logo: season.logo })),
       )
-      .sort((a, b) => b.season - a.season)
+      .sort((a, b) => b.season - a.season || compareMatchOrder(a) - compareMatchOrder(b) || Number(/· Vuelta/.test(a.label)) - Number(/· Vuelta/.test(b.label)))
     const winsA = matches.filter((match) => match.gf > match.ga).length
     const draws = matches.filter((match) => match.gf === match.ga).length
     const winsB = matches.filter((match) => match.gf < match.ga).length
@@ -94,10 +107,157 @@
           <p class="compare-total">${total} partido(s) disputado(s)</p>
         </section>
         <section class="compare-matches">
-          <header class="compare-matches-head"><h3 class="card-title">Todos los enfrentamientos</h3><span>${total} partido(s)</span></header>
+          <header class="compare-matches-head"><h3 class="card-title">Enfrentamientos destacados</h3><span>${total} partido(s)</span></header>
           ${total ? `<div class="feat-grid">${cards}</div>` : `<p class="empty">Todavía no hay partidos disputados entre ${esc(teamA.name)} y ${esc(teamB.name)}.</p>`}
         </section>
       </article>`
+  }
+
+  function seasonMatches(records) {
+    const matches = new Map()
+    records.forEach((record) => record.seasons.forEach((season) => season.matches.forEach((match) => {
+      if (!Number.isInteger(match.homeGoals) || !Number.isInteger(match.awayGoals)) return
+      const teams = [match.homeId, match.awayId].map((id) => String(id || '')).sort().join('|') || [H.norm(match.homeName), H.norm(match.awayName)].sort().join('|')
+      const key = `${match.season}|${match.type}|${match.label}|${teams}`
+      if (matches.has(key)) return
+      const stage = String(match.label || '').replace(/\s+-\s+Temporada\s+\d+$/, '')
+      matches.set(key, {
+        season: match.season,
+        type: match.type,
+        stage,
+        homeId: match.homeId,
+        awayId: match.awayId,
+        homeName: match.homeName,
+        awayName: match.awayName,
+        homeLogo: match.homeLogo,
+        awayLogo: match.awayLogo,
+        homeGoals: match.homeGoals,
+        awayGoals: match.awayGoals,
+        homePens: match.homePens,
+        awayPens: match.awayPens,
+      })
+    })))
+    return [...matches.values()]
+  }
+
+  function firstOfficialMatch(seasons, matches) {
+    for (const season of [...seasons].sort((a, b) => a.number - b.number)) {
+      const teams = new Map(season.teams.map((team) => [team.id, team]))
+      const rounds = season.fixtures?.rounds || []
+      const roundsPerLeg = season.fixtures?.roundsPerLeg || (season.fixtures?.mode === 'double' ? rounds.length / 2 : 0)
+      for (let roundIndex = 0; roundIndex < rounds.length; roundIndex++) {
+        const round = rounds[roundIndex]
+        for (let matchIndex = 0; matchIndex < round.length; matchIndex++) {
+          const match = round[matchIndex]
+          if (!H.played(match)) continue
+          const home = teams.get(match.home)
+          const away = teams.get(match.away)
+          if (!home || !away) continue
+          const leg = season.fixtures.mode === 'double' ? ` · ${roundIndex < roundsPerLeg ? 'Ida' : 'Vuelta'}` : ''
+          return {
+            season: season.number,
+            stage: `Jornada ${roundIndex + 1}${leg} · Partido ${matchIndex + 1}`,
+            homeName: home.name,
+            awayName: away.name,
+            homeLogo: home.logo,
+            awayLogo: away.logo,
+            homeGoals: match.hg,
+            awayGoals: match.ag,
+            homePens: null,
+            awayPens: null,
+          }
+        }
+      }
+    }
+    return [...matches].sort((a, b) => a.season - b.season)[0] || null
+  }
+
+  function historicComeback(seasons) {
+    const candidates = []
+    seasons.forEach((season) => {
+      const bracket = H.computeBracket(season)
+      const matches = [...H.computeRepechage(season), ...(bracket?.rounds.flat() || [])]
+      const teams = new Map(season.teams.map((team) => [team.id, team]))
+      matches.forEach((match) => {
+        if (!match.twoLegged || !match.played || !match.leg1Played || !match.leg2Played || !match.winner) return
+        const deficit = Math.abs(match.leg1.hg - match.leg1.ag)
+        if (!deficit) return
+        const teamBehind = match.leg1.hg > match.leg1.ag ? match.away : match.home
+        if (match.winner !== teamBehind) return
+        const home = teams.get(match.home)
+        const away = teams.get(match.away)
+        if (!home || !away) return
+        const globalWinnerSide = match.winner === match.home ? 'home' : 'away'
+        candidates.push({
+          season: season.number,
+          stage: match.stage,
+          homeName: home.name,
+          awayName: away.name,
+          homeLogo: home.logo,
+          awayLogo: away.logo,
+          homeGoals: match.hg,
+          awayGoals: match.ag,
+          homePens: match.tied && match.decided ? match.hp : null,
+          awayPens: match.tied && match.decided ? match.ap : null,
+          deficit,
+          returnMargin: Math.abs(match.leg2.hg - match.leg2.ag),
+          legs: [
+            { label: 'Ida', homeName: home.name, awayName: away.name, homeLogo: home.logo, awayLogo: away.logo, homeGoals: match.leg1.hg, awayGoals: match.leg1.ag, globalWinnerSide },
+            { label: 'Vuelta', homeName: home.name, awayName: away.name, homeLogo: home.logo, awayLogo: away.logo, homeGoals: match.leg2.ag, awayGoals: match.leg2.hg, globalWinnerSide },
+          ],
+        })
+      })
+    })
+    return candidates.sort((a, b) => b.deficit - a.deficit || b.returnMargin - a.returnMargin || a.season - b.season)[0] || null
+  }
+
+  function historicalMatchCard(category, match) {
+    if (!match) {
+      return `<article class="menu-match-card season-finals-match history-record-match is-empty"><p class="history-record-category">${esc(category)}</p><p class="empty">Todavía no hay un partido que cumpla este criterio.</p></article>`
+    }
+    const winnerIsHome = match.homeGoals > match.awayGoals || (match.homeGoals === match.awayGoals && Number.isFinite(match.homePens) && Number.isFinite(match.awayPens) && match.homePens > match.awayPens)
+    const winnerIsAway = match.awayGoals > match.homeGoals || (match.homeGoals === match.awayGoals && Number.isFinite(match.homePens) && Number.isFinite(match.awayPens) && match.awayPens > match.homePens)
+    const legs = match.legs?.length
+      ? `<div class="history-record-legs">${match.legs.map((leg) => `
+        <article class="history-record-leg">
+          <small>${esc(leg.label)}</small>
+          <span class="history-record-leg-team" title="${esc(leg.homeName)}">${crest(leg.homeLogo, 'xs', leg.homeName)}<span>${esc(leg.homeName)}</span></span>
+          <strong class="history-record-leg-score"><span class="${leg.globalWinnerSide === 'home' ? 'is-global-winner' : ''}">${leg.homeGoals}</span> <i>:</i> <span class="${leg.globalWinnerSide === 'away' ? 'is-global-winner' : ''}">${leg.awayGoals}</span></strong>
+          <span class="history-record-leg-team history-record-leg-team--away" title="${esc(leg.awayName)}"><span>${esc(leg.awayName)}</span>${crest(leg.awayLogo, 'xs', leg.awayName)}</span>
+        </article>`).join('')}</div>`
+      : ''
+    const penaltyMeta = Number.isFinite(match.homePens) && Number.isFinite(match.awayPens)
+      ? `<div class="season-finals-meta"><span class="season-finals-pens">Penales ${match.homePens}–${match.awayPens}</span></div>`
+      : ''
+    return `<article class="menu-match-card season-finals-match history-record-match${match.legs?.length ? ' history-record-match--comeback' : ''}">
+      ${match.homeLogo ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(match.homeLogo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
+      ${match.awayLogo ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(match.awayLogo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
+      <p class="history-record-category">${esc(category)}</p>
+      <h4 class="season-finals-title">${esc(match.stage)} - Temporada ${esc(match.season)}</h4>
+      <div class="season-finals-score-row">
+        <span class="season-finals-team">${crest(match.homeLogo, 'sm', match.homeName)}<span>${esc(match.homeName)}</span></span>
+        <strong class="season-finals-score"><span class="${winnerIsHome ? 'is-champion' : ''}">${match.homeGoals}</span> <i>:</i> <span class="${winnerIsAway ? 'is-champion' : ''}">${match.awayGoals}</span></strong>
+        <span class="season-finals-team season-finals-team--away">${crest(match.awayLogo, 'sm', match.awayName)}<span>${esc(match.awayName)}</span></span>
+      </div>
+      ${legs}${penaltyMeta}
+    </article>`
+  }
+
+  function historicalMatchesCard(seasons, records) {
+    const matches = seasonMatches(records)
+    const goleada = [...matches].filter((match) => match.homeGoals !== match.awayGoals).sort((a, b) => Math.abs(b.homeGoals - b.awayGoals) - Math.abs(a.homeGoals - a.awayGoals) || (b.homeGoals + b.awayGoals) - (a.homeGoals + a.awayGoals) || a.season - b.season)[0] || null
+    const mostGoals = [...matches].sort((a, b) => (b.homeGoals + b.awayGoals) - (a.homeGoals + a.awayGoals) || Math.abs(b.homeGoals - b.awayGoals) - Math.abs(a.homeGoals - a.awayGoals) || a.season - b.season)[0] || null
+    const comeback = historicComeback(seasons)
+    const first = firstOfficialMatch(seasons, matches)
+    return `<article class="card card--wide history-historical-card">
+      <header class="card-head"><h2 class="card-title">Partidos Históricos</h2></header>
+      <div class="season-finals-grid history-record-grid">
+        ${historicalMatchCard('Goleada Histórica', goleada)}
+        ${historicalMatchCard('Más Goles Totales', mostGoals)}
+        ${historicalMatchCard('Remontada Histórica', comeback)}
+        ${historicalMatchCard('Primer Partido Oficial', first)}
+      </div>
+    </article>`
   }
 
   function applyQuery(el) {
@@ -223,6 +383,7 @@
           <p class="hint" data-export-hide>Haz clic en el encabezado de una columna para ordenar por esa categoría.</p>
         </article>`
       el.insertAdjacentHTML('beforeend', compareCard(records))
+      el.insertAdjacentHTML('beforeend', historicalMatchesCard(seasons, records))
       applyQuery(el)
     },
   })

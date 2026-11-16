@@ -248,3 +248,17 @@
 * Tournament/Supercopa: Ya se puede exportar a png.
 * Table/Clasificación: (Formato Series o Fase de Grupos) Se solucionó el criterio cuando dos equipos (En las primeras posiciones de la misma Serie/Grupo) quedaban igualados en puntos, diferencia de goles, goles a favor y en contra y partidos ganados, empatados y perdidos. El campeón de esa Serie/Grupo es quien haya ganado el enfrentamiento entre ambos, si se produjo empate, el campeón es el que está más arriba en la Tabla histórica en History.
 
+
+
+**Beta 4.2:**
+
+* Menú/Última Temporada/Final y tercer lugar: Ahora se muestran correctamente las finales y se renombró el cuadro a "Finales y Tercer lugar".
+* History/Historial de clubes: Ajuste en el tiebreaker de las columnas.
+* Ahora los iconos de la barra de apartados se muestran correctamente en el modo offline.
+* Performance/Temporada por Temporada: Se agregaron las columnas Formato y Modo.
+* Seasons/Temporadas guardadas: Se agregó más información a las temporadas guardadas Formato y Modo.
+* Seasons/Temporadas guardadas/Botón desplegable Tournament: Ahora los cuadros de ida y vuelta muestran los escudos.
+* Performance/Badges: Ahora las insignias Campeón de la Premier League, Campeón de LaLiga y Campeón de la Serie A también de pueden conseguir ganando la Finalísima en una Temporada con formato Series.
+* Se optimizó la carga del apartado Settings.
+* History: Se agregó el recuadro Partidos Históricos.
+

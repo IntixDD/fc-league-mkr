@@ -1,6 +1,7 @@
 ;(() => {
   const H = window.Hub
   const { esc, crest } = H
+  const SEASON_MODE_LABELS = { clubs: 'Clubes', selections: 'Selecciones', premier: 'Premier League', laliga: 'LaLiga', seriea: 'Serie A' }
   let miniBracketObserver = null
   let libraryExportName = 'Temporadas'
   let libraryExportIcon = ''
@@ -17,6 +18,7 @@
   })
 
   const nextNumber = (s) => Math.max(0, s.current.number, ...s.seasons.map((x) => x.number)) + 1
+  const seasonFormatLabel = (season) => season.tableConfig?.type === 'two-series' ? 'Series' : season.tableConfig?.type === 'groups' ? 'Grupos' : 'Liga'
 
   function summary(season) {
     const stats = H.seasonStats(season)
@@ -197,16 +199,23 @@
     const allMatches = bracket ? [...repechageMatches, ...bracket.rounds.flat(), bracket.third] : []
     const played = allMatches.reduce((count, match) => count + (match.twoLegged ? Number(match.leg1Played) + Number(match.leg2Played) : Number(match.played)), 0)
     const totalMatches = allMatches.reduce((count, match) => count + (match.twoLegged ? 2 : 1), 0)
-    const miniMatch = (match, final = false, extraAttrs = '') => `<article class="season-mini-match${final ? ' is-final season-mini-final-match' : ''}${match.stage === 'Repechaje' ? ' is-repechage' : ''}" data-bk="${esc(match.key)}" ${extraAttrs}>
+    const miniMatch = (match, final = false, extraAttrs = '') => {
+      const legCrest = (id) => {
+        const team = id ? teams.get(id) : null
+        return team ? crest(team.logo, 'xs', team.name) : '<span class="crest crest--xs crest--tbd"></span>'
+      }
+      const legScore = (label, homeId, homeGoals, awayId, awayGoals) => `<div class="season-mini-leg"><span>${label}</span><div class="season-mini-leg-score">${legCrest(homeId)}<strong>${homeGoals ?? '–'}</strong><i>:</i><strong>${awayGoals ?? '–'}</strong>${legCrest(awayId)}</div></div>`
+      return `<article class="season-mini-match${final ? ' is-final season-mini-final-match' : ''}${match.stage === 'Repechaje' ? ' is-repechage' : ''}" data-bk="${esc(match.key)}" ${extraAttrs}>
       ${['home', 'away'].map((side) => {
         const id = match[side]
         const team = id ? teams.get(id) : null
         const score = side === 'home' ? match.hg : match.ag
         return `<div class="season-mini-team${match.winner === id && id ? ' is-winner' : ''}">${team ? crest(team.logo, 'xs', team.name) : '<span class="crest crest--xs crest--tbd"></span>'}<span>${team ? esc(team.name) : 'Por definir'}</span><strong>${score ?? '–'}</strong></div>`
       }).join('')}
-      ${match.twoLegged ? `<div class="season-mini-leg-columns"><div class="season-mini-leg"><span>Ida</span><strong>${match.leg1?.hg ?? '–'}–${match.leg1?.ag ?? '–'}</strong></div><div class="season-mini-leg"><span>Vuelta</span><strong>${match.leg2?.hg ?? '–'}–${match.leg2?.ag ?? '–'}</strong></div></div>` : ''}
+      ${match.twoLegged ? `<div class="season-mini-leg-columns">${legScore('Ida', match.home, match.leg1?.hg, match.away, match.leg1?.ag)}${legScore('Vuelta', match.away, match.leg2?.hg, match.home, match.leg2?.ag)}</div>` : ''}
       ${match.tied && match.decided ? `<span class="season-mini-pens">Pen. ${match.hp}–${match.ap}</span>` : ''}
     </article>`
+    }
     const miniSlot = (match) => `<div class="season-mini-slot">${miniMatch(match)}</div>`
     const sideColumn = (matches, side) => {
       const body = matches.length > 1
@@ -788,7 +797,7 @@
                     <span class="season-num">T${season.number}</span>
                     <div class="season-info">
                       <span class="season-title">Temporada ${season.number}${open ? ' <span class="badge badge--accent">Abierta</span>' : ''}${season.readOnly ? ' <span class="badge badge--warn">Solo lectura</span>' : ''}</span>
-                      <span class="season-meta">${selectedSeason.teams.length} equipos${season.savedAt ? ` · ${new Date(season.savedAt).toLocaleDateString('es')}` : ''}</span>
+                      <span class="season-meta">${selectedSeason.teams.length} equipos · ${seasonFormatLabel(selectedSeason)} · ${SEASON_MODE_LABELS[selectedSeason.seasonMode] || 'Clubes'}${season.savedAt ? ` · ${new Date(season.savedAt).toLocaleDateString('es')}` : ''}</span>
                     </div>
                     <div class="season-champs">
                       ${sm.league ? `<span class="champ" title="Campeón de liga">${crest(sm.league.logo, 'sm', sm.league.name)}<span>Liga</span></span>` : ''}

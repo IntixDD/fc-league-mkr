@@ -427,7 +427,18 @@
   function selectBackground(id) {
     P.set({ activeBg: id, hasBg: !!id })
     paintBackground()
-    render()
+    syncBackgroundSelection(id)
+  }
+
+  function syncBackgroundSelection(id) {
+    const selectedId = id || ''
+    document.querySelectorAll('#settings-body [data-action="bg-select"]').forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.dataset.id === selectedId))
+    })
+    const dim = document.querySelector('#settings-body [name="bg-dim"]')
+    const dimField = dim?.closest('.range-field')
+    if (dim) dim.disabled = !id
+    dimField?.classList.toggle('is-disabled', !id)
   }
 
   async function deleteBackground(id) {
@@ -531,10 +542,11 @@
       `<li><button class="bg-tile bg-tile--default" data-action="bg-select" data-id="" aria-pressed="${!p.activeBg}">
           <span class="bg-tile-label">Original</span>
         </button></li>`,
-      ...PRELOADED_BACKGROUNDS.map((background) => `<li><button class="bg-tile bg-tile--preset" data-action="bg-select" data-id="${background.id}" aria-pressed="${p.activeBg === background.id}" style="background-image:url('${urlFor(background)}')"><span class="bg-tile-label">${background.label}</span></button></li>`),
+      ...PRELOADED_BACKGROUNDS.map((background) => `<li><button class="bg-tile bg-tile--preset" data-action="bg-select" data-id="${background.id}" aria-pressed="${p.activeBg === background.id}"><img class="bg-tile-preview" src="${H.esc(urlFor(background))}" alt="" loading="lazy" decoding="async"><span class="bg-tile-label">${background.label}</span></button></li>`),
       ...library.map(
         (b, i) => `<li class="bg-tile-wrap">
-          <button class="bg-tile" data-action="bg-select" data-id="${b.id}" aria-pressed="${p.activeBg === b.id}" style="background-image:url('${urlFor(b)}')">
+          <button class="bg-tile" data-action="bg-select" data-id="${b.id}" aria-pressed="${p.activeBg === b.id}">
+            <img class="bg-tile-preview" src="${H.esc(urlFor(b))}" alt="" loading="lazy" decoding="async">
             <span class="sr-only">Usar fondo ${i + 1}</span>
           </button>
           <button class="bg-tile-del" data-action="bg-delete" data-id="${b.id}" aria-label="Eliminar fondo ${i + 1}">
@@ -633,7 +645,7 @@
           sub: 'League Hub',
           wide: true,
           extraClass: 'set-about',
-          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-4.1</strong><span class="about-build">Beta Build</span></div>',
+          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-4.2</strong><span class="about-build">Beta Build</span></div>',
         })}
       </div>`
     updateMusicControls()
@@ -678,11 +690,17 @@
         else playPreviousTrack()
       }
       else if (action === 'scale') {
-        P.set({ scale: Number(btn.dataset.scale) })
-        render()
+        const scale = Number(btn.dataset.scale)
+        P.set({ scale })
+        el.querySelectorAll('[data-action="scale"]').forEach((button) => {
+          button.setAttribute('aria-pressed', String(Number(button.dataset.scale) === scale))
+        })
       } else if (action === 'theme') {
-        P.set({ theme: btn.dataset.theme })
-        render()
+        const theme = btn.dataset.theme
+        P.set({ theme })
+        el.querySelectorAll('[data-action="theme"]').forEach((button) => {
+          button.setAttribute('aria-pressed', String(button.dataset.theme === theme))
+        })
       } else if (action === 'bg-select') selectBackground(btn.dataset.id || null)
       else if (action === 'bg-delete') deleteBackground(btn.dataset.id)
       else if (action === 'install') install()
