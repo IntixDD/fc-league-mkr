@@ -262,3 +262,11 @@
 * Se optimizó la carga del apartado Settings.
 * History: Se agregó el recuadro Partidos Históricos.
 
+
+
+**Beta 4.3:**
+
+* Solucionado el teclado cubriendo los resultados.
+* Tournament/Cuadro: Solucionadas las posiciones que se muestran en las llaves en formato Series y Grupos.
+* Table/Crear Tabla: Solucionado el botón "Finalizar Liga".
+
