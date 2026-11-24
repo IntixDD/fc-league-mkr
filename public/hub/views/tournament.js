@@ -515,11 +515,26 @@
 
       const bracket = H.computeBracket(season)
       const repechageMatches = H.computeRepechage(season)
+      const pools = groupStage
+        ? season.tableConfig.groups || []
+        : grouped
+          ? [season.tableConfig.series1, season.tableConfig.series2]
+          : []
+      const formatPositions = new Map()
+      pools.filter(Array.isArray).forEach((pool, poolIndex) => {
+        const poolLetter = String.fromCharCode(65 + poolIndex)
+        H.computeTable(season, pool).forEach((row, rankIndex) => {
+          formatPositions.set(row.team.id, `${rankIndex + 1}${poolLetter}`)
+        })
+      })
 
       const teamLine = (m, side) => {
         const id = m[side]
         const t = id ? teams.get(id) : null
         const seed = side === 'home' ? m.homeSeed : m.awaySeed
+        const positionLabel = t && (grouped || groupStage)
+          ? formatPositions.get(id) || ''
+          : t && seed && !po.bracketOrder ? String(seed) : ''
         const field = side === 'home' ? 'hg' : 'ag'
         const pen = side === 'home' ? 'hp' : 'ap'
         const won = m.winner && m.winner === id
@@ -535,7 +550,7 @@
           : scoreInput(field, m[field])
         return `
           <div class="po-team${won ? ' is-winner' : ''}${lost ? ' is-loser' : ''}">
-            <span class="po-seed">${t && seed && !po.bracketOrder ? seed : ''}</span>
+            <span class="po-seed${(grouped || groupStage) && positionLabel ? ' po-seed--format' : ''}">${esc(positionLabel)}</span>
             ${t ? crest(t.logo, 'sm', t.name) : '<span class="crest crest--sm crest--tbd"></span>'}
             <span class="po-name">${t ? esc(t.name) : 'Por definir'}</span>
             ${m.tied ? `<input class="score-input score-input--pen" type="number" inputmode="numeric" min="0" max="99" value="${m[pen] ?? ''}"

@@ -17,6 +17,15 @@
   padding-bottom: 40px;
 }
 
+@media (pointer: coarse) {
+  #fixtures-body::after,
+  #tournament-body::after {
+    content: '';
+    display: block;
+    height: clamp(160px, 24vh, 240px);
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1408,6 +1417,8 @@ select.input option {
   color: var(--muted);
   text-align: center;
 }
+
+.po-seed--format { width: 28px; flex: none; font-size: 10px; white-space: nowrap; }
 
 .po-name {
   flex: 1;

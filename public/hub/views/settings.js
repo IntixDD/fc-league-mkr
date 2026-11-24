@@ -645,7 +645,7 @@
           sub: 'League Hub',
           wide: true,
           extraClass: 'set-about',
-          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-4.2</strong><span class="about-build">Beta Build</span></div>',
+          body: '<p class="credit-line">Creado por <strong>IntixD</strong></p><div class="about-version"><span>Versión</span><strong>v0.0.0-beta-4.3</strong><span class="about-build">Beta Build</span></div>',
         })}
       </div>`
     updateMusicControls()
