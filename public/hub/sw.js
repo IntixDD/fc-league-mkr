@@ -1,4 +1,4 @@
-const CACHE = 'league-hub-v266'
+const CACHE = 'league-hub-v270'
 
 const BASE = new URL('./', self.location.href)
 
@@ -40,13 +40,13 @@ const SHELL = [
   './',
   'index.html',
   'styles.css?v=25',
-  'components.css?v=174',
+  'components.css?v=176',
   'prefs.js?v=29',
-  'core.js?v=72',
+  'core.js?v=73',
   'views/teams.js?v=29',
   'views/table.js?v=34',
-  'views/fixtures.js?v=24',
-  'views/tournament.js?v=47',
+  'views/fixtures.js?v=25',
+  'views/tournament.js?v=48',
   'icon-teams.svg?v=4',
   'icon-table.svg?v=4',
   'icon-fixtures.svg?v=4',
@@ -84,14 +84,14 @@ const SHELL = [
   'icons/cine.svg',
   'icons/crown.svg',
   'icons/badge_2.svg',
-  'views/seasons.js?v=71',
+  'views/seasons.js?v=73',
   'season-library/catalog.json',
   'season-library/seasons.json',
-  'views/history.js?v=52',
-  'views/performance.js?v=61',
-  'views/badges.js?v=57',
+  'views/history.js?v=55',
+  'views/performance.js?v=62',
+  'views/badges.js?v=58',
   'views/settings.js?v=46',
-  'views/menu.js?v=31',
+  'views/menu.js?v=32',
   'app.js?v=39',
   'media/music/tracks.js?v=3',
   'media/music/FIFA WORLD CUP 2018 RUSSIA SONG - COLORS (COCA-COLA).mp3',

@@ -39,7 +39,7 @@
         ['Campeón de Torneo', 'cupChampion', 'tournament.svg', 'gold'],
         ['Campeón de Liga', 'leagueChampion', 'league.svg', 'cyan'],
         ['Campeón de la Finalísima', 'seriesFinalChampion', 'finalisima.svg', 'green'],
-        ['Campeón de la Supercopa', 'supercupChampion', 'supercup.svg', 'accent'],
+        ['Campeón de la Supercopa', 'supercupChampion', 'supercup.svg', 'gold'],
         ['Subcampeón de Torneo', 'runnerUp', 'medal_2.svg', 'silver'],
         ['3er lugar', 'third', 'medal_3.svg', 'bronze'],
         ['4to lugar', 'fourth', 'medal_4.svg', 'plain'],
@@ -144,6 +144,12 @@
     const matches = lazy ? [] : rounds.flat()
     const played = matches.filter(H.played).length
     const teams = new Map(season.teams.map((team) => [team.id, team]))
+    let scheduledMatchCount = 0
+    const roundFieldOffsets = rounds.map((round) => {
+      const offset = scheduledMatchCount
+      scheduledMatchCount += round.length
+      return offset
+    })
     const seriesFor = new Map()
     ;(fixtures?.series1 || []).forEach((id) => seriesFor.set(id, 'Serie A'))
     ;(fixtures?.series2 || []).forEach((id) => seriesFor.set(id, 'Serie B'))
@@ -158,7 +164,7 @@
             const away = teams.get(match.away)
             const isPlayed = H.played(match)
             const outcome = isPlayed ? match.hg > match.ag ? 'home' : match.hg < match.ag ? 'away' : 'draw' : ''
-            const field = season.fields ? (matchIndex % season.fields) + 1 : null
+            const field = season.fields ? ((roundFieldOffsets[index] + matchIndex) % season.fields) + 1 : null
             return `<article class="season-fixture-match${isPlayed ? ` is-played is-${outcome}` : ''}">
               <span class="season-fixture-index" title="${field ? `Cancha ${field}` : `Partido ${matchIndex + 1}`}">${field || matchIndex + 1}</span>
               <span class="season-fixture-team season-fixture-home">${home ? crest(home.logo, 'xs', home.name) : '<span class="crest crest--xs crest--tbd"></span>'}<span>${esc(home?.name || '—')}</span>${seriesFor.has(match.home) ? `<small>${seriesFor.get(match.home)}</small>` : ''}</span>
@@ -279,7 +285,7 @@
         ${home?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(home.logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
         ${away?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(away.logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
         ${match?.field ? `<span class="season-finals-field">Cancha ${match.field}</span>` : ''}
-        <h4 class="season-finals-title">${H.assetIcon(iconFile)}<span>${title}</span></h4>
+        <h4 class="season-finals-title${iconFile === 'supercup.svg' ? ' season-finals-title--supercup' : ''}">${H.assetIcon(iconFile)}<span>${title}</span></h4>
         <div class="season-finals-score-row">
           <span class="season-finals-team">${home ? crest(home.logo, 'sm', home.name) : '<span class="crest crest--sm crest--tbd"></span>'}<span>${esc(home?.name || 'Por definir')}</span></span>
           <strong class="season-finals-score"><span class="${match?.winner === match?.home ? 'is-champion' : ''}">${score(match?.hg)}</span> <i>:</i> <span class="${match?.winner === match?.away ? 'is-champion' : ''}">${score(match?.ag)}</span></strong>

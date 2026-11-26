@@ -280,6 +280,12 @@
           ${finalissima?.tied ? `<div class="tournament-supercup-penalties">${finalPenalty('hp', finalissimaTeams[0])}<span>:</span>${finalPenalty('ap', finalissimaTeams[1])}</div>${finalissima.penaltiesTied ? '<p class="menu-match-pens">Los penales no pueden terminar empatados</p>' : ''}` : ''}
         </article>` : ''
 
+      let scheduledMatchCount = 0
+      const roundFieldOffsets = rounds.map((round) => {
+        const offset = scheduledMatchCount
+        scheduledMatchCount += round.length
+        return offset
+      })
       const currentIndex = rounds.findIndex((r) => r.some((m) => !H.played(m)))
 
       const roundBlock = (r, i) => {
@@ -311,7 +317,7 @@
                   const a = teams.get(m.away)
                   const played = H.played(m)
                   const res = played ? (m.hg > m.ag ? 'home' : m.hg < m.ag ? 'away' : 'draw') : ''
-                  const field = season.fields ? (mi % season.fields) + 1 : mi + 1
+                  const field = season.fields ? ((roundFieldOffsets[i] + mi) % season.fields) + 1 : mi + 1
                   return `<li class="fx-match${played ? ` is-played is-${res}` : ''}" aria-label="${esc(h?.name || '')} contra ${esc(a?.name || '')}${season.fields ? `, cancha ${field}` : ''}">
                     <span class="fx-idx${season.fields ? ' is-field' : ''}" title="${season.fields ? `Cancha ${field}` : `Partido ${mi + 1}`}">${field}</span>
                     ${team(h)}

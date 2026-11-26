@@ -690,7 +690,7 @@
             <div><h2 class="card-title">Supercopa</h2><p class="card-sub">Cancha ${supercupMatch?.field || po.supercup.field || '—'}</p></div>
             <div class="row-actions">${H.exportButton('#tournament-supercup-export', 'supercopa')}</div>
           </header>
-          <div class="menu-match-card tournament-supercup-match">
+          <div class="menu-match-card tournament-supercup-match menu-match-card--supercup">
             ${supercupHome?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(supercupHome.logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
             ${supercupAway?.logo ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(supercupAway.logo)}" alt="" aria-hidden="true" loading="lazy" decoding="async">` : ''}
             <h4 class="menu-match-title">${H.assetIcon('supercup.svg')}<span>Final de Supercopa</span></h4>

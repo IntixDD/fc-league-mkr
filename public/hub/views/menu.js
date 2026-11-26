@@ -196,7 +196,8 @@
     const home = season.teams.find((team) => team.id === match?.home)
     const away = season.teams.find((team) => team.id === match?.away)
     const penalties = match?.tied && match?.decided ? `<div class="menu-match-pens">Penales ${match.hp}–${match.ap}</div>` : ''
-    return `<article class="menu-match-card"><h4 class="menu-match-title">${H.assetIcon(iconFile)}<span>${label}</span></h4>${home ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(home.logo)}" alt="" loading="lazy">` : ''}${away ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(away.logo)}" alt="" loading="lazy">` : ''}<div class="menu-match-score"><span class="${match?.winner === match?.home ? 'is-champion' : ''}">${match?.hg ?? '–'}</span> <i>:</i> <span class="${match?.winner === match?.away ? 'is-champion' : ''}">${match?.ag ?? '–'}</span></div><div class="menu-match-names"><span>${esc(home?.name || 'Por definir')}</span><span>${esc(away?.name || 'Por definir')}</span></div>${penalties}</article>`
+    const supercupClass = iconFile === 'supercup.svg' ? ' menu-match-card--supercup' : ''
+    return `<article class="menu-match-card${supercupClass}"><h4 class="menu-match-title">${H.assetIcon(iconFile)}<span>${label}</span></h4>${home ? `<img class="menu-crest-watermark menu-crest-watermark--home" src="${esc(home.logo)}" alt="" loading="lazy">` : ''}${away ? `<img class="menu-crest-watermark menu-crest-watermark--away" src="${esc(away.logo)}" alt="" loading="lazy">` : ''}<div class="menu-match-score"><span class="${match?.winner === match?.home ? 'is-champion' : ''}">${match?.hg ?? '–'}</span> <i>:</i> <span class="${match?.winner === match?.away ? 'is-champion' : ''}">${match?.ag ?? '–'}</span></div><div class="menu-match-names"><span>${esc(home?.name || 'Por definir')}</span><span>${esc(away?.name || 'Por definir')}</span></div>${penalties}</article>`
   }
 
   function render(el, state) {

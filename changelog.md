@@ -269,4 +269,9 @@
 * Solucionado el teclado cubriendo los resultados.
 * Tournament/Cuadro: Solucionadas las posiciones que se muestran en las llaves en formato Series y Grupos.
 * Table/Crear Tabla: Solucionado el botón "Finalizar Liga".
+* Se actualizó la tabla Historial de clubes en el apartado History.
+* Se actualizaron los colores de la Finalísima y de la Supercopa.
+* Se solucionaron las canchas en el apartado Fixtures donde existía un desbalance de partidos jugados en ciertas canchas.
+* Se agregaron las opciones de tournament en Table/Crear Tabla.
+* Se solucionaron los botones "Repechajes" de los apartados Table y Tournament.
 

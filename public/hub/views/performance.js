@@ -247,7 +247,7 @@
         { label: 'Campeón de Torneo', flag: 'cupChampion', tone: 'gold', iconFile: 'tournament.svg' },
         { label: 'Campeón de Liga', flag: 'leagueChampion', tone: 'cyan', iconFile: 'league.svg' },
         { label: 'Campeón de la Finalísima', flag: 'seriesFinalChampion', tone: 'green', iconFile: 'finalisima.svg' },
-        { label: 'Campeón de la Supercopa', flag: 'supercupChampion', tone: 'accent', iconFile: 'supercup.svg' },
+        { label: 'Campeón de la Supercopa', flag: 'supercupChampion', tone: 'gold', iconFile: 'supercup.svg' },
         { label: 'Subcampeón de Torneo', flag: 'runnerUp', tone: 'silver', iconFile: 'medal_2.svg' },
         { label: '3er lugar', flag: 'third', tone: 'bronze', iconFile: 'medal_3.svg' },
         { label: '4to lugar', flag: 'fourth', tone: 'plain', iconFile: 'medal_4.svg' },

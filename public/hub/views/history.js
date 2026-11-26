@@ -279,6 +279,11 @@
   H.view('history', {
     bind(el) {
       el.addEventListener('click', (e) => {
+        const toggleCard = e.target.closest('[data-toggle-card="history-icons-only"]')
+        if (toggleCard && !e.target.closest('input, label')) {
+          toggleCard.querySelector('input[type="checkbox"]')?.click()
+          return
+        }
         const btn = e.target.closest('[data-sort]')
         if (!btn) return
         const key = btn.dataset.sort
@@ -304,6 +309,9 @@
         } else if (e.target.name === 'history-dir') {
           H.ui.historyDir = e.target.value
           H.render()
+        } else if (e.target.name === 'history-icons-only') {
+          H.ui.historyIconsOnly = e.target.checked
+          H.render()
         }
       })
       el.addEventListener('input', (e) => {
@@ -326,7 +334,7 @@
       const columnStyle = (key) => key === 'finalissimas'
         ? 'tone tone-green'
         : key === 'supercups'
-          ? 'tone tone-accent'
+          ? 'tone tone-gold'
           : H.STAT_STYLE[key].cls
       records.sort((a, b) => {
         if (sortKey === 'neutral') return H.historyGeneralCompare(a, b, dir)
@@ -340,7 +348,7 @@
         const aria = active ? (dir === 1 ? 'ascending' : 'descending') : 'none'
         const st = H.STAT_STYLE[c.key]
         const icon = c.iconFile ? H.assetIcon(c.iconFile) : c.icon === 'points25' ? H.badgeIcon?.({ icon: 'points25' }) || H.ICONS[st.icon] : H.ICONS[st.icon]
-        return `<th scope="col" class="num ${columnStyle(c.key)}" aria-sort="${aria}"><button class="sort-btn${active ? ' is-active' : ''}" data-sort="${c.key}" title="${c.title}"><span class="sort-btn-main">${icon}<span>${c.label}</span></span><span class="sort-arrow" aria-hidden="true">${active ? (dir === 1 ? '↑' : '↓') : ''}</span></button></th>`
+        return `<th scope="col" class="num ${columnStyle(c.key)}" aria-sort="${aria}"><button class="sort-btn${active ? ' is-active' : ''}" data-sort="${c.key}" title="${c.title}" aria-label="${c.title}: ordenar"><span class="sort-btn-main">${icon}<span class="sort-label">${c.label}</span></span><span class="sort-arrow" aria-hidden="true">${active ? (dir === 1 ? '↑' : '↓') : ''}</span></button></th>`
       }).join('')
 
       el.innerHTML = `
@@ -371,9 +379,12 @@
                 <option value="asc" ${dir === 1 ? 'selected' : ''}>Menor a mayor</option>
               </select>
             </label>
+            <div class="tournament-option-card tournament-toggle-card history-icons-toggle" data-toggle-card="history-icons-only">
+              <label class="series-choice"><input type="checkbox" name="history-icons-only" ${H.ui.historyIconsOnly ? 'checked' : ''}> <span>Solo iconos</span></label>
+            </div>
           </div>
-          <div class="table-wrap">
-            <table class="data-table data-table--history">
+          <div class="table-wrap" data-scroll="history-table">
+            <table class="data-table data-table--history${H.ui.historyIconsOnly ? ' is-icons-only' : ''}">
               <thead><tr><th scope="col" class="num">Pos</th><th scope="col" class="club">Club</th>${head}</tr></thead>
               <tbody>
                 ${records

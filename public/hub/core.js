@@ -14,6 +14,7 @@ window.Hub = (() => {
     historySort: 'neutral',
     historySortVersion: 1,
     historyDir: 'desc',
+    historyIconsOnly: false,
     newKeepTeams: true,
     repechageEnabled: null,
     lockSeasonExport: false,
@@ -60,7 +61,7 @@ window.Hub = (() => {
   // synchronous mirror so the latest edit survives a reload even if the async write is cut off.
   const LS_STATE = 'league-hub:state'
   const LS_UI = 'league-hub:ui'
-  const UI_KEYS = ['fxMode', 'poSize', 'perfTeam', 'historySort', 'historySortVersion', 'historyDir', 'historyQuery', 'newKeepTeams', 'tableEdit', 'repechageEnabled', 'lockSeasonExport', 'tournamentTwoLegged', 'supercupEnabled']
+  const UI_KEYS = ['fxMode', 'poSize', 'perfTeam', 'historySort', 'historySortVersion', 'historyDir', 'historyQuery', 'historyIconsOnly', 'newKeepTeams', 'tableEdit', 'repechageEnabled', 'lockSeasonExport', 'tournamentTwoLegged', 'supercupEnabled']
   let dirty = false
   let lastUi = ''
 

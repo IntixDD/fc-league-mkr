@@ -1812,6 +1812,8 @@ select.input option {
 .season-finals-match { min-height: 138px; gap: 10px; }
 .season-finals-title { display: flex; align-items: center; gap: 8px; }
 .season-finals-title .icon-asset { width: 18px; height: 18px; flex: none; color: var(--accent); }
+.season-finals-title--supercup,
+.season-finals-title--supercup .icon-asset { color: var(--gold); }
 .season-finals-field { position: absolute; z-index: 2; top: 9px; left: 10px; color: var(--muted); font-size: 9px; font-weight: 700; text-shadow: 0 2px 8px #000; }
 .season-finals-score-row { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; }
 .season-finals-team { display: flex; align-items: center; gap: 6px; min-width: 0; color: #fff; font-size: 11px; font-weight: 700; text-shadow: 0 2px 8px #000; }
@@ -1962,6 +1964,7 @@ select.input option {
 .menu-match-card { position: relative; display: grid; align-content: center; gap: 9px; min-width: 0; min-height: 172px; overflow: hidden; padding: 16px 18px; isolation: isolate; background: linear-gradient(115deg, rgb(12 8 16 / .78), rgb(18 12 22 / .5)); border: 1px solid var(--line); border-radius: 12px; }
 .menu-match-card::after { position: absolute; z-index: -1; inset: 0; content: ''; background: linear-gradient(90deg, rgb(8 5 11 / .55), rgb(8 5 11 / .22) 50%, rgb(8 5 11 / .55)); }
 .menu-match-card h4 { position: relative; z-index: 1; margin: 0; color: var(--accent); font: 400 12px var(--font-display); letter-spacing: .08em; text-transform: uppercase; }
+.menu-match-card--supercup h4 { color: var(--gold); }
 .menu-match-card .menu-match-title { display: flex; align-items: center; justify-content: center; gap: 8px; }
 .menu-match-title .icon-asset { width: 18px; height: 18px; flex: none; }
 .menu-crest-watermark { position: absolute; z-index: -2; top: 50%; width: 48%; height: 125%; object-fit: contain; opacity: .44; filter: blur(.4px); transform: translateY(-48%); transition: opacity 1.2s ease, transform 1.8s cubic-bezier(.2,.75,.25,1); }
@@ -1982,6 +1985,8 @@ select.input option {
 .tournament-supercup-team.is-winner { color: var(--gold); }
 .tournament-supercup-scoreline { display: flex; align-items: center; gap: 7px; }
 .tournament-supercup-scoreline i { color: var(--accent); font-size: 20px; font-style: normal; font-weight: 800; }
+.menu-match-card--supercup .tournament-supercup-scoreline i { color: var(--gold); }
+.tournament-supercup-panel .card-title { color: var(--gold); }
 .tournament-supercup-score { width: 48px; height: 42px; border-color: var(--line-strong); font-size: 21px; font-weight: 800; }
 .tournament-supercup-score:disabled { opacity: .45; }
 .tournament-supercup-penalties,
@@ -2226,6 +2231,21 @@ select.input option {
   flex: 1 1 180px;
 }
 
+.history-icons-toggle {
+  display: flex;
+  align-items: center;
+  align-self: end;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.history-icons-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+
 .sort-btn {
   display: inline-flex;
   align-items: center;
@@ -2258,6 +2278,8 @@ select.input option {
   gap: 4px;
   white-space: nowrap;
 }
+
+.data-table--history.is-icons-only .sort-label { display: none; }
 
 .data-table--history .sort-btn .sort-arrow {
   grid-column: 3;
