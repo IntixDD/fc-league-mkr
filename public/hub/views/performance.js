@@ -176,12 +176,15 @@
           const format = s.tableType === 'two-series' ? 'series' : s.tableType === 'groups' ? 'groups' : 'liga'
           const formatCode = FORMAT_CODES[s.tableType] || 'L'
           const divisionNumber = Number.isInteger(s.formatGroup) ? s.formatGroup : null
-          const divisionSuffix = format === 'groups' && divisionNumber ? String.fromCharCode(64 + divisionNumber) : format === 'series' && divisionNumber ? String(divisionNumber) : ''
-          const formatLabel = format === 'series' || format === 'groups'
-            ? `${formatCode}${divisionSuffix ? ` ${divisionSuffix}` : ''}`
-            : formatCode
+          const divisionLetter = divisionNumber ? String.fromCharCode(64 + divisionNumber) : ''
+          const divisionSuffix = format === 'groups' ? divisionLetter : ''
+          const formatLabel = format === 'series'
+            ? `${formatCode}${divisionLetter}`
+            : format === 'groups'
+              ? `${formatCode}${divisionSuffix ? ` ${divisionSuffix}` : ''}`
+              : formatCode
           const formatPosition = Number.isInteger(s.formatPosition) ? `${s.formatPosition}°` : '—'
-          const formatName = format === 'series' ? `Series${divisionNumber ? ` · Serie ${divisionNumber}` : ''}` : format === 'groups' ? `Grupos${divisionSuffix ? ` · Grupo ${divisionSuffix}` : ''}` : 'Liga'
+          const formatName = format === 'series' ? `Series${divisionLetter ? ` · Serie ${divisionLetter}` : ''}` : format === 'groups' ? `Grupos${divisionSuffix ? ` · Grupo ${divisionSuffix}` : ''}` : 'Liga'
           const formatTitle = `${formatName}${s.formatPosition ? ` · Posición ${s.formatPosition}°` : ''}`
           const mode = s.seasonMode || 'clubs'
           const modeLabel = MODE_LABELS[mode] || MODE_LABELS.clubs
@@ -243,13 +246,13 @@
       const titles = [
         { label: 'Campeón de Torneo', flag: 'cupChampion', tone: 'gold', iconFile: 'tournament.svg' },
         { label: 'Campeón de Liga', flag: 'leagueChampion', tone: 'cyan', iconFile: 'league.svg' },
-        { label: 'Campeón de la Finalísima', flag: 'seriesFinalChampion', tone: 'gold', iconFile: 'finalisima.svg' },
-        { label: 'Campeón de la Supercopa', flag: 'supercupChampion', tone: 'gold', iconFile: 'supercup.svg' },
+        { label: 'Campeón de la Finalísima', flag: 'seriesFinalChampion', tone: 'green', iconFile: 'finalisima.svg' },
+        { label: 'Campeón de la Supercopa', flag: 'supercupChampion', tone: 'accent', iconFile: 'supercup.svg' },
         { label: 'Subcampeón de Torneo', flag: 'runnerUp', tone: 'silver', iconFile: 'medal_2.svg' },
         { label: '3er lugar', flag: 'third', tone: 'bronze', iconFile: 'medal_3.svg' },
         { label: '4to lugar', flag: 'fourth', tone: 'plain', iconFile: 'medal_4.svg' },
         { label: 'Goleador de la temporada', flag: 'seasonScorer', tone: 'gold', iconFile: 'goleador_3.svg', iconBoost: true },
-        { label: 'Portería imbatible de la temporada', flag: 'seasonCleanSheetAward', tone: 'accent', iconFile: 'glove.svg', iconBoost: true },
+        { label: 'Portería imbatible de la temporada', flag: 'seasonCleanSheetAward', tone: 'gold', iconFile: 'glove.svg', iconBoost: true },
       ]
       const achievements = [
         { label: 'Campeón de Serie', flag: 'seriesChampion', tone: 'green', iconFile: 'crown_common.svg', emptyLabel: 'Sin logros' },

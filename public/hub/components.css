@@ -743,6 +743,77 @@ select.input option {
   min-width: 180px;
 }
 
+.data-table--history {
+  position: relative;
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: max-content;
+}
+
+.data-table--history th:first-child,
+.data-table--history td:first-child {
+  position: sticky;
+  left: -4px;
+  z-index: 8;
+  box-sizing: border-box;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  padding-right: 0;
+  padding-left: 0;
+  background: #120a16;
+  background-clip: border-box;
+  border-bottom-color: #33243a;
+}
+
+.data-table--history .club {
+  position: sticky;
+  left: calc(var(--history-position-width, 44px) - 4px);
+  z-index: 8;
+  box-sizing: border-box;
+  width: 188px;
+  min-width: 188px;
+  background: #120a16;
+  background-clip: border-box;
+  border-bottom-color: #33243a;
+  box-shadow: 6px 0 12px rgb(0 0 0 / .34);
+}
+
+.data-table--history th:nth-child(n + 3),
+.data-table--history td:nth-child(n + 3) {
+  box-sizing: border-box;
+  min-width: 96px;
+}
+
+.data-table--history tbody .club::after,
+.data-table--history thead .club::after {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  bottom: 0;
+  width: 4px;
+  content: '';
+  background: inherit;
+  pointer-events: none;
+}
+
+.data-table--history thead th:first-child,
+.data-table--history thead .club {
+  z-index: 4;
+  background: #160e19;
+}
+
+.data-table--history tbody tr:hover > :first-child,
+.data-table--history tbody tr:hover > .club {
+  background: #211629;
+  background-clip: border-box;
+}
+
+.data-table--history tbody tr:hover > .club::after { background: #211629; }
+
+.data-table--history .history-club { max-width: 188px; }
+.data-table--history .history-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .club-cell {
   display: inline-flex;
   align-items: center;
@@ -2076,6 +2147,8 @@ select.input option {
 .season-award-icon--bronze { --award-tone: var(--bronze); }
 .season-award-icon--accent { --award-tone: var(--accent); }
 .season-award-icon--cyan { --award-tone: #22d3ee; }
+.season-award-icon--orange { --award-tone: #fb923c; }
+.season-award-icon--rose { --award-tone: #fb7185; }
 .season-award-icon--purple { --award-tone: #c084fc; }
 .season-award-icon--plain { --award-tone: #8fa3bf; }
 
@@ -2168,6 +2241,31 @@ select.input option {
   cursor: pointer;
 }
 
+.data-table--history .sort-btn {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(10px, 1fr) auto minmax(10px, 1fr);
+  width: 100%;
+  padding-right: 2px;
+  padding-left: 2px;
+}
+
+.data-table--history .sort-btn-main {
+  grid-column: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.data-table--history .sort-btn .sort-arrow {
+  grid-column: 3;
+  justify-self: end;
+  width: 10px;
+  text-align: center;
+}
+
 .data-table--history .sort-btn .icon-asset { width: 16px; height: 16px; flex: none; }
 .data-table--history .sort-btn[data-sort='leagueGoals'] .stat-icon,
 .data-table--history .sort-btn[data-sort='cupGoals'] .stat-icon,
@@ -2221,6 +2319,7 @@ select.input option {
 .badge-tone-rose { --badge-tone: #fb7185; }
 .badge-tone-sky { --badge-tone: #7dd3fc; }
 .badge-tone-green { --badge-tone: #4ade80; }
+.badge-tone-orange { --badge-tone: #fb923c; }
 .badge-tone-lightgreen { --badge-tone: #86efac; }
 .badge-tone-blue { --badge-tone: #60a5fa; }
 .badge-tone-accent { --badge-tone: var(--accent); }
@@ -2773,6 +2872,7 @@ select.input option {
 .table-finalized-setting .series-choice input { width: 16px; height: 16px; flex: none; }
 .table-repechage-setting .hint { margin: 0; }
 .table-toggle-card .hint { font-size: 10px; }
+.table-bracket-sizes { width: 100%; margin-top: 12px; }
 
 @media (max-width: 520px) {
   .compare-pickers { grid-template-columns: 1fr; }
@@ -2808,6 +2908,8 @@ select.input option {
 .trophy--bronze { --tone: var(--bronze); }
 .trophy--accent { --tone: var(--accent); }
 .trophy--cyan { --tone: #22d3ee; }
+.trophy--orange { --tone: #fb923c; }
+.trophy--rose { --tone: #fb7185; }
 .trophy--purple { --tone: #c084fc; }
 .trophy--plain { --tone: #8fa3bf; }
 

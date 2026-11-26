@@ -25,8 +25,8 @@
     const find = (prop) => stats.find((x) => x[prop])
     const series = season.tableConfig?.type === 'two-series'
       ? [
-          ['Serie 1', season.tableConfig.series1],
-          ['Serie 2', season.tableConfig.series2],
+          ['Serie A', season.tableConfig.series1],
+          ['Serie B', season.tableConfig.series2],
         ].map(([label, ids]) => ({ label, team: stats.find((team) => team.seriesChampion && ids?.includes(team.id)) })).filter((item) => item.team)
       : []
     return { league: find('leagueChampion'), cup: find('cupChampion'), series }
@@ -38,13 +38,13 @@
       awards: [
         ['Campeón de Torneo', 'cupChampion', 'tournament.svg', 'gold'],
         ['Campeón de Liga', 'leagueChampion', 'league.svg', 'cyan'],
-        ['Campeón de la Finalísima', 'seriesFinalChampion', 'finalisima.svg', 'gold'],
-        ['Campeón de la Supercopa', 'supercupChampion', 'supercup.svg', 'gold'],
+        ['Campeón de la Finalísima', 'seriesFinalChampion', 'finalisima.svg', 'green'],
+        ['Campeón de la Supercopa', 'supercupChampion', 'supercup.svg', 'accent'],
         ['Subcampeón de Torneo', 'runnerUp', 'medal_2.svg', 'silver'],
         ['3er lugar', 'third', 'medal_3.svg', 'bronze'],
         ['4to lugar', 'fourth', 'medal_4.svg', 'plain'],
         ['Goleador de la temporada', 'seasonScorer', 'goleador_3.svg', 'gold'],
-        ['Portería imbatible de la temporada', 'seasonCleanSheetAward', 'glove.svg', 'accent'],
+        ['Portería imbatible de la temporada', 'seasonCleanSheetAward', 'glove.svg', 'gold'],
       ],
     },
     {
@@ -128,8 +128,8 @@
       ? season.tableConfig.groups.map((ids, index) => [`Grupo ${String.fromCharCode(65 + index)}`, H.computeTable(season, ids)])
       : grouped
       ? [
-          ['Serie 1', H.computeTable(season, season.tableConfig.series1)],
-          ['Serie 2', H.computeTable(season, season.tableConfig.series2)],
+          ['Serie A', H.computeTable(season, season.tableConfig.series1)],
+          ['Serie B', H.computeTable(season, season.tableConfig.series2)],
         ]
       : [['Tabla regular', H.computeTable(season)]]
     const count = season.tableConfig?.type === 'groups' ? `${season.tableConfig.count} grupos` : grouped ? '2 series' : `${season.teams.length} equipos`
@@ -145,8 +145,8 @@
     const played = matches.filter(H.played).length
     const teams = new Map(season.teams.map((team) => [team.id, team]))
     const seriesFor = new Map()
-    ;(fixtures?.series1 || []).forEach((id) => seriesFor.set(id, 'Serie 1'))
-    ;(fixtures?.series2 || []).forEach((id) => seriesFor.set(id, 'Serie 2'))
+    ;(fixtures?.series1 || []).forEach((id) => seriesFor.set(id, 'Serie A'))
+    ;(fixtures?.series2 || []).forEach((id) => seriesFor.set(id, 'Serie B'))
     ;(fixtures?.groups || []).forEach((group, index) => group.forEach((id) => seriesFor.set(id, `Grupo ${String.fromCharCode(65 + index)}`)))
     const roundCount = fixtures?.roundsPerLeg || (fixtures?.mode === 'double' ? rounds.length / 2 : 0)
     const content = lazy ? '' : rounds.length

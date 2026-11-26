@@ -8,7 +8,7 @@
     { key: 'finalissimas', label: 'Finalís.', title: 'Campeón de la Finalísima de Series', iconFile: 'finalisima.svg' },
     { key: 'supercups', label: 'Supercop.', title: 'Campeón de la Supercopa', iconFile: 'supercup.svg' },
     { key: 'series', label: 'Series', title: 'Logro Campeón de Serie', iconFile: 'crown_common.svg' },
-    { key: 'runnerUp', label: 'Subcamp.', title: 'Subcampeonatos (Tournament)', iconFile: 'medal_2.svg' },
+    { key: 'runnerUp', label: 'SUBC.', title: 'Subcampeonatos (Tournament)', iconFile: 'medal_2.svg' },
     { key: 'third', label: '3ros', title: '3er lugar (Tournament)', iconFile: 'medal_3.svg' },
     { key: 'fourth', label: '4tos', title: '4to lugar (Tournament)', iconFile: 'medal_4.svg' },
     { key: 'leagueGoals', label: 'GF LSG', title: 'Goles a favor en liga, series y fase de grupos' },
@@ -20,7 +20,6 @@
     { key: 'achievements', label: 'Logros', title: 'Logros totales', iconFile: 'medal.svg' },
     { key: 'badges', label: 'Insignias', title: 'Insignias obtenidas', iconFile: 'badge_2.svg' },
   ]
-  const TIEBREAK = ['leagues', 'finalissimas', 'supercups', 'titles', 'achievements', 'badges', 'cups', 'series', 'runnerUp', 'third', 'fourth', 'points', 'goals']
   let compareTeams = ['', '']
 
   function selectedTeams(records) {
@@ -324,13 +323,16 @@
       const sortKey = H.ui.historySort === 'neutral' || COLS.some((column) => column.key === H.ui.historySort) ? H.ui.historySort : 'neutral'
       H.ui.historySort = sortKey
       const dir = H.ui.historyDir === 'asc' ? 1 : -1
+      const columnStyle = (key) => key === 'finalissimas'
+        ? 'tone tone-green'
+        : key === 'supercups'
+          ? 'tone tone-accent'
+          : H.STAT_STYLE[key].cls
       records.sort((a, b) => {
         if (sortKey === 'neutral') return H.historyGeneralCompare(a, b, dir)
-        const primary = sortKey === 'neutral' ? 'cups' : sortKey
-        const d = (a.t[primary] - b.t[primary]) * dir
+        const d = (a.t[sortKey] - b.t[sortKey]) * dir
         if (d) return d
-        for (const k of TIEBREAK) if (b.t[k] !== a.t[k]) return b.t[k] - a.t[k]
-        return a.name.localeCompare(b.name)
+        return H.historyGeneralCompare(a, b, -1)
       })
 
       const head = COLS.map((c) => {
@@ -338,7 +340,7 @@
         const aria = active ? (dir === 1 ? 'ascending' : 'descending') : 'none'
         const st = H.STAT_STYLE[c.key]
         const icon = c.iconFile ? H.assetIcon(c.iconFile) : c.icon === 'points25' ? H.badgeIcon?.({ icon: 'points25' }) || H.ICONS[st.icon] : H.ICONS[st.icon]
-        return `<th scope="col" class="num ${st.cls}" aria-sort="${aria}"><button class="sort-btn${active ? ' is-active' : ''}" data-sort="${c.key}" title="${c.title}">${icon}<span>${c.label}</span><span class="sort-arrow" aria-hidden="true">${active ? (dir === 1 ? '↑' : '↓') : ''}</span></button></th>`
+        return `<th scope="col" class="num ${columnStyle(c.key)}" aria-sort="${aria}"><button class="sort-btn${active ? ' is-active' : ''}" data-sort="${c.key}" title="${c.title}"><span class="sort-btn-main">${icon}<span>${c.label}</span></span><span class="sort-arrow" aria-hidden="true">${active ? (dir === 1 ? '↑' : '↓') : ''}</span></button></th>`
       }).join('')
 
       el.innerHTML = `
@@ -385,7 +387,7 @@
                         <span class="logo-strip">${r.logos.map((l) => `<span class="crest crest--xs"><img src="${esc(l)}" alt="" loading="lazy"></span>`).join('')}</span>
                       </span>
                     </th>
-                    ${COLS.map((c) => `<td class="num ${H.STAT_STYLE[c.key].cls}${c.key === sortKey ? ' is-sorted' : ''}${r.t[c.key] ? '' : ' is-zero'}">${r.t[c.key]}</td>`).join('')}
+                    ${COLS.map((c) => `<td class="num ${columnStyle(c.key)}${c.key === sortKey ? ' is-sorted' : ''}${r.t[c.key] ? '' : ' is-zero'}">${r.t[c.key]}</td>`).join('')}
                   </tr>`,
                   )
                   .join('')}
@@ -394,6 +396,12 @@
           </div>
           <p class="hint" data-export-hide>Haz clic en el encabezado de una columna para ordenar por esa categoría.</p>
         </article>`
+      const historyTable = el.querySelector('.data-table--history')
+      const positionColumn = historyTable?.querySelector('thead th:first-child')
+      if (historyTable && positionColumn) {
+        const positionWidth = positionColumn.getBoundingClientRect().width || positionColumn.offsetWidth || 44
+        historyTable.style.setProperty('--history-position-width', `${positionWidth}px`)
+      }
       el.insertAdjacentHTML('beforeend', compareCard(records))
       el.insertAdjacentHTML('beforeend', historicalMatchesCard(seasons, records))
       applyQuery(el)

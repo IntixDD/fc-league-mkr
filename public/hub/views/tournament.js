@@ -6,6 +6,7 @@
     { size: 8, label: 'Cuartos de final' },
     { size: 16, label: 'Octavos de final' },
   ]
+  let sizeDraftSeason = null
   let repechageDraftSeason = null
   let repechageDraft = null
   let twoLeggedDraftSeason = null
@@ -431,6 +432,10 @@
       const season = s.current
       const n = season.teams.length
       const po = season.playoffs
+      if (sizeDraftSeason !== season.id) {
+        sizeDraftSeason = season.id
+        if (po) H.ui.poSize = po.size
+      }
       if (po?.repechage?.enabled && !Array.isArray(po.bracketOrder)) {
         const draw = randomBracketOrder(po.size, po.repechage.seedSlots || [])
         H.update((st) => {
@@ -461,14 +466,32 @@
         supercupDraft = po ? !!po.supercup?.enabled : !!H.ui.supercupEnabled
         H.ui.supercupEnabled = supercupDraft
       }
-      const repechageEnabled = groupStage ? false : repechageDraft
+      if (groupStage && repechageDraft) {
+        repechageDraft = false
+        H.ui.repechageEnabled = false
+      }
       const canRepechage = (size) => !groupStage && !!repechageSetup(season, size, grouped)
+      const hasRepechageSize = !groupStage && SIZES.some(({ size }) => canRepechage(size))
+      if (!groupStage && repechageDraft && !hasRepechageSize) {
+        repechageDraft = false
+        H.ui.repechageEnabled = false
+      }
+      if (!groupStage && repechageDraft) {
+        const validSizes = SIZES.filter(({ size }) => canRepechage(size)).map(({ size }) => size)
+        if (validSizes.length && !validSizes.includes(H.ui.poSize)) {
+          H.ui.poSize = [...validSizes].sort((a, b) => b - a)[0]
+        }
+      }
+      const effectiveRepechage = !groupStage && repechageDraft
       const sizeDisabled = (size) => groupStage
         ? !groupSizeAllowed(size)
-        : repechageEnabled
+        : effectiveRepechage
           ? !canRepechage(size)
-          : available < size && !canRepechage(size)
-      if (po) H.ui.poSize = po.size
+          : available < size
+      const validSizes = SIZES.filter(({ size }) => !sizeDisabled(size)).map(({ size }) => size)
+      if (validSizes.length && !validSizes.includes(H.ui.poSize)) {
+        H.ui.poSize = [...validSizes].sort((a, b) => b - a)[0]
+      }
       const groupWinnersOnly = groupSemifinalsAllowed && H.ui.poSize === 4
       const selectedAvailable = groupWinnersOnly ? 4 : available
       const groupHint = groupStage
@@ -476,7 +499,7 @@
           ? 'Clasifica el ganador de cada grupo: Tournament se crea con 4 equipos.'
           : `Clasifican los dos primeros de cada grupo: Tournament se crea con ${available} equipos.`
         : ''
-      const createDisabled = repechageEnabled ? !canRepechage(H.ui.poSize) : selectedAvailable < H.ui.poSize
+      const createDisabled = effectiveRepechage ? !canRepechage(H.ui.poSize) : selectedAvailable < H.ui.poSize
       const teams = new Map(season.teams.map((t) => [t.id, t]))
       const { total, played } = H.stageCounts(season)
 
@@ -494,7 +517,7 @@
             ).join('')}
           </div>
           <div class="tournament-options">
-            <div class="tournament-option-card tournament-toggle-card" data-toggle-card="repechage-enabled"><label class="series-choice tournament-repechage-toggle"><input type="checkbox" name="repechage-enabled" ${repechageEnabled ? 'checked' : ''} ${canRepechage(H.ui.poSize) ? '' : 'disabled'}> <span>Repechajes</span> <span class="hint">(mínimo ${repechageMinimum(H.ui.poSize, grouped)})</span></label></div>
+            <div class="tournament-option-card tournament-toggle-card" data-toggle-card="repechage-enabled"><label class="series-choice tournament-repechage-toggle"><input type="checkbox" name="repechage-enabled" ${effectiveRepechage ? 'checked' : ''} ${hasRepechageSize ? '' : 'disabled'}> <span>Repechajes</span> <span class="hint">${groupStage ? '(no disponible en Fase de grupos)' : `(mínimo ${repechageMinimum(H.ui.poSize, grouped)})`}</span></label></div>
             <div class="tournament-option-card tournament-toggle-card" data-toggle-card="two-legged-enabled"><label class="series-choice"><input type="checkbox" name="two-legged-enabled" ${twoLeggedDraft ? 'checked' : ''}> <span>Ida y vuelta</span></label></div>
             <div class="tournament-option-card tournament-toggle-card${groupStage ? ' is-disabled' : ''}" data-toggle-card="supercup-enabled"${groupStage ? ' aria-disabled="true"' : ''}><label class="series-choice"><input type="checkbox" name="supercup-enabled" ${!groupStage && supercupDraft ? 'checked' : ''} ${groupStage ? 'disabled' : ''}> <span>Supercopa</span></label>${groupStage ? '<small class="tournament-option-note">No disponible en Fase de Grupos</small>' : ''}</div>
           </div>
